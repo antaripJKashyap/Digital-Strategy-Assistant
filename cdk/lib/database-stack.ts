@@ -21,6 +21,14 @@ export class DatabaseStack extends Stack {
     constructor(scope: Construct, id: string, vpcStack: VpcStack, props?: StackProps){
         super(scope, id, props);
 
+
+        /**
+         * Create the RDS service-linked role if it doesn't exist
+         */
+        new iam.CfnServiceLinkedRole(this, 'RDSServiceLinkedRole', {
+            awsServiceName: 'rds.amazonaws.com',
+        });
+        
         /**
          * 
          * Retrive a secrete from Secret Manager
@@ -138,6 +146,7 @@ export class DatabaseStack extends Stack {
             securityGroups: this.dbInstance.connections.securityGroups,
             requireTLS: false,
         });
+        
         // Workaround for bug where TargetGroupName is not set but required
         let targetGroup = rdsProxy.node.children.find((child:any) => {
             return child instanceof rds.CfnDBProxyTargetGroup
