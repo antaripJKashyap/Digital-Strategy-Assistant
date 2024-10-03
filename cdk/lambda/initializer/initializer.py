@@ -50,131 +50,54 @@ def handler(event, context):
         # Create tables based on the schema
         sqlTableCreation = """
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-            CREATE TABLE IF NOT EXISTS "Users" (
-                "user_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "user_email" varchar UNIQUE,
-                "username" varchar,
-                "first_name" varchar,
-                "last_name" varchar,
-                "preferred_name" varchar,
-                "time_account_created" timestamp,
-                "roles" varchar[],
-                "last_sign_in" timestamp
+            CREATE TABLE IF NOT EXISTS "users" (
+            "user_id" uuid PRIMARY KEY,
+            "user_email" varchar,
+            "username" varchar,
+            "first_name" varchar,
+            "last_name" varchar,
+            "preferred_name" varchar,
+            "time_account_created" timestamp,
+            "roles" varchar[],
+            "last_sign_in" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "Courses" (
-                "course_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "course_name" varchar,
-                "course_department" varchar,
-                "course_number" integer,
-                "course_access_code" varchar,
-                "course_student_access" bool,
-                "system_prompt" text
+            CREATE TABLE IF NOT EXISTS "sessions" (
+            "session_id" uuid PRIMARY KEY,
+            "session_name" varchar,
+            "session_context_embeddings" float[],
+            "user_id" uuid,
+            "time_created" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "Course_Modules" (
-                "module_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "concept_id" uuid,
-                "module_name" varchar,
-                "module_number" integer
+            CREATE TABLE IF NOT EXISTS "messages" (
+            "message_id" uuid PRIMARY KEY,
+            "session_id" uuid,
+            "message_content" varchar,
+            "user_sent" bool,
+            "time_created" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "Enrolments" (
-                "enrolment_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "user_id" uuid,
-                "course_id" uuid,
-                "enrolment_type" varchar,
-                "course_completion_percentage" integer,
-                "time_spent" integer,
-                "time_enroled" timestamp
+            CREATE TABLE IF NOT EXISTS "documents" (
+            "document_id" uuid PRIMARY KEY,
+            "document_name" varchar,
+            "time_created" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "Module_Files" (
-                "file_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "module_id" uuid,
-                "filetype" varchar,
-                "s3_bucket_reference" varchar,
-                "filepath" varchar,
-                "filename" varchar,
-                "time_uploaded" timestamp,
-                "metadata" text
+            CREATE TABLE IF NOT EXISTS "user_engagement_log" (
+            "log_id" uuid PRIMARY KEY,
+            "user_id" uuid,
+            "session_id" uuid,
+            "document_id" uuid,
+            "engagement_type" varchar,
+            "engagement_details" text,
+            "timestamp" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "Student_Modules" (
-                "student_module_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "course_module_id" uuid,
-                "enrolment_id" uuid,
-                "module_score" integer,
-                "last_accessed" timestamp,
-                "module_context_embedding" float[]
-            );
+            ALTER TABLE "messages" ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-            CREATE TABLE IF NOT EXISTS "Sessions" (
-                "session_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "student_module_id" uuid,
-                "session_name" varchar,
-                "session_context_embeddings" float[],
-                "last_accessed" timestamp
-            );
+            ALTER TABLE "sessions" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-            CREATE TABLE IF NOT EXISTS "Messages" (
-                "message_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "session_id" uuid,
-                "student_sent" bool,
-                "message_content" varchar,
-                "time_sent" timestamp
-            );
-
-            CREATE TABLE IF NOT EXISTS "Course_Concepts" (
-                "concept_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "course_id" uuid,
-                "concept_name" varchar,
-                "concept_number" integer
-            );
-
-            CREATE TABLE IF NOT EXISTS "User_Engagement_Log" (
-                "log_id" uuid PRIMARY KEY DEFAULT (uuid_generate_v4()),
-                "user_id" uuid,
-                "course_id" uuid,
-                "module_id" uuid,
-                "enrolment_id" uuid,
-                "timestamp" timestamp,
-                "engagement_type" varchar,
-                "engagement_details" text
-            );
-
-            ALTER TABLE "User_Engagement_Log" ADD FOREIGN KEY ("enrolment_id") REFERENCES "Enrolments" ("enrolment_id") ON DELETE CASCADE ON UPDATE CASCADE;
-            ALTER TABLE "User_Engagement_Log" ADD FOREIGN KEY ("user_id") REFERENCES "Users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
-            ALTER TABLE "User_Engagement_Log" ADD FOREIGN KEY ("course_id") REFERENCES "Courses" ("course_id") ON DELETE CASCADE ON UPDATE CASCADE;
-            ALTER TABLE "User_Engagement_Log" ADD FOREIGN KEY ("module_id") REFERENCES "Course_Modules" ("module_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Course_Concepts" ADD FOREIGN KEY ("course_id") REFERENCES "Courses" ("course_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Course_Modules" ADD FOREIGN KEY ("concept_id") REFERENCES "Course_Concepts" ("concept_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Enrolments" ADD FOREIGN KEY ("course_id") REFERENCES "Courses" ("course_id") ON DELETE CASCADE ON UPDATE CASCADE;
-            ALTER TABLE "Enrolments" ADD FOREIGN KEY ("user_id") REFERENCES "Users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Module_Files" ADD FOREIGN KEY ("module_id") REFERENCES "Course_Modules" ("module_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Student_Modules" ADD FOREIGN KEY ("course_module_id") REFERENCES "Course_Modules" ("module_id") ON DELETE CASCADE ON UPDATE CASCADE;
-            ALTER TABLE "Student_Modules" ADD FOREIGN KEY ("enrolment_id") REFERENCES "Enrolments" ("enrolment_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Sessions" ADD FOREIGN KEY ("student_module_id") REFERENCES "Student_Modules" ("student_module_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            ALTER TABLE "Messages" ADD FOREIGN KEY ("session_id") REFERENCES "Sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
-
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1
-                    FROM pg_constraint
-                    WHERE conname = 'unique_course_user'
-                    AND conrelid = '"Enrolments"'::regclass
-                ) THEN
-                    ALTER TABLE "Enrolments" ADD CONSTRAINT unique_course_user UNIQUE (course_id, user_id);
-                END IF;
-            END $$;
 
 
         """
@@ -291,68 +214,32 @@ def handler(event, context):
             SecretId=DB_USER_SECRET_NAME, SecretString=json.dumps(dbSecret)
         )
         sql = """
-            SELECT * FROM "Users";
+            SELECT * FROM users;
         """
         
         cursor.execute(sql)
         print(cursor.fetchall())
         
         sql = """
-            SELECT * FROM "LLM_Vectors";
+            SELECT * FROM sessions;
         """
         cursor.execute(sql)
         print(cursor.fetchall())
         
         sql = """
-            SELECT * FROM "Courses";
+            SELECT * FROM messages;
         """
         cursor.execute(sql)
         print(cursor.fetchall())
 
         sql = """
-            SELECT * FROM "Course_Modules";
+            SELECT * FROM documents;
         """
         cursor.execute(sql)
         print(cursor.fetchall())
 
         sql = """
-            SELECT * FROM "Enrolments";
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-
-        sql = """
-            SELECT * FROM "Module_Files";
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-
-        sql = """
-            SELECT * FROM "Student_Modules";
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-
-        sql = """
-            SELECT * FROM "Sessions";
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-
-        sql = """
-            SELECT * FROM "Messages";
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-
-        sql = """
-            SELECT * FROM "Course_Concepts";
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-
-        sql = """
-            SELECT * FROM "User_Engagement_Log";
+            SELECT * FROM user_engagement_log;
         """
         cursor.execute(sql)
         print(cursor.fetchall())
