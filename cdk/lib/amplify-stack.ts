@@ -68,11 +68,11 @@ import {
           ),
         }),
         environmentVariables: {
-          VITE_AWS_REGION: this.region,
-          VITE_COGNITO_USER_POOL_ID: apiStack.getUserPoolId(),
-          VITE_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
-          VITE_API_ENDPOINT: apiStack.getEndpointUrl(),
-          VITE_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          NEXT_PUBLIC_AWS_REGION: this.region,
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: apiStack.getUserPoolId(),
+          NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
+          NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
+          NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
         },
         buildSpec: BuildSpec.fromObjectToYaml(amplifyYaml),
       });
