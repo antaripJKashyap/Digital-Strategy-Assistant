@@ -28,13 +28,11 @@ import {
       const amplifyYaml = yaml.parse(` 
         version: 1
         applications:
-          - appRoot: frontend
-            frontend:
+          - frontend:
               phases:
                 preBuild:
                   commands:
-                    - pwd
-                    - npm ci
+                    - npm ci --cache .npm --prefer-offline
                 build:
                   commands:
                     - npm run build
@@ -44,12 +42,9 @@ import {
                   - '**/*'
               cache:
                 paths:
-                  - node_modules/**/*
                   - .next/cache/**/*
-              redirects:
-                - source: </^[^.]+$|.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>
-                  target: /
-                  status: 404
+                  - .npm/**/*
+            appRoot: frontend
       `);
   
       const username = cdk.aws_ssm.StringParameter.valueForStringParameter(
@@ -69,13 +64,13 @@ import {
             }
           ),
         }),
-        customRules: [
-          {
-            source: '/<*>',
-            target: ' /index.html',
-            status: RedirectStatus.NOT_FOUND_REWRITE,
-          },
-        ],
+        // customRules: [
+        //   {
+        //     source: '</^[^.]+$|.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>',
+        //     target: '/',
+        //     status: RedirectStatus.NOT_FOUND_REWRITE,
+        //   },
+        // ],
         environmentVariables: {
           NEXT_PUBLIC_AWS_REGION: this.region,
           NEXT_PUBLIC_COGNITO_USER_POOL_ID: apiStack.getUserPoolId(),
