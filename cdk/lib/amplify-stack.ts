@@ -2,6 +2,7 @@ import {
     App,
     BasicAuth,
     GitHubSourceCodeProvider,
+    RedirectStatus,
   } from "@aws-cdk/aws-amplify-alpha";
   import * as cdk from "aws-cdk-lib";
   import { BuildSpec } from "aws-cdk-lib/aws-codebuild";
@@ -38,12 +39,13 @@ import {
                   commands:
                     - npm run build
               artifacts:
-                baseDirectory: dist
+                baseDirectory: .next
                 files:
                   - '**/*'
               cache:
                 paths:
-                  - 'node_modules/**/*'
+                  - node_modules/**/*
+                  - .next/cache/**/*
               redirects:
                 - source: </^[^.]+$|.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>
                   target: /
@@ -67,6 +69,13 @@ import {
             }
           ),
         }),
+        customRules: [
+          {
+            source: '/<*>',
+            target: ' /index.html',
+            status: RedirectStatus.NOT_FOUND_REWRITE,
+          },
+        ],
         environmentVariables: {
           NEXT_PUBLIC_AWS_REGION: this.region,
           NEXT_PUBLIC_COGNITO_USER_POOL_ID: apiStack.getUserPoolId(),
