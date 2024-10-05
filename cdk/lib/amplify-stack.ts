@@ -83,5 +83,6 @@ import {
   
       amplifyApp.addBranch("main");
       amplifyApp.addBranch("dev");
+      amplifyApp.addBranch("frontend");
     }
   }
