@@ -33,27 +33,27 @@ def lambda_handler(event, context):
             'body': json.dumps('Missing queries to generate pre-signed URL')
         }
 
-    course_id = query_params.get("course_id", "")
-    module_id = query_params.get("module_id", "")
-    file_type = query_params.get("file_type", "")
-    file_name = query_params.get("file_name", "")
+    # course_id = query_params.get("course_id", "")
+    category = query_params.get("category", "")
+    document_type = query_params.get("document_type", "")
+    document_name = query_params.get("document_name", "")
 
-    if not course_id:
+    if not category:
         return {
             'statusCode': 400,
-            'body': json.dumps('Missing required parameter: course_id')
+            'body': json.dumps('Missing required parameter: category')
         }
 
-    if not module_id:
-        return {
-            'statusCode': 400,
-            'body': json.dumps('Missing required parameter: module_id')
-        }
+    # if not document:
+    #     return {
+    #         'statusCode': 400,
+    #         'body': json.dumps('Missing required parameter: module_id')
+    #     }
     
-    if not file_name:
+    if not document_name:
         return {
             'statusCode': 400,
-            'body': json.dumps('Missing required parameter: file_name')
+            'body': json.dumps('Missing required parameter: document_name')
         }
 
     # Allowed file types for documents with their corresponding MIME types
@@ -68,9 +68,9 @@ def lambda_handler(event, context):
         "cbz": "application/vnd.comicbook+zip"
     }
     
-    if file_type in allowed_document_types:
-        key = f"{course_id}/{module_id}/documents/{file_name}.{file_type}"
-        content_type = allowed_document_types[file_type]
+    if document_type in allowed_document_types:
+        key = f"{category}/{document_name}.{document_type}"
+        content_type = allowed_document_types[document_type]
     else:
         return {
             'statusCode': 400,
@@ -78,10 +78,10 @@ def lambda_handler(event, context):
         }
 
     logger.info({
-        "course_id": course_id,
-        "module_id": module_id,
-        "file_type": file_type,
-        "file_name": file_name,
+        # "course_id": course_id,
+        "category": category,
+        "document_type": document_type,
+        "document_name": document_name,
     })
 
     try:

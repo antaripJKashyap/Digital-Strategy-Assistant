@@ -53,26 +53,27 @@ def handler(event, context):
             CREATE TABLE IF NOT EXISTS "users" (
             "user_id" uuid PRIMARY KEY,
             "user_email" varchar,
-            "username" varchar,
             "first_name" varchar,
             "last_name" varchar,
-            "preferred_name" varchar,
             "time_account_created" timestamp,
-            "roles" varchar[],
             "last_sign_in" timestamp
+            );
+
+            CREATE TABLE IF NOT EXISTS "categories" (
+            "category_id" uuid PRIMARY KEY,
+            "category_name" varchar,
+            "category_number" integer
             );
 
             CREATE TABLE IF NOT EXISTS "sessions" (
             "session_id" uuid PRIMARY KEY,
             "session_name" varchar,
-            "session_context_embeddings" float[],
-            "user_id" uuid,
             "time_created" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "messages" (
-            "message_id" uuid PRIMARY KEY,
-            "session_id" uuid,
+            CREATE TABLE IF NOT EXISTS "messages_dynamo" (
+            "session_id" uuid PRIMARY KEY,
+            "message_id" uuid,
             "message_content" varchar,
             "user_sent" bool,
             "time_created" timestamp
@@ -80,13 +81,15 @@ def handler(event, context):
 
             CREATE TABLE IF NOT EXISTS "documents" (
             "document_id" uuid PRIMARY KEY,
+            "category_id" uuid,
+            "document_s3_file_path" varchar,
             "document_name" varchar,
+            "document_type" varchar,
             "time_created" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "user_engagement_log" (
             "log_id" uuid PRIMARY KEY,
-            "user_id" uuid,
             "session_id" uuid,
             "document_id" uuid,
             "engagement_type" varchar,
@@ -94,12 +97,18 @@ def handler(event, context):
             "timestamp" timestamp
             );
 
-            ALTER TABLE "messages" ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
+            CREATE TABLE IF NOT EXISTS "feedback" (
+            "feedback_id" uuid PRIMARY KEY,
+            "session_id" uuid,
+            "feedback_rating" integer,
+            "feedback_description" varchar
+            );
 
-            ALTER TABLE "sessions" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("user_id") ON DELETE CASCADE ON UPDATE CASCADE;
+            ALTER TABLE "user_engagement_log" ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+            ALTER TABLE "feedback" ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-
+            ALTER TABLE "documents" ADD FOREIGN KEY ("category_id") REFERENCES "categories" ("category_id") ON DELETE CASCADE ON UPDATE CASCADE;
         """
 
         #
