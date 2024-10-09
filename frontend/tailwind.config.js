@@ -9,6 +9,14 @@ module.exports = {
   theme: {
   	extend: {
   		colors: {
+			customMain: '#013366',
+			customSecondary: '#4848A2',
+			customAccent: '#F1F8FE',
+			customBackground: '#f1f1f1',
+			adminMain: '#000080',
+			adminSecondary: '#4848A2',
+			adminAccent: '#F1F8FE',
+			adminBackground: '#f1f1f1',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

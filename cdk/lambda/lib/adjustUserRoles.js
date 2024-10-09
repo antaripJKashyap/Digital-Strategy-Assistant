@@ -50,34 +50,15 @@ exports.handler = async (event) => {
         `;
         console.log('DB roles updated to include admin');
       }
-    } else if (cognitoRoles.some(role => ['instructor', 'student'].includes(role))) {
-      const cognitoNonAdminRole = cognitoRoles.find(role => ['instructor', 'student'].includes(role));
-      
+    } else {
+      // If DB has admin but Cognito is not admin, update DB role to remove admin
       if (dbRoles.includes('admin')) {
-        // If DB has admin but Cognito is not admin, update DB role to match Cognito
         await sqlConnection`
           UPDATE "Users"
-          SET roles = ${[cognitoNonAdminRole]}
+          SET roles = array_remove(roles, 'admin')
           WHERE user_email = ${email};
         `;
-        console.log(`DB roles updated to match Cognito (${cognitoNonAdminRole})`);
-      } else if (dbRoles.length && dbRoles[0] !== cognitoNonAdminRole) {
-        // If DB role doesn't match Cognito and isn't admin, update Cognito to match DB
-        const removeFromGroupCommand = new AdminRemoveUserFromGroupCommand({
-          UserPoolId: userPoolId,
-          Username: userName,
-          GroupName: cognitoNonAdminRole,
-        });
-        const addToGroupCommand = new AdminAddUserToGroupCommand({
-          UserPoolId: userPoolId,
-          Username: userName,
-          GroupName: dbRoles[0],
-        });
-
-        await client.send(removeFromGroupCommand);
-        await client.send(addToGroupCommand);
-
-        console.log(`Cognito roles updated to match DB (${dbRoles[0]})`);
+        console.log('DB roles updated to remove admin');
       }
     }
 
@@ -87,3 +68,40 @@ exports.handler = async (event) => {
     return event;
   }
 };
+    //  else if (cognitoRoles.some(role => ['instructor', 'student'].includes(role))) {
+//       const cognitoNonAdminRole = cognitoRoles.find(role => ['instructor', 'student'].includes(role));
+      
+//       if (dbRoles.includes('admin')) {
+//         // If DB has admin but Cognito is not admin, update DB role to match Cognito
+//         await sqlConnection`
+//           UPDATE "Users"
+//           SET roles = ${[cognitoNonAdminRole]}
+//           WHERE user_email = ${email};
+//         `;
+//         console.log(`DB roles updated to match Cognito (${cognitoNonAdminRole})`);
+//       } else if (dbRoles.length && dbRoles[0] !== cognitoNonAdminRole) {
+//         // If DB role doesn't match Cognito and isn't admin, update Cognito to match DB
+//         const removeFromGroupCommand = new AdminRemoveUserFromGroupCommand({
+//           UserPoolId: userPoolId,
+//           Username: userName,
+//           GroupName: cognitoNonAdminRole,
+//         });
+//         const addToGroupCommand = new AdminAddUserToGroupCommand({
+//           UserPoolId: userPoolId,
+//           Username: userName,
+//           GroupName: dbRoles[0],
+//         });
+
+//         await client.send(removeFromGroupCommand);
+//         await client.send(addToGroupCommand);
+
+//         console.log(`Cognito roles updated to match DB (${dbRoles[0]})`);
+//       }
+//     }
+
+//     return event;
+//   } catch (err) {
+//     console.error(err);
+//     return event;
+//   }
+// };

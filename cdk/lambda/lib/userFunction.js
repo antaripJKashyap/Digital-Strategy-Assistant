@@ -1,30 +1,30 @@
 const { initializeConnection } = require("./lib.js");
 let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL } = process.env;
-const {
-  CognitoIdentityProviderClient,
-  AdminGetUserCommand,
-} = require("@aws-sdk/client-cognito-identity-provider");
+// const {
+//   CognitoIdentityProviderClient,
+//   AdminGetUserCommand,
+// } = require("@aws-sdk/client-cognito-identity-provider");
 
 // SQL conneciton from global variable at lib.js
 let sqlConnection = global.sqlConnection;
 
 exports.handler = async (event) => {
-  const cognito_id = event.requestContext.authorizer.userId;
-  const client = new CognitoIdentityProviderClient();
-  const userAttributesCommand = new AdminGetUserCommand({
-    UserPoolId: USER_POOL,
-    Username: cognito_id,
-  });
-  const userAttributesResponse = await client.send(userAttributesCommand);
+//   const cognito_id = event.requestContext.authorizer.userId;
+//   const client = new CognitoIdentityProviderClient();
+//   const userAttributesCommand = new AdminGetUserCommand({
+//     UserPoolId: USER_POOL,
+//     Username: cognito_id,
+//   });
+//   const userAttributesResponse = await client.send(userAttributesCommand);
 
-  const emailAttr = userAttributesResponse.UserAttributes.find(
-    (attr) => attr.Name === "email"
-  );
-  const userEmailAttribute = emailAttr ? emailAttr.Value : null;
-  console.log(userEmailAttribute);
+//   const emailAttr = userAttributesResponse.UserAttributes.find(
+//     (attr) => attr.Name === "email"
+//   );
+//   const userEmailAttribute = emailAttr ? emailAttr.Value : null;
+//   console.log(userEmailAttribute);
   // Check for query string parameters
 
-  const queryStringParams = event.queryStringParameters || {};
+  // const queryStringParams = event.queryStringParameters || {};
   const queryEmail = queryStringParams.email;
   const studentEmail = queryStringParams.student_email;
   const userEmail = queryStringParams.user_email;
@@ -34,18 +34,18 @@ exports.handler = async (event) => {
     (studentEmail && studentEmail !== userEmailAttribute) ||
     (userEmail && userEmail !== userEmailAttribute);
 
-  if (isUnauthorized) {
-    return {
-      statusCode: 401,
-      headers: {
-        "Access-Control-Allow-Headers":
-          "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "*",
-      },
-      body: JSON.stringify({ error: "Unauthorized" }),
-    };
-  }
+  // if (isUnauthorized) {
+  //   return {
+  //     statusCode: 401,
+  //     headers: {
+  //       "Access-Control-Allow-Headers":
+  //         "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+  //       "Access-Control-Allow-Origin": "*",
+  //       "Access-Control-Allow-Methods": "*",
+  //     },
+  //     body: JSON.stringify({ error: "Unauthorized" }),
+  //   };
+  // }
 
   const response = {
     statusCode: 200,
