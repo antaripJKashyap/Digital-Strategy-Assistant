@@ -46,6 +46,28 @@ import {
                   - .npm/**/*
             appRoot: frontend
       `);
+
+      const amplifyYamlAdmin = yaml.parse(` 
+        version: 1
+        applications:
+          - frontendAdmin:
+              phases:
+                preBuild:
+                  commands:
+                    - npm ci --cache .npm --prefer-offline
+                build:
+                  commands:
+                    - npm run build
+              artifacts:
+                baseDirectory: .next
+                files:
+                  - '**/*'
+              cache:
+                paths:
+                  - .next/cache/**/*
+                  - .npm/**/*
+            appRoot: frontendAdmin
+      `);
   
       const username = cdk.aws_ssm.StringParameter.valueForStringParameter(
         this,
@@ -64,13 +86,6 @@ import {
             }
           ),
         }),
-        // customRules: [
-        //   {
-        //     source: '</^[^.]+$|.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>',
-        //     target: '/',
-        //     status: RedirectStatus.NOT_FOUND_REWRITE,
-        //   },
-        // ],
         environmentVariables: {
           NEXT_PUBLIC_AWS_REGION: this.region,
           NEXT_PUBLIC_COGNITO_USER_POOL_ID: apiStack.getUserPoolId(),
@@ -79,6 +94,28 @@ import {
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
         },
         buildSpec: BuildSpec.fromObjectToYaml(amplifyYaml),
+      });
+
+      const amplifyAppAdmin = new App(this, "amplifyAppAdmin", {
+        appName: "dls-amplify-admin",
+        sourceCodeProvider: new GitHubSourceCodeProvider({
+          owner: username,
+          repository: githubRepoName,
+          oauthToken: cdk.SecretValue.secretsManager(
+            "github-personal-access-token",
+            {
+              jsonField: "my-github-token",
+            }
+          ),
+        }),
+        environmentVariables: {
+          NEXT_PUBLIC_AWS_REGION: this.region,
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: apiStack.getUserPoolId(),
+          NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
+          NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
+          NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+        },
+        buildSpec: BuildSpec.fromObjectToYaml(amplifyYamlAdmin),
       });
   
       amplifyApp.addBranch("main");
