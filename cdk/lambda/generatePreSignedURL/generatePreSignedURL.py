@@ -53,7 +53,7 @@ def lambda_handler(event, context):
     if not document_name:
         return {
             'statusCode': 400,
-            'body': json.dumps('Missing required parameter: file_name')
+            'body': json.dumps('Missing required parameter: document_name')
         }
 
     # Allowed file types for documents with their corresponding MIME types
