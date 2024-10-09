@@ -85,6 +85,7 @@ def handler(event, context):
                 "document_s3_file_path" varchar,
                 "document_name" varchar,
                 "document_type" varchar,
+                "meta_data" varchar,
                 "time_created" timestamp
             );
 
