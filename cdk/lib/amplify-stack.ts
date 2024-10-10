@@ -119,7 +119,11 @@ import {
       });
   
       amplifyApp.addBranch("main");
-      amplifyApp.addBranch("dev");
       amplifyApp.addBranch("frontend");
+      amplifyApp.addBranch("cdk");
+
+      amplifyAppAdmin.addBranch("main");
+      amplifyAppAdmin.addBranch("frontend");
+      amplifyAppAdmin.addBranch("cdk");
     }
   }

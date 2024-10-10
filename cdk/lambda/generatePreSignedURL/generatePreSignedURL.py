@@ -34,14 +34,14 @@ def lambda_handler(event, context):
         }
 
     # course_id = query_params.get("course_id", "")
-    category = query_params.get("category", "")
+    category_id = query_params.get("category_id", "")
     document_type = query_params.get("document_type", "")
     document_name = query_params.get("document_name", "")
 
-    if not category:
+    if not category_id:
         return {
             'statusCode': 400,
-            'body': json.dumps('Missing required parameter: category')
+            'body': json.dumps('Missing required parameter: category_id')
         }
 
     # if not document:
@@ -53,7 +53,7 @@ def lambda_handler(event, context):
     if not document_name:
         return {
             'statusCode': 400,
-            'body': json.dumps('Missing required parameter: file_name')
+            'body': json.dumps('Missing required parameter: document_name')
         }
 
     # Allowed file types for documents with their corresponding MIME types
@@ -69,7 +69,7 @@ def lambda_handler(event, context):
     }
     
     if document_type in allowed_document_types:
-        key = f"{category}/{document_name}.{document_type}"
+        key = f"{category_id}/{document_name}.{document_type}"
         content_type = allowed_document_types[document_type]
     else:
         return {
@@ -79,7 +79,7 @@ def lambda_handler(event, context):
 
     logger.info({
         # "course_id": course_id,
-        "category": category,
+        "category": category_id,
         "document_type": document_type,
         "document_name": document_name,
     })

@@ -51,64 +51,74 @@ def handler(event, context):
         sqlTableCreation = """
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE TABLE IF NOT EXISTS "users" (
-            "user_id" uuid PRIMARY KEY,
-            "user_email" varchar,
-            "first_name" varchar,
-            "last_name" varchar,
-            "time_account_created" timestamp,
-            "last_sign_in" timestamp
+                "user_id" uuid PRIMARY KEY,
+                "user_email" varchar,
+                "first_name" varchar,
+                "last_name" varchar,
+                "time_account_created" timestamp,
+                "last_sign_in" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "categories" (
-            "category_id" uuid PRIMARY KEY,
-            "category_name" varchar,
-            "category_number" integer
+                "category_id" uuid PRIMARY KEY,
+                "category_name" varchar,
+                "category_number" integer
             );
 
             CREATE TABLE IF NOT EXISTS "sessions" (
-            "session_id" uuid PRIMARY KEY,
-            "session_name" varchar,
-            "time_created" timestamp
+                "session_id" uuid PRIMARY KEY,
+                "session_name" varchar,
+                "time_created" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "messages_dynamo" (
-            "session_id" uuid PRIMARY KEY,
-            "message_id" uuid,
-            "message_content" varchar,
-            "user_sent" bool,
-            "time_created" timestamp
+                "session_id" uuid PRIMARY KEY,
+                "message_id" uuid,
+                "message_content" varchar,
+                "user_sent" bool,
+                "time_created" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "documents" (
-            "document_id" uuid PRIMARY KEY,
-            "category_id" uuid,
-            "document_s3_file_path" varchar,
-            "document_name" varchar,
-            "document_type" varchar,
-            "time_created" timestamp
+                "document_id" uuid PRIMARY KEY,
+                "category_id" uuid,
+                "document_s3_file_path" varchar,
+                "document_name" varchar,
+                "document_type" varchar,
+                "meta_data" varchar,
+                "time_created" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "user_engagement_log" (
-            "log_id" uuid PRIMARY KEY,
-            "session_id" uuid,
-            "document_id" uuid,
-            "engagement_type" varchar,
-            "engagement_details" text,
-            "timestamp" timestamp
+                "log_id" uuid PRIMARY KEY,
+                "session_id" uuid,
+                "document_id" uuid,
+                "engagement_type" varchar,
+                "engagement_details" text,
+                "timestamp" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "feedback" (
-            "feedback_id" uuid PRIMARY KEY,
-            "session_id" uuid,
-            "feedback_rating" integer,
-            "feedback_description" varchar
+                "feedback_id" uuid PRIMARY KEY,
+                "session_id" uuid,
+                "feedback_rating" integer,
+                "feedback_description" varchar
             );
 
-            ALTER TABLE "user_engagement_log" ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
+            ALTER TABLE "user_engagement_log" 
+                ADD FOREIGN KEY ("session_id") 
+                REFERENCES "sessions" ("session_id") 
+                ON DELETE CASCADE ON UPDATE CASCADE;
 
-            ALTER TABLE "feedback" ADD FOREIGN KEY ("session_id") REFERENCES "sessions" ("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
+            ALTER TABLE "feedback" 
+                ADD FOREIGN KEY ("session_id") 
+                REFERENCES "sessions" ("session_id") 
+                ON DELETE CASCADE ON UPDATE CASCADE;
 
-            ALTER TABLE "documents" ADD FOREIGN KEY ("category_id") REFERENCES "categories" ("category_id") ON DELETE CASCADE ON UPDATE CASCADE;
+            ALTER TABLE "documents" 
+                ADD FOREIGN KEY ("category_id") 
+                REFERENCES "categories" ("category_id") 
+                ON DELETE CASCADE ON UPDATE CASCADE;
         """
 
         #
@@ -249,6 +259,12 @@ def handler(event, context):
 
         sql = """
             SELECT * FROM user_engagement_log;
+        """
+        cursor.execute(sql)
+        print(cursor.fetchall())
+        
+        sql = """
+            SELECT * FROM categories;
         """
         cursor.execute(sql)
         print(cursor.fetchall())

@@ -40,7 +40,7 @@ def connect_to_db():
         return None
     
 
-def delete_document_from_db(document_id, document_name, document_type):
+def delete_document_from_db(category_id, document_id, document_name, document_type):
     connection = connect_to_db()
     if connection is None:
         logger.error("No database connection available.")
@@ -55,12 +55,12 @@ def delete_document_from_db(document_id, document_name, document_type):
 
         delete_query = """
             DELETE FROM "documents" 
-            WHERE document_id = %s AND document_name = %s AND document_type = %s;
+            WHERE category_id = %s AND document_id = %s AND document_name = %s AND document_type = %s;
         """
-        cur.execute(delete_query, (document_id, document_name, document_type))
+        cur.execute(delete_query, (category_id, document_id, document_name, document_type))
 
         connection.commit()
-        logger.info(f"Successfully deleted document {document_name}.{document_type}.")
+        logger.info(f"Successfully deleted document {document_name}.{document_type} from category {category_id}.")
 
         cur.close()
         connection.close()
@@ -78,12 +78,14 @@ def delete_document_from_db(document_id, document_name, document_type):
 def lambda_handler(event, context):
     query_params = event.get("queryStringParameters", {})
 
+    category_id = query_params.get("category_id", "")
     document_id = query_params.get("document_id", "")
     document_name = query_params.get("document_name", "")
     document_type = query_params.get("document_type", "")
 
     if not document_id or not document_name or not document_type:
         logger.error("Missing required parameters", extra={
+            "category_id": category_id,
             "document_id": document_id,
             "document_name": document_name,
             "document_type": document_type
@@ -96,7 +98,7 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
             },
-            'body': json.dumps('Missing required parameters: document_id, document_name, or document_type')
+            'body': json.dumps('Missing required parameters: category_id, document_id, document_name, or document_type')
         } 
 
     try:
@@ -107,8 +109,8 @@ def lambda_handler(event, context):
         objects_to_delete = []
         # Determine the folder based on the file type
         if document_type in allowed_document_types:
-            # folder = "documents"
-            objects_to_delete.append({"Key": f"{document_name}.{document_type}"})
+            folder = "documents"
+            objects_to_delete.append({"Key": f"{category_id}/{document_name}.{document_type}"})
         else:
             return {
                 'statusCode': 400,
@@ -135,7 +137,7 @@ def lambda_handler(event, context):
 
         # Delete the document from the database
         try:
-            delete_document_from_db(document_id, document_name, document_type)
+            delete_document_from_db(category_id, document_id, document_name, document_type)
             logger.info(f"File {document_name}.{document_type} deleted from the database.")
         except Exception as e:
             logger.error(f"Error deleting file {document_name}.{document_type} from the database: {e}")
