@@ -95,6 +95,7 @@ def handler(event, context):
                 "document_id" uuid,
                 "engagement_type" varchar,
                 "engagement_details" text,
+                "user_info" text,
                 "timestamp" timestamp
             );
 
