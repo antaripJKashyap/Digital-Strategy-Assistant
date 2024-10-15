@@ -13,10 +13,9 @@ module.exports = {
 			customSecondary: '#4848A2',
 			customAccent: '#F1F8FE',
 			customBackground: '#f1f1f1',
-			adminMain: '#000080',
-			adminSecondary: '#4848A2',
-			adminAccent: '#F1F8FE',
-			adminBackground: '#f1f1f1',
+			customFooter: "#f3f2f1",
+			customMessage: "#faf9f8",
+			customWarning: "#fef1d8",
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -62,7 +61,7 @@ module.exports = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
   	}
   },
   plugins: [require("tailwindcss-animate")],
