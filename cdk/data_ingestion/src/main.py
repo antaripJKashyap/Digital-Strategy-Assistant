@@ -112,8 +112,9 @@ def insert_file_into_db(category_id, document_name, document_type, document_s3_f
                 document_s3_file_path,
                 document_name,  # filename
                 document_type, # filetype
-                timestamp,  # time_uploaded
-                ""  # metadata
+                "",
+                timestamp
+
         ))
         logger.info(f"Successfully inserted document {document_name}.{document_type} into database for module {category_id}.")
 
