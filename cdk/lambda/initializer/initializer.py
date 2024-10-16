@@ -71,14 +71,6 @@ def handler(event, context):
                 "time_created" timestamp
             );
 
-            CREATE TABLE IF NOT EXISTS "messages_dynamo" (
-                "session_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-                "message_id" uuid,
-                "message_content" varchar,
-                "user_sent" bool,
-                "time_created" timestamp
-            );
-
             CREATE TABLE IF NOT EXISTS "documents" (
                 "document_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "category_id" uuid,

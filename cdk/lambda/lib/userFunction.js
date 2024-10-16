@@ -1,52 +1,10 @@
 const { initializeConnection } = require("./lib.js");
 let { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT, USER_POOL } = process.env;
-// const {
-//   CognitoIdentityProviderClient,
-//   AdminGetUserCommand,
-// } = require("@aws-sdk/client-cognito-identity-provider");
 
 // SQL conneciton from global variable at lib.js
 let sqlConnection = global.sqlConnection;
 
 exports.handler = async (event) => {
-//   const cognito_id = event.requestContext.authorizer.userId;
-//   const client = new CognitoIdentityProviderClient();
-//   const userAttributesCommand = new AdminGetUserCommand({
-//     UserPoolId: USER_POOL,
-//     Username: cognito_id,
-//   });
-//   const userAttributesResponse = await client.send(userAttributesCommand);
-
-//   const emailAttr = userAttributesResponse.UserAttributes.find(
-//     (attr) => attr.Name === "email"
-//   );
-//   const userEmailAttribute = emailAttr ? emailAttr.Value : null;
-//   console.log(userEmailAttribute);
-  // Check for query string parameters
-
-  // const queryStringParams = event.queryStringParameters || {};
-  const queryEmail = queryStringParams.email;
-  const studentEmail = queryStringParams.student_email;
-  const userEmail = queryStringParams.user_email;
-
-  const isUnauthorized =
-    (queryEmail && queryEmail !== userEmailAttribute) ||
-    (studentEmail && studentEmail !== userEmailAttribute) ||
-    (userEmail && userEmail !== userEmailAttribute);
-
-  // if (isUnauthorized) {
-  //   return {
-  //     statusCode: 401,
-  //     headers: {
-  //       "Access-Control-Allow-Headers":
-  //         "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-  //       "Access-Control-Allow-Origin": "*",
-  //       "Access-Control-Allow-Methods": "*",
-  //     },
-  //     body: JSON.stringify({ error: "Unauthorized" }),
-  //   };
-  // }
-
   const response = {
     statusCode: 200,
     headers: {
@@ -63,11 +21,6 @@ exports.handler = async (event) => {
     await initializeConnection(SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT);
     sqlConnection = global.sqlConnection;
   }
-
-  // Function to format student full names (lowercase and spaces replaced with "_")
-  const formatNames = (name) => {
-    return name.toLowerCase().replace(/\s+/g, "_");
-  };
 
   let data;
   try {
