@@ -18,7 +18,7 @@ s3 = boto3.client('s3')
 BUCKET_NAME = "dls-data-ingestion-bucket"
 
 def extract_txt(
-    document_key: str
+    file_key: str
 ) -> str:
     """
     Extract text from a file stored in an S3 bucket.
@@ -31,7 +31,7 @@ def extract_txt(
     str: The extracted text.
     """
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_fileobj(BUCKET_NAME, document_key, tmp_file)
+        s3.download_fileobj(BUCKET_NAME, file_key, tmp_file)
         tmp_file_path = tmp_file.name
 
     try:

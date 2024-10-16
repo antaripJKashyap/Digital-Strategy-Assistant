@@ -3140,93 +3140,93 @@ paths:
         httpMethod: "POST"
         type: "aws_proxy"
 
-  /admin/elevate_instructor:
-    options:
-      summary: CORS support
-      description: |
-        Enable CORS by returning correct headers
-      responses:
-        200:
-          $ref: "#/components/responses/Success"
-      x-amazon-apigateway-integration:
-        type: mock
-        requestTemplates:
-          application/json: |
-            {
-              "statusCode" : 200
-            }
-        responses:
-          default:
-            statusCode: "200"
-            responseParameters:
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              method.response.header.Access-Control-Allow-Methods: "'*'"
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-            responseTemplates:
-              application/json: |
-                {}
-    post:
-      tags:
-        - Admin
-      summary: Elevate a user to instructor role
-      operationId: admin_elevate_instructor_POST
-      parameters:
-        - in: query
-          name: email
-          required: true
-          description: Email of the user to be elevated
-          schema:
-            type: string
-      responses:
-        "200":
-          description: User role updated to instructor
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: User role updated to instructor.
-        "201":
-          description: New user created and elevated to instructor
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: New user created and elevated to instructor.
-        "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Email is required
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Internal server error
-      security:
-        - adminAuthorizer: []
-      x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
-        passthroughBehavior: "when_no_match"
-        httpMethod: "POST"
-        type: "aws_proxy"
-  /admin/instructors:
+  # /admin/elevate_instructor:
+  #   options:
+  #     summary: CORS support
+  #     description: |
+  #       Enable CORS by returning correct headers
+  #     responses:
+  #       200:
+  #         $ref: "#/components/responses/Success"
+  #     x-amazon-apigateway-integration:
+  #       type: mock
+  #       requestTemplates:
+  #         application/json: |
+  #           {
+  #             "statusCode" : 200
+  #           }
+  #       responses:
+  #         default:
+  #           statusCode: "200"
+  #           responseParameters:
+  #             method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+  #             method.response.header.Access-Control-Allow-Methods: "'*'"
+  #             method.response.header.Access-Control-Allow-Origin: "'*'"
+  #           responseTemplates:
+  #             application/json: |
+  #               {}
+  #   post:
+  #     tags:
+  #       - Admin
+  #     summary: Elevate a user to instructor role
+  #     operationId: admin_elevate_instructor_POST
+  #     parameters:
+  #       - in: query
+  #         name: email
+  #         required: true
+  #         description: Email of the user to be elevated
+  #         schema:
+  #           type: string
+  #     responses:
+  #       "200":
+  #         description: User role updated to instructor
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 message:
+  #                   type: string
+  #                   example: User role updated to instructor.
+  #       "201":
+  #         description: New user created and elevated to instructor
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 message:
+  #                   type: string
+  #                   example: New user created and elevated to instructor.
+  #       "400":
+  #         description: Bad Request
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 error:
+  #                   type: string
+  #                   example: Email is required
+  #       "500":
+  #         description: Internal Server Error
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 error:
+  #                   type: string
+  #                   example: Internal server error
+  #     security:
+  #       - adminAuthorizer: []
+  #     x-amazon-apigateway-integration:
+  #       uri:
+  #         Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+  #       passthroughBehavior: "when_no_match"
+  #       httpMethod: "POST"
+  #       type: "aws_proxy"
+  /admin/num_users:
     options:
       summary: CORS support
       description: |
@@ -3254,18 +3254,18 @@ paths:
     get:
       tags:
         - Admin
-      summary: Get all instructors
+      summary: Get number of users
       operationId: admin_get_instructors_GET
       parameters:
         - in: query
-          name: instructor_email
+          name: user_id
           required: true
-          description: Email of the admin accessing the list of instructors
+          description: ID of the user
           schema:
-            type: string
+            type: uuid
       responses:
         "200":
-          description: List of instructors retrieved successfully
+          description: List of users retrieved successfully
         "400":
           description: Bad Request
         "401":
