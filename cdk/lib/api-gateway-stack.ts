@@ -962,7 +962,7 @@ export class ApiGatewayStack extends cdk.Stack {
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: "DataIngestLambdaDockerFunc",
         environment: {
-          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+          SM_DB_CREDENTIALS: db.secretPathAdminName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           BUCKET: dataIngestionBucket.bucketName,
           REGION: this.region,
