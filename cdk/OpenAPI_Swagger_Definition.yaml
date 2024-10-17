@@ -179,31 +179,13 @@ paths:
     post:
       tags:
         - User
-      summary: Create a session for a student module
-      operationId: student_create_session_POST
+      summary: Create a session for a user
+      operationId: user_create_session_POST
       parameters:
         - in: query
-          name: module_id
+          name: user_info
           required: true
-          description: ID of the module
-          schema:
-            type: string
-        - in: query
-          name: email
-          required: true
-          description: Email of the student
-          schema:
-            type: string
-        - in: query
-          name: course_id
-          required: true
-          description: ID of the course
-          schema:
-            type: string
-        - in: query
-          name: session_name
-          required: true
-          description: name of the session
+          description: salted user info
           schema:
             type: string
       responses:

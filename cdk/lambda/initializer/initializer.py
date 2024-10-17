@@ -67,7 +67,6 @@ def handler(event, context):
 
             CREATE TABLE IF NOT EXISTS "sessions" (
                 "session_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-                "session_name" varchar,
                 "time_created" timestamp
             );
 
