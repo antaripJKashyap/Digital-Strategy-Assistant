@@ -86,6 +86,7 @@ def handler(event, context):
                 "document_id" uuid,
                 "engagement_type" varchar,
                 "engagement_details" text,
+                "user_role" varchar,
                 "user_info" text,
                 "timestamp" timestamp
             );
@@ -94,6 +95,7 @@ def handler(event, context):
                 "feedback_id" uuid PRIMARY KEY,
                 "session_id" uuid,
                 "feedback_rating" integer,
+                "timestamp" timestamp,
                 "feedback_description" varchar
             );
 
