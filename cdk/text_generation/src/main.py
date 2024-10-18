@@ -201,7 +201,17 @@ def handler(event, context):
     #         'body': json.dumps('Missing required parameter: module_id')
     #     }
     
+    # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
+    #                     Here is a link to that website: "https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy".
+    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
+    #                     """
+
+     # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
+    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
+    #                     """
+
     system_prompt = """You are an instructor for a course. Your job is to help the student master the topic"""
+
 
     if system_prompt is None:
         logger.error(f"Error fetching system prompt for you!")

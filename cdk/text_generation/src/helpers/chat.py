@@ -96,6 +96,39 @@ def get_student_query(raw_query: str) -> str:
     """
     return student_query
 
+# def get_initial_student_query():
+#     """
+#     Generate an initial query for the user to interact with the system. 
+#     Present the user with the following options and in a json format:
+
+#             {
+#         "message": "Please select the best role below that fits you. We can better answer your questions. Don’t include personal details such as your name and private content.",
+#         "options": [
+#             {
+#             "label": "Student/prospective student",
+#             "value": "student"
+#             },
+#             {
+#             "label": "Educator/educational designer",
+#             "value": "educator"
+#             },
+#             {
+#             "label": "Post-secondary institution admin/leader",
+#             "value": "admin"
+#             }
+#         ]
+#         }
+
+    
+
+#     Returns:
+#     str: The formatted initial query string for the student.
+#     """
+#     student_query = f"""
+#     user
+#     Greet me and then ask me a if the user has any questions. 
+#     """
+#     return student_query
 def get_initial_student_query():
     """
     Generate an initial query for the student to interact with the system. 
