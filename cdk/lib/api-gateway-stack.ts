@@ -375,38 +375,6 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     cfnLambda_user.overrideLogicalId("userFunction");
 
-    const lambdaInstructorFunction = new lambda.Function(
-      this,
-      "instructorFunction",
-      {
-        runtime: lambda.Runtime.NODEJS_20_X,
-        code: lambda.Code.fromAsset("lambda/lib"),
-        handler: "instructorFunction.handler",
-        timeout: Duration.seconds(300),
-        vpc: vpcStack.vpc,
-        environment: {
-          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-          USER_POOL: this.userPool.userPoolId,
-        },
-        functionName: "instructorFunction",
-        memorySize: 512,
-        layers: [postgres],
-        role: lambdaRole,
-      }
-    );
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    lambdaInstructorFunction.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor*`,
-    });
-
-    const cfnLambda_Instructor = lambdaInstructorFunction.node
-      .defaultChild as lambda.CfnFunction;
-    cfnLambda_Instructor.overrideLogicalId("instructorFunction");
-
     const lambdaAdminFunction = new lambda.Function(this, "adminFunction", {
       runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset("lambda/adminFunction"),
@@ -438,6 +406,37 @@ export class ApiGatewayStack extends cdk.Stack {
       roleName: "cognitoLambdaRole",
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
+
+    const logRole = new iam.Role(this, "logRole", {
+      roleName: "logRole",
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    logRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          //Logs
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ],
+        resources: ["arn:aws:logs:*:*:*"],
+      })
+    );
+
+    logRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          // Secrets Manager
+          "secretsmanager:GetSecretValue",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DLS/*`,
+        ],
+      })
+    );
 
     // Grant access to Secret Manager
     coglambdaRole.addToPolicy(
@@ -841,6 +840,7 @@ export class ApiGatewayStack extends cdk.Stack {
         },
         functionName: "GetDocumentsFunction",
         layers: [psycopgLayer, powertoolsLayer],
+        role: coglambdaRole,
       }
     );
 
@@ -870,7 +870,7 @@ export class ApiGatewayStack extends cdk.Stack {
     getDocumentsFunction.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor*`,
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
 
     /**
@@ -920,41 +920,59 @@ export class ApiGatewayStack extends cdk.Stack {
     deleteDocument.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor*`,
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
 
     /**
      *
      * Create Lambda function to delete an entire module directory
      */
-    const deleteModuleFunction = new lambda.Function(this, "DeleteModuleFunc", {
+    const deleteCategoryFunction = new lambda.Function(this, "DeleteCategoryFunc", {
       runtime: lambda.Runtime.PYTHON_3_9,
-      code: lambda.Code.fromAsset("lambda/deleteModule"),
-      handler: "deleteModule.lambda_handler",
+      code: lambda.Code.fromAsset("lambda/deleteCategory"),
+      handler: "deleteCategory.lambda_handler",
       timeout: Duration.seconds(300),
       memorySize: 128,
+      vpc: vpcStack.vpc,
       environment: {
+        SM_DB_CREDENTIALS: db.secretPathUser.secretName, // Database User Credentials
+        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint, // RDS Proxy Endpoint
         BUCKET: dataIngestionBucket.bucketName,
         REGION: this.region,
       },
-      functionName: "DeleteModuleFunc",
-      layers: [powertoolsLayer],
+      functionName: "DeleteCategoryFunc",
+      layers: [psycopgLayer, powertoolsLayer],
     });
 
     //Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnDeleteModuleFunction = deleteModuleFunction.node
+    const cfnDeleteCategoryFunction = deleteCategoryFunction.node
       .defaultChild as lambda.CfnFunction;
-    cfnDeleteModuleFunction.overrideLogicalId("DeleteModuleFunc");
+    cfnDeleteCategoryFunction.overrideLogicalId("DeleteCategoryFunc");
 
     //Grant the Lambda function the necessary permissions
-    dataIngestionBucket.grantRead(deleteModuleFunction);
-    dataIngestionBucket.grantDelete(deleteModuleFunction);
+    dataIngestionBucket.grantRead(deleteCategoryFunction);
+    dataIngestionBucket.grantDelete(deleteCategoryFunction);
+
+    deleteCategoryFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          //Secrets Manager
+          "secretsmanager:GetSecretValue",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
+      })
+    );
 
     //Add the permission to the Lambda function's policy to allow API Gateway access
-    deleteModuleFunction.addPermission("AllowApiGatewayInvoke", {
+    deleteCategoryFunction.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor*`,
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
+
+    
   }
 }

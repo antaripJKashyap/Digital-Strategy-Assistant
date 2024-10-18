@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     sqlConnectionTableCreator = global.sqlConnectionTableCreator;
   }
 
-  // Function to format student full names (lowercase and spaces replaced with "_")
+  // Function to format user full names (lowercase and spaces replaced with "_")
   const formatNames = (name) => {
     return name.toLowerCase().replace(/\s+/g, "_");
   };
@@ -311,10 +311,10 @@ exports.handler = async (event) => {
                   INSERT INTO user_engagement_log (log_id, session_id, timestamp, engagement_type, user_info, user_role)
                   VALUES (
                     uuid_generate_v4(),
-                    NULL,  // Assuming session_id is not applicable here
+                    NULL,
                     CURRENT_TIMESTAMP,
                     ${engagementType},
-                    NULL,  // Assuming user_info is not applicable here
+                    NULL,
                     ${userRole}
                   )
                 `;
@@ -334,89 +334,103 @@ exports.handler = async (event) => {
           });
         }
         break;
-      case "GET /admin/get_all_files":
+      case "GET /admin/conversation_history_preview":
         try {
-          // Fetch all documents grouped by category
-          const filesGroupedByCategory = await sqlConnectionTableCreator`
-              SELECT
-                cat.category_id,
-                cat.category_name,
-                COALESCE(
-                  JSON_AGG(
-                    JSON_BUILD_OBJECT(
-                      'document_id', doc.document_id,
-                      'document_name', doc.document_name,
-                      'document_type', doc.document_type,
-                      'metadata', doc.metadata,
-                      'document_s3_file_path', doc.document_s3_file_path,
-                      'time_created', doc.time_created
-                    )
-                  ) FILTER (WHERE doc.document_id IS NOT NULL),
-                  '[]'
-                ) AS documents
-              FROM categories cat
-              LEFT JOIN documents doc ON cat.category_id = doc.category_id
-              GROUP BY cat.category_id, cat.category_name
-              ORDER BY cat.category_id;
-
-
+          const result = await sqlConnectionTableCreator`
+              WITH RankedMessages AS (
+                SELECT
+                  uel.user_role,
+                  uel.engagement_type,
+                  uel.timestamp,
+                  uel.user_info,
+                  uel.engagement_details,
+                  ROW_NUMBER() OVER (PARTITION BY uel.user_role ORDER BY uel.timestamp DESC) AS rn
+                FROM user_engagement_log uel
+                WHERE uel.engagement_type = 'message creation'
+                  AND uel.user_role IN ('public', 'educator', 'admin')
+              )
+              SELECT user_role, engagement_type, timestamp, user_info, engagement_details
+              FROM RankedMessages
+              WHERE rn <= 10
+              ORDER BY user_role, timestamp DESC;
             `;
 
-          if (filesGroupedByCategory.length === 0) {
-            response.statusCode = 404; // Not Found
-            response.body = JSON.stringify({ message: "No documents found" });
-          } else {
-            response.statusCode = 200; // OK
-            response.body = JSON.stringify(filesGroupedByCategory);
-          }
+          const groupedResults = result.reduce((acc, row) => {
+            if (!acc[row.user_role]) {
+              acc[row.user_role] = [];
+            }
+            acc[row.user_role].push(row);
+            return acc;
+          }, {});
+
+          response.body = JSON.stringify(groupedResults);
         } catch (err) {
-          response.statusCode = 500; // Internal Server Error
+          response.statusCode = 500;
           console.error(err);
           response.body = JSON.stringify({ error: "Internal server error" });
         }
         break;
-      case "GET /admin/files_within_category":
+      case "GET /admin/conversation_sessions":
         if (
           event.queryStringParameters &&
-          event.queryStringParameters.category_id
+          event.queryStringParameters.user_role
         ) {
-          const categoryId = event.queryStringParameters.category_id;
+          const userRole = event.queryStringParameters.user_role;
 
           try {
-            const result = await sqlConnectionTableCreator`
-                SELECT
-                  cat.category_id,
-                  cat.category_name,
-                  COALESCE(
-                    JSON_AGG(
-                      JSON_BUILD_OBJECT(
-                        'document_id', doc.document_id,
-                        'document_name', doc.document_name,
-                        'document_type', doc.document_type,
-                        'metadata', doc.metadata,
-                        'document_s3_file_path', doc.document_s3_file_path,
-                        'time_created', doc.time_created
-                      )
-                    ) FILTER (WHERE doc.document_id IS NOT NULL),
-                    '[]'
-                  ) AS documents
-                FROM categories cat
-                LEFT JOIN documents doc ON cat.category_id = doc.category_id
-                WHERE cat.category_id = ${categoryId}
-                GROUP BY cat.category_id, cat.category_name
-                ORDER BY cat.category_id;
+            const sessions = await sqlConnectionTableCreator`
+                SELECT DISTINCT ON (uel.session_id)
+                  uel.session_id,
+                  uel.timestamp AS last_message_time
+                FROM user_engagement_log uel
+                WHERE uel.user_role = ${userRole} AND uel.engagement_type = 'message creation'
+                ORDER BY uel.session_id, uel.timestamp DESC;
               `;
 
-            response.body = JSON.stringify(result);
+            response.body = JSON.stringify(sessions);
+            response.statusCode = 200; // OK
           } catch (err) {
-            response.statusCode = 500;
+            response.statusCode = 500; // Internal Server Error
             console.error(err);
             response.body = JSON.stringify({ error: "Internal server error" });
           }
         } else {
-          response.statusCode = 400;
+          response.statusCode = 400; // Bad Request
           response.body = JSON.stringify({
-            error: "Missing required parameter: category_id",
+            error: "Missing required parameter: user_role",
+          });
+        }
+        break;
+      case "GET /admin/conversation_messages":
+        if (
+          event.queryStringParameters &&
+          event.queryStringParameters.session_id
+        ) {
+          const sessionId = event.queryStringParameters.session_id;
+
+          try {
+            const messages = await sqlConnectionTableCreator`
+                SELECT
+                  uel.timestamp,
+                  uel.user_role,
+                  uel.engagement_details AS message
+                FROM user_engagement_log uel
+                WHERE uel.session_id = ${sessionId}
+                AND uel.engagement_type = 'message creation'
+                ORDER BY uel.timestamp ASC;
+              `;
+
+            response.body = JSON.stringify(messages);
+            response.statusCode = 200; // OK
+          } catch (err) {
+            response.statusCode = 500; // Internal Server Error
+            console.error(err);
+            response.body = JSON.stringify({ error: "Internal server error" });
+          }
+        } else {
+          response.statusCode = 400; // Bad Request
+          response.body = JSON.stringify({
+            error: "Missing required parameter: session_id",
           });
         }
         break;
