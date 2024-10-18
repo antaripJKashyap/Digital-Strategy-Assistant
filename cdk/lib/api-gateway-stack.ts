@@ -594,6 +594,26 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
 
+
+        // Create secrets for Bedrock LLM ID, Embedding Model ID, and Table Name
+        const bedrockLLMSecret = new secretsmanager.Secret(this, "BedrockLLMSecret", {
+          secretName: "BedrockLLMSecret",
+          description: "Secret containing the Bedrock LLM ID",
+          secretStringValue: cdk.SecretValue.unsafePlainText("meta.llama3-70b-instruct-v1:0"),
+        });
+        const embeddingModelSecret = new secretsmanager.Secret(this, "EmbeddingModelSecret", {
+          secretName: "EmbeddingModelSecret",
+          description: "Secret containing the Embedding Model ID",
+          secretStringValue: cdk.SecretValue.unsafePlainText("amazon.titan-embed-text-v2:0"),
+        });
+        const tableNameSecret = new secretsmanager.Secret(this, "TableNameSecret", {
+          secretName: "TableNameSecret",
+          description: "Secret containing the DynamoDB table name",
+          secretStringValue: cdk.SecretValue.unsafePlainText("DynamoDB-Conversation-Table"),
+        });
+
+
+
     /**
      *
      * Create Lambda with container image for text generation workflow in RAG pipeline
@@ -611,6 +631,9 @@ export class ApiGatewayStack extends cdk.Stack {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
+          BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
+          EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
+          TABLE_NAME_SECRET: tableNameSecret.secretName,
         },
       }
     );
@@ -933,61 +956,5 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor*`,
     });
-
-    /**
-     *
-     * Create a Lambda function that deletes the last message in a conversation
-     */
-  //   const deleteLastMessage = new lambda.Function(this, "DeleteLastMessage", {
-  //     runtime: lambda.Runtime.PYTHON_3_9,
-  //     code: lambda.Code.fromAsset("lambda/deleteLastMessage"),
-  //     handler: "deleteLastMessage.lambda_handler",
-  //     timeout: Duration.seconds(300),
-  //     memorySize: 128,
-  //     vpc: vpcStack.vpc,
-  //     environment: {
-  //       SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-  //       RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-  //       TABLE_NAME: "API-Gateway-Test-Table-Name",
-  //       REGION: this.region,
-  //     },
-  //     functionName: "DeleteLastMessage",
-  //     layers: [psycopgLayer, powertoolsLayer],
-  //   });
-
-  //   // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-  //   const cfnDeleteLastMessage = deleteLastMessage.node
-  //     .defaultChild as lambda.CfnFunction;
-  //   cfnDeleteLastMessage.overrideLogicalId("DeleteLastMessage");
-
-  //   // Grant access to Secret Manager
-  //   deleteLastMessage.addToRolePolicy(
-  //     new iam.PolicyStatement({
-  //       effect: iam.Effect.ALLOW,
-  //       actions: [
-  //         //Secrets Manager
-  //         "secretsmanager:GetSecretValue",
-  //       ],
-  //       resources: [
-  //         `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
-  //       ],
-  //     })
-  //   );
-
-  //   // Grant the Lambda function necessary permissions to access DynamoDB
-  //   deleteLastMessage.addToRolePolicy(
-  //     new iam.PolicyStatement({
-  //       effect: iam.Effect.ALLOW,
-  //       actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
-  //       resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
-  //     })
-  //   );
-
-  //   // Add the permission to the Lambda function's policy to allow API Gateway access
-  //   deleteLastMessage.addPermission("AllowApiGatewayInvoke", {
-  //     principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-  //     action: "lambda:InvokeFunction",
-  //     sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
-  //   });
   }
 }
