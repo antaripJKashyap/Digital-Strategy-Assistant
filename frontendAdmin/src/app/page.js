@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Amplify } from "aws-amplify";
-import PublicHome from "@/components/PublicHome";
+import AdminHome from "@/components/AdminHome";
 
 
 Amplify.configure({
@@ -24,7 +24,7 @@ Amplify.configure({
 export default function Home() {
   return (
     <div>
-      <PublicHome />
+      <AdminHome />
     </div>
     
   );
