@@ -10,7 +10,6 @@ s3 = boto3.client('s3')
 BUCKET = os.environ["BUCKET"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
-
 def get_secret():
     # secretsmanager client to get db credentials
     sm_client = boto3.client("secretsmanager")
@@ -38,27 +37,26 @@ def connect_to_db():
             connection.rollback()
             connection.close()
         return None
+    
 
-def delete_file_from_db(module_id, file_name, file_type):
+def delete_document_from_db(category_id):
     connection = connect_to_db()
     if connection is None:
         logger.error("No database connection available.")
         return {
-            "statusCode": 500,
-            "body": json.dumps("Database connection failed.")
+        "statusCode": 500,
+        "body": json.dumps("Database connection failed.")
         }
-    
     try:
         cur = connection.cursor()
-
         delete_query = """
-            DELETE FROM "Module_Files" 
-            WHERE module_id = %s AND filename = %s AND filetype = %s;
+            DELETE FROM "categories" 
+            WHERE category_id = %s;
         """
-        cur.execute(delete_query, (module_id, file_name, file_type))
+        cur.execute(delete_query, (category_id,))
 
         connection.commit()
-        logger.info(f"Successfully deleted file {file_name}.{file_type} for module {module_id}.")
+        logger.info(f"Successfully deleted document category {category_id}.")
 
         cur.close()
         connection.close()
@@ -68,24 +66,18 @@ def delete_file_from_db(module_id, file_name, file_type):
         if connection:
             connection.rollback()
             connection.close()
-        logger.error(f"Error deleting file {file_name}.{file_type} from database: {e}")
+        logger.error(f"Error deleting document category {category_id} from database: {e}")
         raise
+
 
 @logger.inject_lambda_context
 def lambda_handler(event, context):
     query_params = event.get("queryStringParameters", {})
+    category_id = query_params.get("category_id", "")
 
-    course_id = query_params.get("course_id", "")
-    module_id = query_params.get("module_id", "")
-    file_name = query_params.get("file_name", "")
-    file_type = query_params.get("file_type", "")
-
-    if not course_id or not module_id or not file_name or not file_type:
+    if not category_id:
         logger.error("Missing required parameters", extra={
-            "course_id": course_id,
-            "module_id": module_id,
-            "file_name": file_name,
-            "file_type": file_type
+            "category_id": category_id,
         })
         return {
             'statusCode': 400,
@@ -95,74 +87,13 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
             },
-            'body': json.dumps('Missing required parameters: course_id, module_id, file_name, or file_type')
+            'body': json.dumps("Missing required parameters: course_id, or module_id")
         }
-
     try:
-        # Allowed file types for documents
-        allowed_document_types = {"pdf", "docx", "pptx", "txt", "xlsx", "xps", "mobi", "cbz"}
-
-        folder = None
-        objects_to_delete = []
-
-        # Determine the folder based on the file type
-        if file_type in allowed_document_types:
-            folder = "documents"
-            objects_to_delete.append({"Key": f"{course_id}/{module_id}/{folder}/{file_name}.{file_type}"})
-        else:
-            return {
-                'statusCode': 400,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-                'body': json.dumps('Unsupported file type')
-            }
-
-        # Delete the file from S3
-        response = s3.delete_objects(
-            Bucket=BUCKET,
-            Delete={
-                "Objects": objects_to_delete,
-                "Quiet": True,
-            },
-        )
-        
-        logger.info(f"S3 Response: {response}")
-        logger.info(f"File {file_name}.{file_type} and any associated files deleted successfully from S3.")
-
-        # Delete the file from the database
-        try:
-            delete_file_from_db(module_id, file_name, file_type)
-            logger.info(f"File {file_name}.{file_type} deleted from the database.")
-        except Exception as e:
-            logger.error(f"Error deleting file {file_name}.{file_type} from the database: {e}")
-            return {
-                'statusCode': 500,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-                'body': json.dumps(f"Error deleting file {file_name}.{file_type} from the database")
-            }
-
-        return {
-            'statusCode': 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('File deleted successfully')
-        }
-        
+        delete_document_from_db(category_id)
+        logger.info(f"category {category_id} deleted from the database.")
     except Exception as e:
-        logger.exception(f"Error deleting file: {e}")
+        logger.error(f"Error deletingcategory {category_id} from the database: {e}")
         return {
             'statusCode': 500,
             "headers": {
@@ -171,5 +102,73 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
             },
-            'body': json.dumps('Internal server error')
+            'body': json.dumps(f"Error deleting category {category_id} from the database")
+        }
+    try:
+        module_prefix = f"{category_id}/"
+
+        objects_to_delete = []
+        continuation_token = None
+        
+        # Fetch all objects in the module directory, handling pagination
+        while True:
+            if continuation_token:
+                response = s3.list_objects_v2(
+                    Bucket=BUCKET, 
+                    Prefix=module_prefix, 
+                    ContinuationToken=continuation_token
+                )
+            else:
+                response = s3.list_objects_v2(Bucket=BUCKET, Prefix=module_prefix)
+
+            if 'Contents' in response:
+                objects_to_delete.extend([{'Key': obj['Key']} for obj in response['Contents']])
+            
+            # Check if there's more data to fetch
+            if response.get('IsTruncated'):
+                continuation_token = response.get('NextContinuationToken')
+            else:
+                break
+
+        if objects_to_delete:
+            # Delete all objects in the module directory
+            delete_response = s3.delete_objects(
+                Bucket=BUCKET,
+                Delete={'Objects': objects_to_delete}
+            )
+            logger.info(f"Deleted objects: {delete_response}")
+            return {
+                'statusCode': 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps(f"Deleted module directory: {module_prefix}")
+            }
+        else:
+            logger.info(f"No objects found in module directory: {module_prefix}")
+            return {
+                'statusCode': 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps(f"No objects found in module directory: {module_prefix}")
+            }
+
+    except Exception as e:
+        logger.exception(f"Error deleting module directory: {e}")
+        return {
+            'statusCode': 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps(f"Internal server error: {str(e)}")
         }

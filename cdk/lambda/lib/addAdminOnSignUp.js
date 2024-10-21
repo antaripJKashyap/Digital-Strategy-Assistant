@@ -14,33 +14,11 @@ exports.handler = async (event) => {
   const client = new CognitoIdentityProviderClient();
 
   try {
-    // Get user attributes from Cognito to retrieve the email
-    const getUserCommand = new AdminGetUserCommand({
-      UserPoolId: userPoolId,
-      Username: userName,
-    });
-    const userAttributesResponse = await client.send(getUserCommand);
-
-    const emailAttr = userAttributesResponse.UserAttributes.find(
-      (attr) => attr.Name === "email"
-    );
-    const email = emailAttr ? emailAttr.Value : null;
-
-    // Retrieve roles from the database
-    const dbUser = await sqlConnection`
-      SELECT roles FROM "Users" WHERE user_email = ${email};
-    `;
-
-    const dbRoles = dbUser[0]?.roles || [];
-
-    // Determine the new Cognito group based on the roles
-    const newGroupName = dbRoles.length > 0 ? dbRoles[0] : "student";
-
     // Add the user to the new group without removing existing groups
     const addUserToGroupCommand = new AdminAddUserToGroupCommand({
       UserPoolId: userPoolId,
       Username: userName,
-      GroupName: newGroupName,
+      GroupName: "admin",
     });
     await client.send(addUserToGroupCommand);
 

@@ -96,7 +96,40 @@ def get_student_query(raw_query: str) -> str:
     """
     return student_query
 
-def get_initial_student_query(topic: str) -> str:
+# def get_initial_student_query():
+#     """
+#     Generate an initial query for the user to interact with the system. 
+#     Present the user with the following options and in a json format:
+
+#             {
+#         "message": "Please select the best role below that fits you. We can better answer your questions. Don’t include personal details such as your name and private content.",
+#         "options": [
+#             {
+#             "label": "Student/prospective student",
+#             "value": "student"
+#             },
+#             {
+#             "label": "Educator/educational designer",
+#             "value": "educator"
+#             },
+#             {
+#             "label": "Post-secondary institution admin/leader",
+#             "value": "admin"
+#             }
+#         ]
+#         }
+
+    
+
+#     Returns:
+#     str: The formatted initial query string for the student.
+#     """
+#     student_query = f"""
+#     user
+#     Greet me and then ask me a if the user has any questions. 
+#     """
+#     return student_query
+def get_initial_student_query():
     """
     Generate an initial query for the student to interact with the system. 
     The query asks the student to greet the system and then requests a question related to a specified topic.
@@ -109,13 +142,12 @@ def get_initial_student_query(topic: str) -> str:
     """
     student_query = f"""
     user
-    Greet me and then ask me a question related to the topic: {topic}. 
+    Greet me and then ask me a if the user has any questions. 
     """
     return student_query
 
 def get_response(
     query: str,
-    topic: str,
     llm: ChatBedrock,
     history_aware_retriever,
     table_name: str,
@@ -141,7 +173,7 @@ def get_response(
         ""
         "system"
         "You are an instructor for a course. "
-        f"Your job is to help the student master the topic: {topic}. \n"        
+        f"Your job is to help the student master the topic. \n"        
         f"{course_system_prompt}"
         "Continue this process until you determine that the student has mastered the topic. \nOnce mastery is achieved, include COMPETENCY ACHIEVED in your response and do not ask any further questions about the topic. "
         "Use the following pieces of retrieved context to answer "

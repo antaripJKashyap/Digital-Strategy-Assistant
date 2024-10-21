@@ -58,9 +58,8 @@ def get_vectorstore(
         logger.error(f"Error initializing vector store: {e}")
         return None
     
-def store_course_data(
-    bucket: str, 
-    course: str, 
+def store_category_data(
+    category: str,
     vectorstore_config_dict: Dict[str, str], 
     embeddings: BedrockEmbeddings
 ) -> None:
@@ -68,11 +67,11 @@ def store_course_data(
     Store course data from an S3 bucket into the vectorstore.
     
     Args:
-    bucket (str): The name of the S3 bucket.
-    course (str): The course name/folder in the S3 bucket.
+    category (str): The category name/folder in the S3 bucket.
     vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
     embeddings (BedrockEmbeddings): The embeddings instance.
     """
+    bucket = "dls-data-ingestion-bucket-1"
     vectorstore, connection_string = get_vectorstore(
         collection_name=vectorstore_config_dict['collection_name'],
         embeddings=embeddings,
@@ -98,7 +97,7 @@ def store_course_data(
     # Process all files in the "documents" folder
     process_documents(
         bucket=bucket,
-        course=course,
+        category=category,
         vectorstore=vectorstore,
         embeddings=embeddings,
         record_manager=record_manager
