@@ -2,10 +2,9 @@ import os, tempfile, logging, uuid
 from io import BytesIO
 from typing import List
 import boto3, pymupdf
-
+from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
-from langchain_community.embeddings import BedrockEmbeddings
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.indexes import SQLRecordManager, index
 
@@ -15,9 +14,13 @@ logger = logging.getLogger(__name__)
 
 # Initialize the S3 client
 s3 = boto3.client('s3')
-BUCKET_NAME = "dls-data-ingestion-bucket"
+# BUCKET_NAME = "dls-data-ingestion-bucket"
+EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+
+print('EMBEDDING_BUCKET_NAME',EMBEDDING_BUCKET_NAME)
 
 def extract_txt(
+    bucket: str,
     document_key: str
 ) -> str:
     """
@@ -31,7 +34,7 @@ def extract_txt(
     str: The extracted text.
     """
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_fileobj(BUCKET_NAME, document_key, tmp_file)
+        s3.download_fileobj(bucket, document_key, tmp_file)
         tmp_file_path = tmp_file.name
 
     try:
@@ -43,8 +46,9 @@ def extract_txt(
     return text
 
 def store_doc_texts(
-    category: str, 
-    documentname: str, 
+    bucket: str,
+    category_id: str, 
+    document_name: str, 
     output_bucket: str
 ) -> List[str]:
     """
@@ -60,7 +64,7 @@ def store_doc_texts(
     List[str]: A list of keys for the stored text files in the output bucket.
     """
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_file(BUCKET_NAME, f"{category}/{documentname}", tmp_file.name)
+        s3.download_file(bucket, f"{category_id}/{document_name}", tmp_file.name)
         doc = pymupdf.open(tmp_file.name)
         
         with BytesIO() as output_buffer:
@@ -69,21 +73,22 @@ def store_doc_texts(
                 output_buffer.write(text)
                 output_buffer.write(bytes((12,)))
                 
-                page_output_key = f'{category}/{documentname}_page_{page_num}.txt'
+                page_output_key = f'{category_id}/{document_name}_page_{page_num}.txt'
                 
                 with BytesIO(text) as page_output_buffer:
                     s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
         os.remove(tmp_file.name)
 
-    return [f'{category}/{documentname}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
+    return [f'{category_id}/{document_name}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
 
 def add_document(
-    category: str, 
-    documentname: str,
+    bucket: str,
+    category_id: str, 
+    document_name: str,
     vectorstore: PGVector, 
     embeddings: BedrockEmbeddings,
-    output_bucket: str = 'temp-extracted-data'
+    output_bucket: str = EMBEDDING_BUCKET_NAME
 ) -> List[Document]:
     """
     Add a document to the vectorstore.
@@ -100,13 +105,14 @@ def add_document(
     List[Document]: A list of all document chunks for this document that were added to the vectorstore.
     """
     output_filenames = store_doc_texts(
-        category=category,
-        documentname=documentname,
+        bucket=bucket,
+        category_id=category_id,
+        document_name=document_name,
         output_bucket=output_bucket
     )
     this_doc_chunks = store_doc_chunks(
         bucket=output_bucket,
-        filenames=output_filenames,
+        documentnames=output_filenames,
         vectorstore=vectorstore,
         embeddings=embeddings
     )
@@ -115,7 +121,7 @@ def add_document(
 
 def store_doc_chunks(
     bucket: str, 
-    filenames: List[str],
+    documentnames: List[str],
     vectorstore: PGVector, 
     embeddings: BedrockEmbeddings
 ) -> List[Document]:
@@ -134,15 +140,15 @@ def store_doc_chunks(
     text_splitter = SemanticChunker(embeddings)
     this_doc_chunks = []
 
-    for filename in filenames:
+    for documentname in documentnames:
         this_uuid = str(uuid.uuid4()) # Generating one UUID for all chunks of from a specific page in the document
         output_buffer = BytesIO()
-        s3.download_fileobj(bucket, filename, output_buffer)
+        s3.download_fileobj(bucket, documentname, output_buffer)
         output_buffer.seek(0)
         doc_texts = output_buffer.read().decode('utf-8')
         doc_chunks = text_splitter.create_documents([doc_texts])
         
-        head, _, _ = filename.partition("_page")
+        head, _, _ = documentname.partition("_page")
         true_filename = head # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
         
         doc_chunks = [x for x in doc_chunks if x.page_content]
@@ -157,15 +163,17 @@ def store_doc_chunks(
                 )
                 
             else:
-                logger.warning(f"Empty chunk for {filename}")
+                logger.warning(f"Empty chunk for {documentname}")
         
+        s3.delete_object(Bucket=bucket,Key=documentname)
+        print(f"Deleting {documentname} from {bucket}")
         this_doc_chunks.extend(doc_chunks)
        
     return this_doc_chunks
                 
 def process_documents(
     bucket: str,
-    category: str, 
+    category_id: str, 
     vectorstore: PGVector, 
     embeddings: BedrockEmbeddings,
     record_manager: SQLRecordManager
@@ -181,7 +189,7 @@ def process_documents(
     record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
     paginator = s3.get_paginator('list_objects_v2')
-    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category}/")
+    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category_id}/")
     all_doc_chunks = []
     
     for page in page_iterator:
@@ -193,7 +201,8 @@ def process_documents(
                 if documentname.endswith((".pdf", ".docx", ".pptx", ".txt", ".xlsx", ".xps", ".mobi", ".cbz")):
                     # module = filename.split('/')[1]
                     this_doc_chunks = add_document(
-                        category=category,
+                        bucket=bucket,
+                        category_id=category_id,
                         documentname=os.path.basename(documentname),
                         vectorstore=vectorstore,
                         embeddings=embeddings
@@ -206,9 +215,16 @@ def process_documents(
             all_doc_chunks, 
             record_manager, 
             vectorstore, 
-            cleanup="incremental",
+            cleanup="full",
             source_id_key="source"
         )
         logger.info(f"Indexing updates: \n {idx}")
     else:
+        idx = index(
+            [],
+            record_manager, 
+            vectorstore, 
+            cleanup="full",
+            source_id_key="source"
+        )
         logger.info("No documents found for indexing.")
