@@ -4,7 +4,6 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
-import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Duration } from "aws-cdk-lib";
 import {
   Architecture,
@@ -92,11 +91,6 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    new ssm.StringParameter(this, "embeddingStorageBucketNameParameter", {
-      parameterName: "embeddingStorageBucketName",
-      description: "The name of the embedding storage bucket",
-      stringValue: embeddingStorageBucket.bucketName,
-    });
     
 
 
@@ -792,11 +786,6 @@ export class ApiGatewayStack extends cdk.Stack {
       enforceSSL: true,
     });
 
-    new ssm.StringParameter(this, "dataIngestionBucketNameParameter", {
-      parameterName: "dataIngestionBucketName",
-      description: "The name of the data ingestion bucket that contains all the files for each module in each course",
-      stringValue: dataIngestionBucket.bucketName,
-    });
 
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
