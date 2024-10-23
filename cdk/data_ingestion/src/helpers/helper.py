@@ -59,7 +59,7 @@ def get_vectorstore(
     
 def store_category_data(
     bucket: str,
-    category: str,
+    category_id: str,
     vectorstore_config_dict: Dict[str, str], 
     embeddings: BedrockEmbeddings
 ) -> None:
@@ -98,7 +98,7 @@ def store_category_data(
     # Process all files in the "documents" folder
     process_documents(
         bucket=bucket,
-        category=category,
+        category_id=category_id,
         vectorstore=vectorstore,
         embeddings=embeddings,
         record_manager=record_manager
