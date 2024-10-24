@@ -837,15 +837,15 @@ export class ApiGatewayStack extends cdk.Stack {
      * Create Lambda with container image for data ingestion workflow in RAG pipeline
      * This function will be triggered when a file in uploaded or deleted fro, the S3 Bucket
      */
-    const dataIngestLambdaDockerFunc = new lambda.DockerImageFunction(
+    const dataIngestLambdaDockerFunction = new lambda.DockerImageFunction(
       this,
-      "DataIngestLambdaDockerFunc",
+      "DataIngestLambdaDockerFunction",
       {
         code: lambda.DockerImageCode.fromImageAsset("./data_ingestion"),
         memorySize: 512,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc, // Pass the VPC
-        functionName: "DataIngestLambdaDockerFunc",
+        functionName: "DataIngestLambdaDockerFunction",
         environment: {
           SM_DB_CREDENTIALS: db.secretPathAdminName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
@@ -859,17 +859,43 @@ export class ApiGatewayStack extends cdk.Stack {
     
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnDataIngestLambdaDockerFunc = dataIngestLambdaDockerFunc.node
+    const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction.node
       .defaultChild as lambda.CfnFunction;
-    cfnDataIngestLambdaDockerFunc.overrideLogicalId(
-      "DataIngestLambdaDockerFunc"
+    cfnDataIngestLambdaDockerFunction.overrideLogicalId(
+      "DataIngestLambdaDockerFunction"
     );
 
-    // Attach the custom Bedrock policy to Lambda function
-    dataIngestLambdaDockerFunc.addToRolePolicy(bedrockPolicyStatement);
+    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
 
-    // Add the S3 event source trigger to the Lambda function
-    dataIngestLambdaDockerFunc.addEventSource(
+    dataIngestLambdaDockerFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [dataIngestionBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    dataIngestLambdaDockerFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [embeddingStorageBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    dataIngestLambdaDockerFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:HeadObject"],
+        resources: [
+          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`,  // Grant access to all objects within this bucket
+        ],
+      })
+    );
+
+    dataIngestLambdaDockerFunction.addToRolePolicy(bedrockPolicyStatement);
+
+    dataIngestLambdaDockerFunction.addEventSource(
       new lambdaEventSources.S3EventSource(dataIngestionBucket, {
         events: [
           s3.EventType.OBJECT_CREATED,
@@ -879,26 +905,8 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    // dataIngestLambdaDockerFunc.addEventSource(
-    //   new lambdaEventSources.S3EventSource(embeddingStorageBucket, {
-    //     events: [
-    //       s3.EventType.OBJECT_CREATED,
-    //       s3.EventType.OBJECT_REMOVED,
-    //       s3.EventType.OBJECT_RESTORE_COMPLETED,
-    //     ],
-    //   })
-    // );
-
-    // dataIngestLambdaDockerFunc.addToRolePolicy(
-    //   new iam.PolicyStatement({
-    //     effect: iam.Effect.ALLOW,
-    //     actions: ["s3:ListBucket"],
-    //     resources: [embeddingStorageBucket.bucketArn], // Access to the specific bucket
-    //   })
-    // );
-
     // Grant access to Secret Manager
-    dataIngestLambdaDockerFunc.addToRolePolicy(
+    dataIngestLambdaDockerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -1060,16 +1068,16 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
 
-    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunc);
+    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
     // Add ListBucket permission explicitly
-    dataIngestLambdaDockerFunc.addToRolePolicy(
+    dataIngestLambdaDockerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
         resources: [dataIngestionBucket.bucketArn], // Access to the specific bucket
       })
     );
-    dataIngestLambdaDockerFunc.addToRolePolicy(
+    dataIngestLambdaDockerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -1079,7 +1087,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunc.addToRolePolicy(
+    dataIngestLambdaDockerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:HeadObject"],
