@@ -104,12 +104,14 @@ def add_document(
     Returns:
     List[Document]: A list of all document chunks for this document that were added to the vectorstore.
     """
+    print("check embedding 99999")
     output_filenames = store_doc_texts(
         bucket=bucket,
         category_id=category_id,
         document_name=document_name,
         output_bucket=output_bucket
     )
+    print("check embedding 100")
     this_doc_chunks = store_doc_chunks(
         bucket=output_bucket,
         documentnames=output_filenames,
@@ -183,27 +185,38 @@ def process_documents(
     embeddings (BedrockEmbeddings): The embeddings instance.
     record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
+    print("start processing document")
     paginator = s3.get_paginator('list_objects_v2')
+    print("checking paginator 001")
     page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category_id}/")
+    print("checking paginator  002")
     all_doc_chunks = []
     
-    for page in page_iterator:
-        if "Contents" not in page:
-            continue  # Skip pages without any content (e.g., if the bucket is empty)
-        for document in page['Contents']:
-            documentname = document['Key']
-            if documentname.split('/')[-2] == "documents": # Ensures that only files in the 'documents' folder are processed
-                if documentname.endswith((".pdf", ".docx", ".pptx", ".txt", ".xlsx", ".xps", ".mobi", ".cbz")):
-                    # module = filename.split('/')[1]
-                    this_doc_chunks = add_document(
-                        bucket=bucket,
-                        category_id=category_id,
-                        documentname=os.path.basename(documentname),
-                        vectorstore=vectorstore,
-                        embeddings=embeddings
-                    )
+    try:
+        for page in page_iterator:
+            print("checking paginator  003")
+            if "Contents" not in page:
+                continue  # Skip pages without any content (e.g., if the bucket is empty)
+            for document in page['Contents']:
+                
+                documentname = document['Key']
+                # if documentname.split('/')[-2] == "documents": # Ensures that only files in the 'documents' folder are processed
+                #     if documentname.endswith((".pdf", ".docx", ".pptx", ".txt", ".xlsx", ".xps", ".mobi", ".cbz")):
+                        # module = filename.split('/')[1]
+                documentname.split('/')
+                this_doc_chunks = add_document(
+                    bucket=bucket,
+                    category_id=category_id,
+                    documentname=os.path.basename(documentname),
+                    vectorstore=vectorstore,
+                    embeddings=embeddings
+                )
 
-                    all_doc_chunks.extend(this_doc_chunks)
+                all_doc_chunks.extend(this_doc_chunks)
+
+    except Exception as e:
+        logger.error(f"Error processing documents: {e}")
+        raise
     
     if all_doc_chunks:  # Check if there are any documents to index
         idx = index(
