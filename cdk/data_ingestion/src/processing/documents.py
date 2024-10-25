@@ -157,11 +157,6 @@ def store_doc_chunks(
             if doc_chunk:
                 doc_chunk.metadata["source"] = f"s3://{bucket}/{true_filename}"
                 doc_chunk.metadata["doc_id"] = this_uuid
-                    
-                vectorstore.add_documents(
-                    documents=[doc_chunk]
-                )
-                
             else:
                 logger.warning(f"Empty chunk for {documentname}")
         

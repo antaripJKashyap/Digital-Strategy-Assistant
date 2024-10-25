@@ -3,6 +3,7 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
 import {
@@ -51,26 +52,27 @@ export class ApiGatewayStack extends cdk.Stack {
 
     this.layerList = {};
 
-    // // Define the embedding storage bucket name as a parameter
-    // const embeddingStorageBucketName = new cdk.CfnParameter(
-    //   this,
-    //   "embeddingStorageBucketName",
-    //   {
-    //     type: "String",
-    //     description: "The name of the embedding storage bucket",
-    //   }
-    // ).valueAsString;
+    const bucketParameterName = "/dls/embeddingStorageBucketArn";
+    const dataIngestionBucketParameterName = "/dls/dataIngestionBucketArn";
 
-    // new ssm.StringParameter(this, "embeddingStorageBucketNameParameter", {
-    //   parameterName: "embeddingStorageBucketName",
-    //   description: "The name of the embedding storage bucket",
-    //   stringValue: embeddingStorageBucketName,
-    // });
+    // Try to retrieve the bucket ARN from Parameter Store
+    let embeddingStorageBucket: s3.IBucket;
 
-    const embeddingStorageBucket = new s3.Bucket(
+    const existingBucketArn = ssm.StringParameter.valueForStringParameter(
       this,
-      "embeddingStorageBucket",
-      {
+      bucketParameterName
+    );
+
+    if (existingBucketArn) {
+      // Import the existing bucket by ARN
+      embeddingStorageBucket = s3.Bucket.fromBucketArn(
+        this,
+        "embeddingStorageBucket",
+        existingBucketArn
+      );
+    } else {
+      // Create a new bucket if it doesn’t exist yet
+      embeddingStorageBucket = new s3.Bucket(this, "embeddingStorageBucket", {
         blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
         cors: [
           {
@@ -85,14 +87,16 @@ export class ApiGatewayStack extends cdk.Stack {
             allowedOrigins: ["*"],
           },
         ],
-        // When deleting the stack, need to empty the Bucket and delete it manually
         removalPolicy: cdk.RemovalPolicy.RETAIN,
         enforceSSL: true,
-      }
-    );
+      });
 
-    
-
+      // Save the bucket ARN to Parameter Store for future lookups
+      new ssm.StringParameter(this, "embeddingStorageBucketArnParam", {
+        parameterName: bucketParameterName,
+        stringValue: embeddingStorageBucket.bucketArn,
+      });
+    }
 
     /**
      *
@@ -636,52 +640,48 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
 
-
-        // Create secrets for Bedrock LLM ID, Embedding Model ID, and Table Name
-        // const bedrockLLMSecret = new secretsmanager.Secret(this, "BedrockLLMSecret", {
-        //   secretName: "BedrockLLMSecret",
-        //   description: "Secret containing the Bedrock LLM ID",
-        //   secretStringValue: cdk.SecretValue.unsafePlainText("meta.llama3-70b-instruct-v1:0"),
-        // });
+    // Create secrets for Bedrock LLM ID, Embedding Model ID, and Table Name
+    // const bedrockLLMSecret = new secretsmanager.Secret(this, "BedrockLLMSecret", {
+    //   secretName: "BedrockLLMSecret",
+    //   description: "Secret containing the Bedrock LLM ID",
+    //   secretStringValue: cdk.SecretValue.unsafePlainText("meta.llama3-70b-instruct-v1:0"),
+    // });
     const bedrockLLMSecret = new secretsmanager.Secret(
-          this,
-          "BedrockLLMSecret",
-          {
-            secretName: "BedrockLLMSecret",
-            description: "Secret containing the Bedrock LLM ID",
-            secretStringValue: cdk.SecretValue.unsafePlainText(
-              "meta.llama3-70b-instruct-v1:0"
-            ),
-          }
-        );
-        // const embeddingModelSecret = new secretsmanager.Secret(this, "EmbeddingModelSecret", {
-        //   secretName: "EmbeddingModelSecret",
-        //   description: "Secret containing the Embedding Model ID",
-        //   secretStringValue: cdk.SecretValue.unsafePlainText("amazon.titan-embed-text-v2:0"),
-        // });
+      this,
+      "BedrockLLMSecret",
+      {
+        secretName: "BedrockLLMSecret",
+        description: "Secret containing the Bedrock LLM ID",
+        secretStringValue: cdk.SecretValue.unsafePlainText(
+          "meta.llama3-70b-instruct-v1:0"
+        ),
+      }
+    );
+    // const embeddingModelSecret = new secretsmanager.Secret(this, "EmbeddingModelSecret", {
+    //   secretName: "EmbeddingModelSecret",
+    //   description: "Secret containing the Embedding Model ID",
+    //   secretStringValue: cdk.SecretValue.unsafePlainText("amazon.titan-embed-text-v2:0"),
+    // });
 
     const embeddingModelSecret = new secretsmanager.Secret(
-          this,
-          "EmbeddingModelSecret",
-          {
-            secretName: "EmbeddingModelSecret",
-            description: "Secret containing the Embedding Model ID",
-            secretStringValue: cdk.SecretValue.unsafePlainText(
-              "amazon.titan-embed-text-v2:0"
-            ),
-          }
-        );
-
+      this,
+      "EmbeddingModelSecret",
+      {
+        secretName: "EmbeddingModelSecret",
+        description: "Secret containing the Embedding Model ID",
+        secretStringValue: cdk.SecretValue.unsafePlainText(
+          "amazon.titan-embed-text-v2:0"
+        ),
+      }
+    );
 
     const tableNameSecret = new secretsmanager.Secret(this, "TableNameSecret", {
-          secretName: "TableNameSecret",
-          description: "Secret containing the DynamoDB table name",
-          secretStringValue: cdk.SecretValue.unsafePlainText(
-            "DynamoDB-Conversation-Table"
-          ),
-        });
-
-
+      secretName: "TableNameSecret",
+      description: "Secret containing the DynamoDB table name",
+      secretStringValue: cdk.SecretValue.unsafePlainText(
+        "DynamoDB-Conversation-Table"
+      ),
+    });
 
     /**
      *
@@ -765,27 +765,49 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    // Create S3 Bucket to handle documents for each course
-    const dataIngestionBucket = new s3.Bucket(this, "DLSDataIngestionBucket", {
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      cors: [
-        {
-          allowedHeaders: ["*"],
-          allowedMethods: [
-            s3.HttpMethods.GET,
-            s3.HttpMethods.PUT,
-            s3.HttpMethods.HEAD,
-            s3.HttpMethods.POST,
-            s3.HttpMethods.DELETE,
-          ],
-          allowedOrigins: ["*"],
-        },
-      ],
-      // When deleting the stack, need to empty the Bucket and delete it manually
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      enforceSSL: true,
-    });
+    // Try to retrieve the existing bucket ARN from Parameter Store
+    let dataIngestionBucket: s3.IBucket;
 
+    const existingDataIngestionBucketArn =
+      ssm.StringParameter.valueForStringParameter(
+        this,
+        dataIngestionBucketParameterName
+      );
+
+    if (existingDataIngestionBucketArn) {
+      // Import the existing bucket by ARN
+      dataIngestionBucket = s3.Bucket.fromBucketArn(
+        this,
+        "DLSDataIngestionBucket",
+        existingDataIngestionBucketArn
+      );
+    } else {
+      // Create a new bucket if it doesn’t exist yet
+      dataIngestionBucket = new s3.Bucket(this, "DLSDataIngestionBucket", {
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        cors: [
+          {
+            allowedHeaders: ["*"],
+            allowedMethods: [
+              s3.HttpMethods.GET,
+              s3.HttpMethods.PUT,
+              s3.HttpMethods.HEAD,
+              s3.HttpMethods.POST,
+              s3.HttpMethods.DELETE,
+            ],
+            allowedOrigins: ["*"],
+          },
+        ],
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        enforceSSL: true,
+      });
+
+      // Save the bucket ARN to Parameter Store for future lookups
+      new ssm.StringParameter(this, "dataIngestionBucketArnParam", {
+        parameterName: dataIngestionBucketParameterName,
+        stringValue: dataIngestionBucket.bucketArn,
+      });
+    }
 
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
@@ -830,8 +852,6 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
 
-
-    
     /**
      *
      * Create Lambda with container image for data ingestion workflow in RAG pipeline
@@ -856,11 +876,9 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    
-
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction.node
-      .defaultChild as lambda.CfnFunction;
+    const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction
+      .node.defaultChild as lambda.CfnFunction;
     cfnDataIngestLambdaDockerFunction.overrideLogicalId(
       "DataIngestLambdaDockerFunction"
     );
@@ -886,9 +904,14 @@ export class ApiGatewayStack extends cdk.Stack {
     dataIngestLambdaDockerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:HeadObject"],
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
         resources: [
-          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`,  // Grant access to all objects within this bucket
+          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`, // Grant access to all objects within this bucket
         ],
       })
     );
@@ -1028,22 +1051,26 @@ export class ApiGatewayStack extends cdk.Stack {
      *
      * Create Lambda function to delete an entire module directory
      */
-    const deleteCategoryFunction = new lambda.Function(this, "DeleteCategoryFunc", {
-      runtime: lambda.Runtime.PYTHON_3_9,
-      code: lambda.Code.fromAsset("lambda/deleteCategory"),
-      handler: "deleteCategory.lambda_handler",
-      timeout: Duration.seconds(300),
-      memorySize: 128,
-      vpc: vpcStack.vpc,
-      environment: {
-        SM_DB_CREDENTIALS: db.secretPathUser.secretName, // Database User Credentials
-        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint, // RDS Proxy Endpoint
-        BUCKET: dataIngestionBucket.bucketName,
-        REGION: this.region,
-      },
-      functionName: "DeleteCategoryFunc",
-      layers: [psycopgLayer, powertoolsLayer],
-    });
+    const deleteCategoryFunction = new lambda.Function(
+      this,
+      "DeleteCategoryFunc",
+      {
+        runtime: lambda.Runtime.PYTHON_3_9,
+        code: lambda.Code.fromAsset("lambda/deleteCategory"),
+        handler: "deleteCategory.lambda_handler",
+        timeout: Duration.seconds(300),
+        memorySize: 128,
+        vpc: vpcStack.vpc,
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathUser.secretName, // Database User Credentials
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint, // RDS Proxy Endpoint
+          BUCKET: dataIngestionBucket.bucketName,
+          REGION: this.region,
+        },
+        functionName: "DeleteCategoryFunc",
+        layers: [psycopgLayer, powertoolsLayer],
+      }
+    );
 
     //Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnDeleteCategoryFunction = deleteCategoryFunction.node
@@ -1067,7 +1094,6 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-
     dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
     // Add ListBucket permission explicitly
     dataIngestLambdaDockerFunction.addToRolePolicy(
@@ -1082,7 +1108,7 @@ export class ApiGatewayStack extends cdk.Stack {
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
         resources: [
-          `arn:aws:s3:::${embeddingStorageBucket.bucketArn}/*`,  // Grant access to all objects within this bucket
+          `arn:aws:s3:::${embeddingStorageBucket.bucketArn}/*`, // Grant access to all objects within this bucket
         ],
       })
     );
@@ -1090,9 +1116,14 @@ export class ApiGatewayStack extends cdk.Stack {
     dataIngestLambdaDockerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:HeadObject"],
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
         resources: [
-          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`,  // Grant access to all objects within this bucket
+          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`, // Grant access to all objects within this bucket
         ],
       })
     );
@@ -1103,7 +1134,5 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
-
-    
   }
 }

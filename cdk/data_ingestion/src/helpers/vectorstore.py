@@ -23,7 +23,7 @@ def update_vectorstore(
     # bucket = "dls-data-ingestion-bucket"
     store_category_data(
         bucket=bucket,
-        category=category_id,
+        category_id=category_id,
         vectorstore_config_dict=vectorstore_config_dict,
         embeddings=embeddings
     )
