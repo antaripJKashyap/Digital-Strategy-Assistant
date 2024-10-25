@@ -24,6 +24,7 @@ import { Asset } from "aws-cdk-lib/aws-s3-assets";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as bedrock from "aws-cdk-lib/aws-bedrock";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import { SecretValue } from "aws-cdk-lib";
 
 export class ApiGatewayStack extends cdk.Stack {
   private readonly api: apigateway.SpecRestApi;
@@ -51,28 +52,11 @@ export class ApiGatewayStack extends cdk.Stack {
     super(scope, id, props);
 
     this.layerList = {};
-
-    const bucketParameterName = "/dls/embeddingStorageBucketArn";
-    const dataIngestionBucketParameterName = "/dls/dataIngestionBucketArn";
-
-    // Try to retrieve the bucket ARN from Parameter Store
-    let embeddingStorageBucket: s3.IBucket;
-
-    const existingBucketArn = ssm.StringParameter.valueForStringParameter(
+    // Create the embedding storage bucket
+    const embeddingStorageBucket = new s3.Bucket(
       this,
-      bucketParameterName
-    );
-
-    if (existingBucketArn) {
-      // Import the existing bucket by ARN
-      embeddingStorageBucket = s3.Bucket.fromBucketArn(
-        this,
-        "embeddingStorageBucket",
-        existingBucketArn
-      );
-    } else {
-      // Create a new bucket if it doesn’t exist yet
-      embeddingStorageBucket = new s3.Bucket(this, "embeddingStorageBucket", {
+      "EmbeddingStorageBucket",
+      {
         blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
         cors: [
           {
@@ -87,16 +71,32 @@ export class ApiGatewayStack extends cdk.Stack {
             allowedOrigins: ["*"],
           },
         ],
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
         enforceSSL: true,
-      });
+        autoDeleteObjects: true,
+      }
+    );
 
-      // Save the bucket ARN to Parameter Store for future lookups
-      new ssm.StringParameter(this, "embeddingStorageBucketArnParam", {
-        parameterName: bucketParameterName,
-        stringValue: embeddingStorageBucket.bucketArn,
-      });
-    }
+    // Create the data ingestion bucket
+    const dataIngestionBucket = new s3.Bucket(this, "DataIngestionBucket", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      cors: [
+        {
+          allowedHeaders: ["*"],
+          allowedMethods: [
+            s3.HttpMethods.GET,
+            s3.HttpMethods.PUT,
+            s3.HttpMethods.HEAD,
+            s3.HttpMethods.POST,
+            s3.HttpMethods.DELETE,
+          ],
+          allowedOrigins: ["*"],
+        },
+      ],
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      enforceSSL: true,
+      autoDeleteObjects: true,
+    });
 
     /**
      *
@@ -764,50 +764,6 @@ export class ApiGatewayStack extends cdk.Stack {
         resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
       })
     );
-
-    // Try to retrieve the existing bucket ARN from Parameter Store
-    let dataIngestionBucket: s3.IBucket;
-
-    const existingDataIngestionBucketArn =
-      ssm.StringParameter.valueForStringParameter(
-        this,
-        dataIngestionBucketParameterName
-      );
-
-    if (existingDataIngestionBucketArn) {
-      // Import the existing bucket by ARN
-      dataIngestionBucket = s3.Bucket.fromBucketArn(
-        this,
-        "DLSDataIngestionBucket",
-        existingDataIngestionBucketArn
-      );
-    } else {
-      // Create a new bucket if it doesn’t exist yet
-      dataIngestionBucket = new s3.Bucket(this, "DLSDataIngestionBucket", {
-        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-        cors: [
-          {
-            allowedHeaders: ["*"],
-            allowedMethods: [
-              s3.HttpMethods.GET,
-              s3.HttpMethods.PUT,
-              s3.HttpMethods.HEAD,
-              s3.HttpMethods.POST,
-              s3.HttpMethods.DELETE,
-            ],
-            allowedOrigins: ["*"],
-          },
-        ],
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
-        enforceSSL: true,
-      });
-
-      // Save the bucket ARN to Parameter Store for future lookups
-      new ssm.StringParameter(this, "dataIngestionBucketArnParam", {
-        parameterName: dataIngestionBucketParameterName,
-        stringValue: dataIngestionBucket.bucketArn,
-      });
-    }
 
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
