@@ -7,8 +7,6 @@ info:
 tags:
   - name: User
     description: endpoints accessible by the general public
-  - name: Instructor
-    description: endpoints accessible by instructors
   - name: Admin
     description: endpoints accessible by admins
 x-amazon-apigateway-request-validators:
@@ -475,7 +473,7 @@ paths:
 
     get:
       tags:
-        - Instructor
+        - Admin
       summary: Get a list of all the document files for a specific course, concept, and module
       operationId: instructor_get_all_files_GET
       parameters:
