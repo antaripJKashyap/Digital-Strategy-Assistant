@@ -95,8 +95,8 @@ def add_document(
     
     Args:
     bucket (str): The name of the S3 bucket containing the document.
-    category (str): The category ID folder in the S3 bucket.
-    documentname (str): The name of the document file.
+    category_id (str): The category ID folder in the S3 bucket.
+    document_name (str): The name of the document file.
     vectorstore (PGVector): The vectorstore instance.
     embeddings (BedrockEmbeddings): The embeddings instance.
     output_bucket (str, optional): The name of the S3 bucket for storing extracted data. Defaults to 'temp-extracted-data'.
@@ -203,11 +203,10 @@ def process_documents(
                 # if documentname.split('/')[-2] == "documents": # Ensures that only files in the 'documents' folder are processed
                 #     if documentname.endswith((".pdf", ".docx", ".pptx", ".txt", ".xlsx", ".xps", ".mobi", ".cbz")):
                         # module = filename.split('/')[1]
-                documentname.split('/')
                 this_doc_chunks = add_document(
                     bucket=bucket,
                     category_id=category_id,
-                    documentname=os.path.basename(documentname),
+                    document_name=documentname.split('/')[-1],
                     vectorstore=vectorstore,
                     embeddings=embeddings
                 )
