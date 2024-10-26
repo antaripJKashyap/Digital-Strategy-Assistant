@@ -9,7 +9,8 @@ import {
   import { Construct } from "constructs";
   import * as yaml from "yaml";
   import { ApiGatewayStack } from "./api-gateway-stack";
-  
+  import * as codebuild from 'aws-cdk-lib/aws-codebuild';
+  import { Platform } from "@aws-cdk/aws-amplify-alpha";
   export class AmplifyStack extends cdk.Stack {
     constructor(
       scope: Construct,
@@ -50,7 +51,7 @@ import {
       const amplifyYamlAdmin = yaml.parse(` 
         version: 1
         applications:
-          - frontendAdmin:
+          - frontend:
               phases:
                 preBuild:
                   commands:
@@ -76,6 +77,7 @@ import {
   
       const amplifyApp = new App(this, "amplifyApp", {
         appName: "dls-amplify",
+        platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
           owner: username,
           repository: githubRepoName,
@@ -92,12 +94,22 @@ import {
           NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          AMPLIFY_DIFF_DEPLOY: "false",
+          AMPLIFY_MONOREPO_APP_ROOT: "frontend",
+
         },
         buildSpec: BuildSpec.fromObjectToYaml(amplifyYaml),
       });
 
+      amplifyApp.addCustomRule({
+        source: '/<*>',
+        target: '	/index.html',
+        status: RedirectStatus.NOT_FOUND_REWRITE ,
+      });
+
       const amplifyAppAdmin = new App(this, "amplifyAppAdmin", {
         appName: "dls-amplify-admin",
+        platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
           owner: username,
           repository: githubRepoName,
@@ -114,8 +126,16 @@ import {
           NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          AMPLIFY_DIFF_DEPLOY: "false",
+          AMPLIFY_MONOREPO_APP_ROOT: "frontendAdmin",
         },
         buildSpec: BuildSpec.fromObjectToYaml(amplifyYamlAdmin),
+      });
+
+      amplifyAppAdmin.addCustomRule({
+        source: '/<*>',
+        target: '	/index.html',
+        status: RedirectStatus.NOT_FOUND_REWRITE ,
       });
   
       amplifyApp.addBranch("main");
