@@ -712,13 +712,13 @@ export class ApiGatewayStack extends cdk.Stack {
      */
     const textGenLambdaDockerFunc = new lambda.DockerImageFunction(
       this,
-      "TextGenLambdaDockerFunc",
+      "TextGenLambdaDockerFunction",
       {
         code: lambda.DockerImageCode.fromImageAsset("./text_generation"),
         memorySize: 512,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc, // Pass the VPC
-        functionName: "TextGenLambdaDockerFunc",
+        functionName: "TextGenLambdaDockerFunction",
         environment: {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
@@ -733,7 +733,7 @@ export class ApiGatewayStack extends cdk.Stack {
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnTextGenDockerFunc = textGenLambdaDockerFunc.node
       .defaultChild as lambda.CfnFunction;
-    cfnTextGenDockerFunc.overrideLogicalId("TextGenLambdaDockerFunc");
+    cfnTextGenDockerFunc.overrideLogicalId("TextGenLambdaDockerFunction");
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
     textGenLambdaDockerFunc.addPermission("AllowApiGatewayInvoke", {
@@ -838,13 +838,13 @@ export class ApiGatewayStack extends cdk.Stack {
      */
     const dataIngestLambdaDockerFunction = new lambda.DockerImageFunction(
       this,
-      "DataIngestLambdaDockerFunction",
+      "DataIngestLambdaDockerFunctionReImaged",
       {
         code: lambda.DockerImageCode.fromImageAsset("./data_ingestion"),
         memorySize: 512,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc, // Pass the VPC
-        functionName: "DataIngestLambdaDockerFunction",
+        functionName: "DataIngestLambdaDockerFunctionReImaged",
         environment: {
           SM_DB_CREDENTIALS: db.secretPathAdminName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
@@ -854,12 +854,11 @@ export class ApiGatewayStack extends cdk.Stack {
         },
       }
     );
-
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction
       .node.defaultChild as lambda.CfnFunction;
     cfnDataIngestLambdaDockerFunction.overrideLogicalId(
-      "DataIngestLambdaDockerFunction"
+      "DataIngestLambdaDockerFunctionReImaged"
     );
 
     dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);

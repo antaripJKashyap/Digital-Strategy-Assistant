@@ -15,6 +15,6 @@ const env = {
 
 const vpcStack = new VpcStack(app, 'VpcStack', { env });
 const dbStack = new DatabaseStack(app, 'Database', vpcStack, { env });
-const apiStack = new ApiGatewayStack(app, 'ApiGateway', dbStack, vpcStack,  { env });
+const apiStack = new ApiGatewayStack(app, 'Api', dbStack, vpcStack,  { env });
 const dbFlowStack = new DBFlowStack(app, 'DBFlow', vpcStack, dbStack, apiStack, { env });
 const amplifyStack = new AmplifyStack(app, 'Amplify',apiStack, { env });
