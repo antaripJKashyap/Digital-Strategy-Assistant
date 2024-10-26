@@ -2,6 +2,7 @@ boto3
 botocore
 langchain
 langchain-core
+langchain-aws
 langchain-experimental
 langchain-postgres
 python-dotenv

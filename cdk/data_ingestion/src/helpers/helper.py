@@ -2,8 +2,7 @@ import logging
 import boto3
 from typing import Dict, Optional
 import psycopg2
-
-from langchain_community.embeddings import BedrockEmbeddings
+from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain.indexes import SQLRecordManager
 
@@ -59,7 +58,8 @@ def get_vectorstore(
         return None
     
 def store_category_data(
-    category: str,
+    bucket: str,
+    category_id: str,
     vectorstore_config_dict: Dict[str, str], 
     embeddings: BedrockEmbeddings
 ) -> None:
@@ -67,11 +67,12 @@ def store_category_data(
     Store course data from an S3 bucket into the vectorstore.
     
     Args:
+    bucket (str): the bucket
     category (str): The category name/folder in the S3 bucket.
     vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
     embeddings (BedrockEmbeddings): The embeddings instance.
     """
-    bucket = "dls-data-ingestion-bucket-1"
+    # bucket = "dls-data-ingestion-bucket-1"
     vectorstore, connection_string = get_vectorstore(
         collection_name=vectorstore_config_dict['collection_name'],
         embeddings=embeddings,
@@ -81,7 +82,7 @@ def store_category_data(
         host=vectorstore_config_dict['host'],
         port=int(vectorstore_config_dict['port'])
     )
-    
+    print("vector_store",vectorstore)
     if vectorstore:
         # define record manager
         namespace = f"pgvector/{vectorstore_config_dict['collection_name']}"
@@ -97,7 +98,7 @@ def store_category_data(
     # Process all files in the "documents" folder
     process_documents(
         bucket=bucket,
-        category=category,
+        category_id=category_id,
         vectorstore=vectorstore,
         embeddings=embeddings,
         record_manager=record_manager
