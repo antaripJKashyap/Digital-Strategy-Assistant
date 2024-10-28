@@ -1,10 +1,10 @@
 from typing import Dict
 
-from helpers.helper import store_course_data
+from helpers.helper import store_category_data
 
 def update_vectorstore(
     bucket: str,
-    course: str,
+    category_id: str,
     vectorstore_config_dict: Dict[str, str],
     embeddings#: BedrockEmbeddings
 ) -> None:
@@ -20,9 +20,10 @@ def update_vectorstore(
     Returns:
     None
     """
-    store_course_data(
+    # bucket = "dls-data-ingestion-bucket"
+    store_category_data(
         bucket=bucket,
-        course=course,
+        category_id=category_id,
         vectorstore_config_dict=vectorstore_config_dict,
         embeddings=embeddings
     )

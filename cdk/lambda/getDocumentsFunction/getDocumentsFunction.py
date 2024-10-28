@@ -1,12 +1,21 @@
 import os
 import json
 import boto3
+from botocore.config import Config
 import psycopg2
 from aws_lambda_powertools import Logger
 
 logger = Logger()
 
-s3 = boto3.client('s3')
+REGION = os.environ["REGION"]
+s3 = boto3.client(
+    "s3",
+    endpoint_url=f"https://s3.{REGION}.amazonaws.com",
+    config=Config(
+        s3={"addressing_style": "virtual"}, region_name=REGION, signature_version="s3v4"
+    ),
+)
+
 BUCKET = os.environ["BUCKET"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
@@ -71,13 +80,14 @@ def generate_presigned_url(bucket, key):
         return s3.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": bucket, "Key": key},
-            ExpiresIn=300
+            ExpiresIn=300,
+            HttpMethod="GET",
         )
     except Exception as e:
         logger.exception(f"Error generating presigned URL for {key}: {e}")
         return None
 
-def get_document_metadata_from_db(document_id, document_name, document_type):
+def get_document_metadata_from_db(category_id, document_name, document_type):
     connection = connect_to_db()
     if connection is None:
         logger.error("No database connection available.")
@@ -89,9 +99,9 @@ def get_document_metadata_from_db(document_id, document_name, document_type):
         query = """
             SELECT metadata 
             FROM "documents" 
-            WHERE documentname = %s AND documenttype = %s;
+            WHERE category_id = %s AND document_name = %s AND document_type = %s;
         """
-        cur.execute(query, (document_id, document_name, document_type))
+        cur.execute(query, (category_id, document_name, document_type))
         result = cur.fetchone()
         cur.close()
         connection.close()
@@ -115,29 +125,27 @@ def get_document_metadata_from_db(document_id, document_name, document_type):
 def lambda_handler(event, context):
     query_params = event.get("queryStringParameters", {})
 
-    document_id = query_params.get("document_id", "")
-    # module_id = query_params.get("module_id", "")
-
-    # if not course_id or not module_id:
-    #     logger.error("Missing required parameters", extra={
-    #         "course_id": course_id,
-    #         "module_id": module_id,
-    #     })
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Missing required parameters: course_id, or module_id')
-    #     }
+    category_id = query_params.get("category_id", "")
+    if not category_id:
+        logger.error("Missing required parameters", extra={
+            "course_id": category_id,
+            "module_id": category_id,
+        })
+        return {
+            'statusCode': 400,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps('Missing required parameters: category_id')
+        }
 
     try:
-        # document_prefix = f"{course_id}/{module_id}/documents/"
+        document_prefix = f"{category_id}/"
 
-        document_list = list_documents_in_s3_prefix(BUCKET)
+        document_list = list_documents_in_s3_prefix(BUCKET,document_prefix)
 
         # Retrieve metadata and generate presigned URLs for documents
         document_list_urls = {}
@@ -146,7 +154,7 @@ def lambda_handler(event, context):
             document_type = document_name.split('.')[-1]  # Get the file extension
             presigned_url = generate_presigned_url(BUCKET, f"{document_name}")
             document_name = document_name
-            metadata = get_document_metadata_from_db(document_id, document_name.split('.')[0], document_type)
+            metadata = get_document_metadata_from_db(category_id, document_name.split('.')[0], document_type)
             document_list_urls[f"{document_name}"] = {
                 "url": presigned_url,
                 "metadata": metadata

@@ -4,7 +4,8 @@ import boto3
 import logging
 import psycopg2
 import boto3
-from langchain_community.embeddings import BedrockEmbeddings
+from langchain_aws import BedrockEmbeddings
+
 
 from helpers.vectorstore import get_vectorstore_retriever
 from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response, update_session_name
@@ -13,21 +14,36 @@ from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-BEDROCK_LLM_ID = "meta.llama3-70b-instruct-v1:0"
-EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
-TABLE_NAME = "API-Gateway-Test-Table-Name"
-
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
 
-def get_secret():
-    # secretsmanager client to get db credentials
-    sm_client = boto3.client("secretsmanager")
-    response = sm_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
-    secret = json.loads(response)
-    return secret
+def get_secret(secret_name, expect_json=True):
+    try:
+        # secretsmanager client to get db credentials
+        sm_client = boto3.client("secretsmanager")
+        response = sm_client.get_secret_value(SecretId=secret_name)["SecretString"]
+        
+        if expect_json:
+            return json.loads(response)
+        else:
+            print(response)
+            return response
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
+        raise ValueError(f"Secret {secret_name} is not properly formatted as JSON.")
+    except Exception as e:
+        logger.error(f"Error fetching secret {secret_name}: {e}")
+        raise
 
+
+    
+
+## GET SECRET VALUES FOR CONSTANTS
+BEDROCK_LLM_ID = get_secret(os.environ["BEDROCK_LLM_SECRET"], expect_json=False)
+EMBEDDING_MODEL_ID = get_secret(os.environ["EMBEDDING_MODEL_SECRET"], expect_json=False)
+TABLE_NAME = get_secret(os.environ["TABLE_NAME_SECRET"], expect_json=False)
+                        
 ## GETTING AMAZON TITAN EMBEDDINGS MODEL
 bedrock_runtime = boto3.client(
         service_name="bedrock-runtime",
@@ -42,124 +58,127 @@ embeddings = BedrockEmbeddings(
 
 create_dynamodb_history_table(TABLE_NAME)
 
-def get_module_name(module_id):
-    connection = None
-    cur = None
-    try:
-        logger.info(f"Fetching module name for module_id: {module_id}")
-        db_secret = get_secret()
+# def get_module_name(category_id):
+#     connection = None
+#     cur = None
+#     try:
+#         logger.info(f"Fetching module name for module_id: {module_id}")
+#         db_secret = get_secret(DB_SECRET_NAME)
+#         connection_params = {
+#             'dbname': db_secret["dbname"],
+#             'user': db_secret["username"],
+#             'password': db_secret["password"],
+#             'host': db_secret["host"],
+#             'port': db_secret["port"]
+#         }
 
-        connection_params = {
-            'dbname': db_secret["dbname"],
-            'user': db_secret["username"],
-            'password': db_secret["password"],
-            'host': db_secret["host"],
-            'port': db_secret["port"]
-        }
+#         connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
 
-        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+#         connection = psycopg2.connect(connection_string)
+#         cur = connection.cursor()
+#         logger.info("Connected to RDS instance!")
 
-        connection = psycopg2.connect(connection_string)
-        cur = connection.cursor()
-        logger.info("Connected to RDS instance!")
-
-        cur.execute("""
-            SELECT module_name 
-            FROM "Course_Modules" 
-            WHERE module_id = %s;
-        """, (module_id,))
+#         cur.execute("""
+#             SELECT module_name 
+#             FROM "Course_Modules" 
+#             WHERE module_id = %s;
+#         """, (module_id,))
         
-        result = cur.fetchone()
-        logger.info(f"Query result: {result}")
-        module_name = result[0] if result else None
+#         result = cur.fetchone()
+#         logger.info(f"Query result: {result}")
+#         module_name = result[0] if result else None
         
-        cur.close()
-        connection.close()
+#         cur.close()
+#         connection.close()
         
-        if module_name:
-            logger.info(f"Module name for module_id {module_id} found: {module_name}")
-        else:
-            logger.warning(f"No module name found for module_id {module_id}")
+#         if module_name:
+#             logger.info(f"Module name for module_id {module_id} found: {module_name}")
+#         else:
+#             logger.warning(f"No module name found for module_id {module_id}")
         
-        return module_name
+#         return module_name
 
-    except Exception as e:
-        logger.error(f"Error fetching module name: {e}")
-        if connection:
-            connection.rollback()
-        return None
-    finally:
-        if cur:
-            cur.close()
-        if connection:
-            connection.close()
-        logger.info("Connection closed.")
+    # except Exception as e:
+    #     logger.error(f"Error fetching module name: {e}")
+    #     if connection:
+    #         connection.rollback()
+    #     return None
+    # finally:
+    #     if cur:
+    #         cur.close()
+    #     if connection:
+    #         connection.close()
+    #     logger.info("Connection closed.")
 
-def get_system_prompt(course_id):
-    connection = None
-    cur = None
-    try:
-        logger.info(f"Fetching system prompt for course_id: {course_id}")
-        db_secret = get_secret()
+# def get_system_prompt(course_id):
+#     connection = None
+#     cur = None
+#     try:
+#         logger.info(f"Fetching system prompt for course_id: {course_id}")
+#         db_secret = get_secret(DB_SECRET_NAME)
 
-        connection_params = {
-            'dbname': db_secret["dbname"],
-            'user': db_secret["username"],
-            'password': db_secret["password"],
-            'host': db_secret["host"],
-            'port': db_secret["port"]
-        }
+#         connection_params = {
+#             'dbname': db_secret["dbname"],
+#             'user': db_secret["username"],
+#             'password': db_secret["password"],
+#             'host': db_secret["host"],
+#             'port': db_secret["port"]
+#         }
 
-        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+#         connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
 
-        connection = psycopg2.connect(connection_string)
-        cur = connection.cursor()
-        logger.info("Connected to RDS instance!")
+#         connection = psycopg2.connect(connection_string)
+#         cur = connection.cursor()
+#         logger.info("Connected to RDS instance!")
 
-        cur.execute("""
-            SELECT system_prompt 
-            FROM "Courses" 
-            WHERE course_id = %s;
-        """, (course_id,))
+#         cur.execute("""
+#             SELECT system_prompt 
+#             FROM "Courses" 
+#             WHERE course_id = %s;
+#         """, (course_id,))
         
-        result = cur.fetchone()
-        logger.info(f"Query result: {result}")
-        system_prompt = result[0] if result else None
+#         result = cur.fetchone()
+#         logger.info(f"Query result: {result}")
+#         system_prompt = result[0] if result else None
         
-        cur.close()
-        connection.close()
+#         cur.close()
+#         connection.close()
         
-        if system_prompt:
-            logger.info(f"System prompt for course_id {course_id} found: {system_prompt}")
-        else:
-            logger.warning(f"No system prompt found for course_id {course_id}")
+#         if system_prompt:
+#             logger.info(f"System prompt for course_id {course_id} found: {system_prompt}")
+#         else:
+#             logger.warning(f"No system prompt found for course_id {course_id}")
         
-        return system_prompt
+#         return system_prompt
 
-    except Exception as e:
-        logger.error(f"Error fetching system prompt: {e}")
-        if connection:
-            connection.rollback()
-        return None
-    finally:
-        if cur:
-            cur.close()
-        if connection:
-            connection.close()
-        logger.info("Connection closed.")
+#     except Exception as e:
+#         logger.error(f"Error fetching system prompt: {e}")
+#         if connection:
+#             connection.rollback()
+#         return None
+#     finally:
+#         if cur:
+#             cur.close()
+#         if connection:
+#             connection.close()
+#         logger.info("Connection closed.")
 
 def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
 
     query_params = event.get("queryStringParameters", {})
 
-    course_id = query_params.get("course_id", "")
-    session_id = query_params.get("session_id", "")
-    module_id = query_params.get("module_id", "")
-    session_name = query_params.get("session_name", "New Chat")
+    # course_id = query_params.get("course_id", "")
+    # session_id = query_params.get("session_id", "")
+    # module_id = query_params.get("module_id", "")
+    # session_name = query_params.get("session_name")
 
-    if not course_id:
-        logger.error("Missing required parameter: course_id")
+    category_id = query_params.get("category_id", "")
+    session_id = query_params.get("session_id", "")
+    session_name = query_params.get("session_name")
+
+    if not category_id:
+        logger.error("Missing required parameter: category_id")
         return {
             'statusCode': 400,
             "headers": {
@@ -168,7 +187,7 @@ def handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
             },
-            'body': json.dumps('Missing required parameter: course_id')
+            'body': json.dumps('Missing required parameter: category_id')
         }
 
     if not session_id:
@@ -184,23 +203,33 @@ def handler(event, context):
             'body': json.dumps('Missing required parameter: session_id')
         }
 
-    if not module_id:
-        logger.error("Missing required parameter: module_id")
-        return {
-            'statusCode': 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('Missing required parameter: module_id')
-        }
+    # if not module_id:
+    #     logger.error("Missing required parameter: module_id")
+    #     return {
+    #         'statusCode': 400,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Access-Control-Allow-Headers": "*",
+    #             "Access-Control-Allow-Origin": "*",
+    #             "Access-Control-Allow-Methods": "*",
+    #         },
+    #         'body': json.dumps('Missing required parameter: module_id')
+    #     }
     
-    system_prompt = get_system_prompt(course_id)
+    # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
+    #                     Here is a link to that website: "https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy".
+    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
+    #                     """
+
+     # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
+    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
+    #                     """
+
+    system_prompt = """You are an instructor for a course. Your job is to help the student master the topic"""
+
 
     if system_prompt is None:
-        logger.error(f"Error fetching system prompt for course_id: {course_id}")
+        logger.error(f"Error fetching system prompt for you!")
         return {
             'statusCode': 400,
             "headers": {
@@ -212,21 +241,21 @@ def handler(event, context):
             'body': json.dumps('Error fetching system prompt')
         }
     
-    topic = get_module_name(module_id)
+    # topic = "ABC"
 
-    if topic is None:
-        logger.error(f"Invalid module_id: {module_id}")
-        return {
-            'statusCode': 400,
-            'body': json.dumps('Invalid module_id')
-        }
+    # if topic is None:
+    #     logger.error(f"Invalid module_id: {module_id}")
+    #     return {
+    #         'statusCode': 400,
+    #         'body': json.dumps('Invalid module_id')
+    #     }
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
     
     if not question:
         logger.info(f"Start of conversation. Creating conversation history table in DynamoDB.")
-        student_query = get_initial_student_query(topic)
+        student_query = get_initial_student_query()
     else:
         logger.info(f"Processing student question: {question}")
         student_query = get_student_query(question)
@@ -249,9 +278,9 @@ def handler(event, context):
     
     try:
         logger.info("Retrieving vectorstore config.")
-        db_secret = get_secret()
+        db_secret = get_secret(DB_SECRET_NAME)
         vectorstore_config_dict = {
-            'collection_name': course_id,
+            'collection_name': category_id,
             'dbname': db_secret["dbname"],
             'user': db_secret["username"],
             'password': db_secret["password"],
@@ -296,7 +325,6 @@ def handler(event, context):
         logger.info("Generating response from the LLM.")
         response = get_response(
             query=student_query,
-            topic=topic,
             llm=llm,
             history_aware_retriever=history_aware_retriever,
             table_name=TABLE_NAME,

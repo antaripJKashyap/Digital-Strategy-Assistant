@@ -25,7 +25,7 @@ export class DatabaseStack extends Stack {
         /**
          * Create the RDS service-linked role if it doesn't exist
          */
-        new iam.CfnServiceLinkedRole(this, 'RDSServiceLinkedRole', {
+        new iam.CfnServiceLinkedRole(this, 'RDSServiceLinkedRoleAWS', {
             awsServiceName: 'rds.amazonaws.com',
         });
         
@@ -40,8 +40,8 @@ export class DatabaseStack extends Stack {
          * Create Empty Secret Manager
          * Secrets will be populate at initalization of data
          */
-        this.secretPathAdminName = "DLS/credentials/rdsDbCredential"; // Name in the Secret Manager to store DB credentials        
-        const secretPathUserName = "DLS/userCredentials/rdsDbCredential";
+        this.secretPathAdminName = "DLS/credentials/DbCredential"; // Name in the Secret Manager to store DB credentials        
+        const secretPathUserName = "DLS/userCredentials/DbCredential";
         this.secretPathUser = new secretsmanager.Secret(this, secretPathUserName, {
             secretName: secretPathUserName,
             description: "Secrets for clients to connect to RDS",
@@ -52,7 +52,7 @@ export class DatabaseStack extends Stack {
             }
         })
 
-        const secretPathTableCreator = "DLS/userCredentials/TableCreator";
+        const secretPathTableCreator = "DLS/userCredentials/rdsTableCreator";
         this.secretPathTableCreator= new secretsmanager.Secret(this, secretPathTableCreator, {
             secretName: secretPathTableCreator,
             description: "Secrets for TableCreator to connect to RDS",
@@ -117,7 +117,7 @@ export class DatabaseStack extends Stack {
         });
          
 
-        const rdsProxyRole = new iam.Role(this, "DBProxyRole", {
+        const rdsProxyRole = new iam.Role(this, "DBProxyRoleRDS", {
             assumedBy: new iam.ServicePrincipal('rds.amazonaws.com')
         });
 

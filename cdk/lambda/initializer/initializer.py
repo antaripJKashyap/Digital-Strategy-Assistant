@@ -51,7 +51,7 @@ def handler(event, context):
         sqlTableCreation = """
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE TABLE IF NOT EXISTS "users" (
-                "user_id" uuid PRIMARY KEY,
+                "user_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "user_email" varchar,
                 "first_name" varchar,
                 "last_name" varchar,
@@ -60,32 +60,23 @@ def handler(event, context):
             );
 
             CREATE TABLE IF NOT EXISTS "categories" (
-                "category_id" uuid PRIMARY KEY,
+                "category_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "category_name" varchar,
                 "category_number" integer
             );
 
             CREATE TABLE IF NOT EXISTS "sessions" (
-                "session_id" uuid PRIMARY KEY,
-                "session_name" varchar,
-                "time_created" timestamp
-            );
-
-            CREATE TABLE IF NOT EXISTS "messages_dynamo" (
-                "session_id" uuid PRIMARY KEY,
-                "message_id" uuid,
-                "message_content" varchar,
-                "user_sent" bool,
+                "session_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "time_created" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "documents" (
-                "document_id" uuid PRIMARY KEY,
+                "document_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "category_id" uuid,
                 "document_s3_file_path" varchar,
                 "document_name" varchar,
                 "document_type" varchar,
-                "meta_data" varchar,
+                "metadata" text,
                 "time_created" timestamp
             );
 
@@ -95,6 +86,8 @@ def handler(event, context):
                 "document_id" uuid,
                 "engagement_type" varchar,
                 "engagement_details" text,
+                "user_role" varchar,
+                "user_info" text,
                 "timestamp" timestamp
             );
 
@@ -102,6 +95,7 @@ def handler(event, context):
                 "feedback_id" uuid PRIMARY KEY,
                 "session_id" uuid,
                 "feedback_rating" integer,
+                "timestamp" timestamp,
                 "feedback_description" varchar
             );
 
@@ -246,7 +240,7 @@ def handler(event, context):
         print(cursor.fetchall())
         
         sql = """
-            SELECT * FROM messages;
+            SELECT * FROM messages_dynamo;
         """
         cursor.execute(sql)
         print(cursor.fetchall())
