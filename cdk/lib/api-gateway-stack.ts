@@ -153,7 +153,7 @@ export class ApiGatewayStack extends cdk.Stack {
     const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
       this,
       "PowertoolsLayer",
-      `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:78`
+      `arn:aws:lambda:${this.region}:${this.account}:layer:AWSLambdaPowertoolsPythonV2:78`
     );
 
     this.layerList["psycopg2"] = psycopgLayer;
