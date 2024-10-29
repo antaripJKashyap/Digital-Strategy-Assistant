@@ -37,7 +37,7 @@ const menuItems = [
 
 export default function Component( {selectedPage, setSelectedPage} ) {
   return (
-    <nav className="w-64 min-h-screen border-r border-gray-200 bg-white">
+    <nav className="w-64 border-r border-gray-200 bg-white">
       <div className="flex flex-col py-4 ml-2">
         {menuItems.map((item) => {
           const Icon = item.icon;

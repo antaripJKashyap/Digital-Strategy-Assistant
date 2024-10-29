@@ -10,6 +10,8 @@ import Sidebar from "./Sidebar.jsx";
 import Header from "./Header.jsx";
 import PostAuthHeader from "./PostAuthHeader.jsx";
 import History from "./history/History.jsx";
+import Category_creation from "./categories/Category_creation.jsx";
+import Edit_Category from "./categories/Edit_Category.jsx";
 const AdminHome = () => {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
@@ -38,13 +40,17 @@ const AdminHome = () => {
         case "analytics":
           return <Analytics />;
         case "categories":
-          return <Categories />;
+          return <Categories setSelectedPage={setSelectedPage} />;
         case "prompt":
           return <Prompt />;
         case "history":
           return <History />;
         case "files":
           return <Files />;
+        case "category_creation":
+          return <Category_creation/>;
+        case "edit_category":
+          return <Edit_Category/>;
         default:
           return <Analytics />;
       }
@@ -54,9 +60,9 @@ const AdminHome = () => {
   };
   if (userGroup && userGroup.includes("admin")) {
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex flex-col">
         <PostAuthHeader page={selectedPage} />
-        <div className="flex flex-1">
+        <div className="flex">
           <Sidebar
             selectedPage={selectedPage}
             setSelectedPage={setSelectedPage}
