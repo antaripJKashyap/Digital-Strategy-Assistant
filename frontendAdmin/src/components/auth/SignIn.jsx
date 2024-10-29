@@ -34,6 +34,7 @@ const SignIn = ({
         username: email,
         password: password,
       });
+      window.location.reload();
       
     } catch (error) {
       console.error("Sign in error:", error);

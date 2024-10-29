@@ -9,15 +9,15 @@ module.exports = {
   theme: {
   	extend: {
   		colors: {
-			customMain: '#013366',
-			customSecondary: '#4848A2',
-			customAccent: '#F1F8FE',
-			customBackground: '#f1f1f1',
-			adminMain: '#000080',
-			adminSecondary: '#4848A2',
-			adminAccent: '#F1F8FE',
-			adminBackground: '#f1f1f1',
-			adminHome: '#d5cde5',
+  			customMain: '#013366',
+  			customSecondary: '#4848A2',
+  			customAccent: '#F1F8FE',
+  			customBackground: '#f1f1f1',
+  			adminMain: '#000080',
+  			adminSecondary: '#4848A2',
+  			adminAccent: '#F1F8FE',
+  			adminBackground: '#f1f1f1',
+  			adminHome: '#d5cde5',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -57,6 +57,16 @@ module.exports = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			sidebar: {
+  				DEFAULT: 'hsl(var(--sidebar-background))',
+  				foreground: 'hsl(var(--sidebar-foreground))',
+  				primary: 'hsl(var(--sidebar-primary))',
+  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+  				accent: 'hsl(var(--sidebar-accent))',
+  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+  				border: 'hsl(var(--sidebar-border))',
+  				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
   		borderRadius: {
