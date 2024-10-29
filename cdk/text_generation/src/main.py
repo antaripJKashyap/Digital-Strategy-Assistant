@@ -13,7 +13,7 @@ from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-
+print("printing hello")
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
