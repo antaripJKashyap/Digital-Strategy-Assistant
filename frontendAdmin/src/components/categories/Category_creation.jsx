@@ -1,103 +1,129 @@
-'use client'
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Upload, X, Download } from "lucide-react"
-import { useState } from "react"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Upload, X, Download } from "lucide-react";
+import { useState } from "react";
+import { toast } from "react-toastify"; // Ensure you have this installed for toast notifications
 
-export default function Category_creation() {
-  const [files, setFiles] = useState([])
-  const [dragActive, setDragActive] = useState(false)
+const allowed_document_types = [
+  "application/pdf", // PDF
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+  "application/vnd.ms-powerpoint", // PPTX
+  "text/plain", // TXT
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // XLSX
+  "application/vnd.ms-xpsdocument", // XPS
+  "application/x-mobi8", // MOBI
+  "application/epub+zip", // EPUB
+  "application/zip", // CBZ
+];
+
+export default function Category_creation({setSelectedPage}) {
+  const [files, setFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
     if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true)
+      setDragActive(true);
     } else if (e.type === "dragleave") {
-      setDragActive(false)
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    setFiles(prev => [...prev, ...droppedFiles])
-  }
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    validateAndSetFiles(droppedFiles);
+  };
 
   const handleChange = (e) => {
-    e.preventDefault()
+    e.preventDefault();
     if (e.target.files) {
-      const uploadedFiles = Array.from(e.target.files)
-      setFiles(prev => [...prev, ...uploadedFiles])
+      const uploadedFiles = Array.from(e.target.files);
+      validateAndSetFiles(uploadedFiles);
     }
-  }
+  };
+
+  const validateAndSetFiles = (filesToUpload) => {
+    const validFiles = filesToUpload.filter((file) => {
+      const fileExtension = file.type; // Using file.type for validation
+      if (!allowed_document_types.includes(fileExtension)) {
+        toast.error(`${file.name} is not an allowed document type.`);
+        return false;
+      }
+      return true;
+    });
+
+    setFiles((prev) => [...prev, ...validFiles]);
+  };
 
   const removeFile = (fileName) => {
-    setFiles(files.filter(file => file.name !== fileName))
-  }
+    setFiles(files.filter((file) => file.name !== fileName));
+  };
 
   const downloadFile = (file) => {
-    const blob = new Blob([file], { type: file.type })
-    const url = URL.createObjectURL(blob)
-    
-    const link = document.createElement("a")
-    link.href = url
-    link.download = file.name
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    
-    URL.revokeObjectURL(url) // Clean up the URL
-  }
+    const blob = new Blob([file], { type: file.type });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url); // Clean up the URL
+  };
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 space-y-6">
+    <div className="w-full mx-auto p-4 space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="name">Title/Name</Label>
+        <Label htmlFor="name">Category Name</Label>
         <Input id="name" placeholder="Name" />
       </div>
 
       <div className="space-y-2">
-        <Label>Add Slides</Label>
-        <div
-          className={`border-2 border-dashed rounded-lg p-6 ${
-            dragActive ? "border-primary bg-primary/10" : "border-muted"
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <div className="flex flex-col items-center space-y-2 text-center">
-            <Upload className="h-8 w-8 text-muted-foreground" />
-            <div className="flex flex-col space-y-1">
-              <Label
-                htmlFor="dropzone-file"
-                className="cursor-pointer text-sm text-muted-foreground hover:text-primary"
-              >
-                Click to upload
-              </Label>
+        <Label>Add Documents</Label>
+        <Label htmlFor="dropzone-file" className={`w-full`}>
+          <div
+            className={`border-2 border-dashed rounded-lg p-6 cursor-pointer ${
+              dragActive ? "border-primary bg-primary/10" : "border-muted"
+            }`}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col items-center space-y-2 text-center">
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <div className="flex flex-col space-y-1">
+                <p className="cursor-pointer text-sm text-muted-foreground hover:text-primary">
+                  Click to upload
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  or drag and drop
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
-                or drag and drop
+                PDF, DOCX, PPTX, TXT, XLSX, XPS, MOBI, CBZ, etc.
               </p>
+              <Input
+                id="dropzone-file"
+                type="file"
+                className="hidden"
+                multiple
+                accept=".pdf,.docx,.pptx,.txt,.xlsx,.xps,.mobi,.cbz" // Set allowed file types
+                onChange={handleChange}
+              />
             </div>
-            <p className="text-xs text-muted-foreground">
-              SVG, PNG, JPG or GIF (max. 3MB)
-            </p>
-            <Input
-              id="dropzone-file"
-              type="file"
-              className="hidden"
-              multiple
-              onChange={handleChange}
-            />
           </div>
-        </div>
+        </Label>
 
         <div className="space-y-2">
           {files.map((file, index) => (
@@ -136,9 +162,23 @@ export default function Category_creation() {
         </div>
       </div>
 
-      <Button className="w-full" type="submit">
-        Save
-      </Button>
+      <div className="flex flex-row justify-between">
+        <div className="flex flex-row gap-x-8">
+          <Button
+            onClick={()=>{setSelectedPage("categories")}}
+            className="bg-adminMain hover:bg-[#000060] px-8"
+            type="submit"
+          >
+            Cancel
+          </Button>
+        </div>
+        <Button
+          className="px-8 bg-adminMain hover:bg-[#000060]"
+          type="submit"
+        >
+          Save
+        </Button>
+      </div>
     </div>
-  )
+  );
 }

@@ -48,7 +48,7 @@ const AdminHome = () => {
         case "files":
           return <Files />;
         case "category_creation":
-          return <Category_creation/>;
+          return <Category_creation setSelectedPage={setSelectedPage}/>;
         case "edit_category":
           return <Edit_Category/>;
         default:
