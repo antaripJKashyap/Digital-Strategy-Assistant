@@ -128,7 +128,7 @@ const Categories = ({ setSelectedPage }) => {
   };
 
   return (
-    <div className="ml-16  mr-32 w-full max-w-8xl space-y-6 overflow-hidden">
+    <div className=" mx-16 w-9/12 max-w-6xl space-y-6 overflow-hidden">
       {" "}
       {/* Change here */}
       <div className="mt-8 rounded-md border">

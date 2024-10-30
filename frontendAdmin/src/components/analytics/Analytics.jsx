@@ -113,7 +113,7 @@ export default function AnalyticsDashboard() {
   });
 
   return (
-    <main className="flex-1 p-6">
+    <main className="ml-12 flex-1 p-6 w-full">
       <div className="text-lg mb-4">Number of Users by Month</div>
       <ChartContainer
         config={{
@@ -227,7 +227,7 @@ export default function AnalyticsDashboard() {
           <ChartTooltip content={<ChartTooltipContent />} />
         </LineChart>
       </ChartContainer>
-      <div className=" mb-12 mt-12 space-y-6">
+      <div className=" mb-12 mt-12 space-y-6 mr-12 ">
         <div>
           <div className=" mx-4 flex justify-between">
             <div className=" text-lg font-medium text-black">User Feedback</div>
