@@ -735,7 +735,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "textGenLambdaLayerFunction",
       {
-        runtime: lambda.Runtime.PYTHON_3_9,
+        runtime: lambda.Runtime.PYTHON_3_11,
         code: lambda.Code.fromAsset("lambda/text_generation"),
         handler: "main.handler",
         timeout: Duration.seconds(300),
@@ -883,7 +883,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "dataIngestLambdaLayerFunction",
       {
-        runtime: lambda.Runtime.PYTHON_3_9,
+        runtime: lambda.Runtime.PYTHON_3_11,
         code: lambda.Code.fromAsset("lambda/data_ingestion"),
         handler: "main.handler",
         timeout: Duration.seconds(300),
