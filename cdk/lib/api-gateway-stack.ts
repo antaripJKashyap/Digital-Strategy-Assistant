@@ -162,7 +162,7 @@ export class ApiGatewayStack extends cdk.Stack {
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
     this.layerList["data_ingestionLayer"] = data_ingestion_layer;
-    // this.layerList["text_generationLayer"] = text_generationLayer;
+    this.layerList["text_generationLayer"] = text_generation_layer;
 
     // Create Cognito user pool
 
@@ -750,7 +750,7 @@ export class ApiGatewayStack extends cdk.Stack {
                 TABLE_NAME_SECRET: tableNameSecret.secretName,
               },
         functionName: "textGenLambdaLayerFunction",
-        layers: [data_ingestion_layer],
+        layers: [text_generation_layer],
       }
     );
 
