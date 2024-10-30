@@ -110,6 +110,16 @@ export class ApiGatewayStack extends cdk.Stack {
 
     /**
      *
+     * Create Integration Lambda layer for aws-jwt-verify
+     */
+    const data_ingestion_layer = new lambda.LayerVersion(this, "aws-data-ingestion", {
+      code: lambda.Code.fromAsset("./layers/data_ingestion.zip"),
+      compatibleRuntimes: [lambda.Runtime.PYTHON_3_11],
+      description: "Contains the data ingestion layer",
+    });
+
+    /**
+     *
      * Create Integration Lambda layer for PSQL
      */
     const postgres = new lambda.LayerVersion(this, "postgres", {
@@ -133,21 +143,13 @@ export class ApiGatewayStack extends cdk.Stack {
      *
      * Create Integration Lambda layer for text_generation
      */
-     const text_generationLayer = new lambda.LayerVersion(this, "text_generationLayer", {
-      code: lambda.Code.fromAsset("./layers/text_generation.zip"),
-      compatibleRuntimes: [Runtime.PYTHON_3_9],
+     const text_generation_layer = new lambda.LayerVersion(this, "text_generation_layer", {
+      code: lambda.Code.fromAsset("./layers/text_generation_layer.zip"),
+      compatibleRuntimes: [Runtime.PYTHON_3_11],
       description: "Contains the text_generation dependencies for python",
     });
 
-    /**
-     *
-     * Create Lambda layer for data_ingestion
-     */
-    const data_ingestionLayer = new lambda.LayerVersion(this, "data_ingesdata_ingestionLayertion", {
-      code: lambda.Code.fromAsset("./layers/data_ingestion.zip"),
-      compatibleRuntimes: [Runtime.PYTHON_3_9],
-      description: "Contains the data_ingestion dependencies for python",
-    });
+  
 
     // powertoolsLayer does not follow the format of layerList
     const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
@@ -159,8 +161,8 @@ export class ApiGatewayStack extends cdk.Stack {
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
-    this.layerList["data_ingestionLayer"] = data_ingestionLayer;
-    this.layerList["text_generationLayer"] = text_generationLayer;
+    this.layerList["data_ingestionLayer"] = data_ingestion_layer;
+    // this.layerList["text_generationLayer"] = text_generationLayer;
 
     // Create Cognito user pool
 
@@ -710,33 +712,55 @@ export class ApiGatewayStack extends cdk.Stack {
      *
      * Create Lambda with container image for text generation workflow in RAG pipeline
      */
-    const textGenLambdaDockerFunc = new lambda.DockerImageFunction(
+    // const textGenLambdaDockerFunc = new lambda.DockerImageFunction(
+    //   this,
+    //   "TextGenLambdaDockerFunction",
+    //   {
+    //     code: lambda.DockerImageCode.fromImageAsset("./text_generation"),
+    //     memorySize: 512,
+    //     timeout: cdk.Duration.seconds(300),
+    //     vpc: vpcStack.vpc, // Pass the VPC
+    //     functionName: "TextGenLambdaDockerFunction",
+    //     environment: {
+    //       SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+    //       RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+    //       REGION: this.region,
+    //       BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
+    //       EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
+    //       TABLE_NAME_SECRET: tableNameSecret.secretName,
+    //     },
+    //   }
+    // );
+    const textGenLambdaLayerFunc = new lambda.Function(
       this,
-      "TextGenLambdaDockerFunction",
+      "textGenLambdaLayerFunction",
       {
-        code: lambda.DockerImageCode.fromImageAsset("./text_generation"),
+        runtime: lambda.Runtime.PYTHON_3_9,
+        code: lambda.Code.fromAsset("lambda/text_generation"),
+        handler: "main.handler",
+        timeout: Duration.seconds(300),
         memorySize: 512,
-        timeout: cdk.Duration.seconds(300),
-        vpc: vpcStack.vpc, // Pass the VPC
-        functionName: "TextGenLambdaDockerFunction",
+        vpc: vpcStack.vpc,
         environment: {
-          SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-          REGION: this.region,
-          BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
-          EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
-          TABLE_NAME_SECRET: tableNameSecret.secretName,
-        },
+                SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+                RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+                REGION: this.region,
+                BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
+                EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
+                TABLE_NAME_SECRET: tableNameSecret.secretName,
+              },
+        functionName: "textGenLambdaLayerFunction",
+        layers: [data_ingestion_layer],
       }
     );
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnTextGenDockerFunc = textGenLambdaDockerFunc.node
+    const cfnTextGenLayerFunc = textGenLambdaLayerFunc.node
       .defaultChild as lambda.CfnFunction;
-    cfnTextGenDockerFunc.overrideLogicalId("TextGenLambdaDockerFunction");
+    cfnTextGenLayerFunc.overrideLogicalId("TextGenLambdaLayerFunction");
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
-    textGenLambdaDockerFunc.addPermission("AllowApiGatewayInvoke", {
+    textGenLambdaLayerFunc.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
@@ -757,10 +781,10 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     // Attach the custom Bedrock policy to Lambda function
-    textGenLambdaDockerFunc.addToRolePolicy(bedrockPolicyStatement);
+    textGenLambdaLayerFunc.addToRolePolicy(bedrockPolicyStatement);
 
     // Grant access to Secret Manager
-    textGenLambdaDockerFunc.addToRolePolicy(
+    textGenLambdaLayerFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -774,7 +798,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Grant access to DynamoDB actions
-    textGenLambdaDockerFunc.addToRolePolicy(
+    textGenLambdaLayerFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -836,34 +860,58 @@ export class ApiGatewayStack extends cdk.Stack {
      * Create Lambda with container image for data ingestion workflow in RAG pipeline
      * This function will be triggered when a file in uploaded or deleted fro, the S3 Bucket
      */
-    const dataIngestLambdaDockerFunction = new lambda.DockerImageFunction(
+    // const dataIngestLambdaDockerFunction = new lambda.DockerImageFunction(
+    //   this,
+    //   "DataIngestLambdaDockerFunctionReImaged",
+    //   {
+    //     code: lambda.DockerImageCode.fromImageAsset("./data_ingestion"),
+    //     memorySize: 512,
+    //     timeout: cdk.Duration.seconds(300),
+    //     vpc: vpcStack.vpc, // Pass the VPC
+    //     functionName: "DataIngestLambdaDockerFunctionReImaged",
+    //     environment: {
+    //       SM_DB_CREDENTIALS: db.secretPathAdminName,
+    //       RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+    //       BUCKET: dataIngestionBucket.bucketName,
+    //       REGION: this.region,
+    //       EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
+    //     },
+    //   }
+    // );
+
+    const dataIngestLambdaLayerFunction = new lambda.Function(
       this,
-      "DataIngestLambdaDockerFunctionReImaged",
+      "dataIngestLambdaLayerFunction",
       {
-        code: lambda.DockerImageCode.fromImageAsset("./data_ingestion"),
+        runtime: lambda.Runtime.PYTHON_3_9,
+        code: lambda.Code.fromAsset("lambda/data_ingestion"),
+        handler: "main.handler",
+        timeout: Duration.seconds(300),
         memorySize: 512,
-        timeout: cdk.Duration.seconds(300),
-        vpc: vpcStack.vpc, // Pass the VPC
-        functionName: "DataIngestLambdaDockerFunctionReImaged",
+        vpc: vpcStack.vpc,
         environment: {
-          SM_DB_CREDENTIALS: db.secretPathAdminName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-          BUCKET: dataIngestionBucket.bucketName,
-          REGION: this.region,
-          EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
-        },
+                SM_DB_CREDENTIALS: db.secretPathAdminName,
+                RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+                BUCKET: dataIngestionBucket.bucketName,
+                REGION: this.region,
+                EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
+              },
+        functionName: "dataIngestLambdaLayerFunction",
+        layers: [data_ingestion_layer],
       }
     );
+
+
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction
+    const cfnDataIngestLambdaLayerFunction = dataIngestLambdaLayerFunction
       .node.defaultChild as lambda.CfnFunction;
-    cfnDataIngestLambdaDockerFunction.overrideLogicalId(
-      "DataIngestLambdaDockerFunctionReImaged"
+    cfnDataIngestLambdaLayerFunction.overrideLogicalId(
+      "DataIngestLambdaLayerFunctionReImaged"
     );
 
-    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
+    dataIngestionBucket.grantRead(dataIngestLambdaLayerFunction);
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -871,7 +919,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -879,7 +927,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -894,9 +942,9 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(bedrockPolicyStatement);
+    dataIngestLambdaLayerFunction.addToRolePolicy(bedrockPolicyStatement);
 
-    dataIngestLambdaDockerFunction.addEventSource(
+    dataIngestLambdaLayerFunction.addEventSource(
       new lambdaEventSources.S3EventSource(dataIngestionBucket, {
         events: [
           s3.EventType.OBJECT_CREATED,
@@ -907,7 +955,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Grant access to Secret Manager
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -1072,16 +1120,16 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
+    dataIngestionBucket.grantRead(dataIngestLambdaLayerFunction);
     // Add ListBucket permission explicitly
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
         resources: [dataIngestionBucket.bucketArn], // Access to the specific bucket
       })
     );
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -1091,7 +1139,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestLambdaLayerFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
