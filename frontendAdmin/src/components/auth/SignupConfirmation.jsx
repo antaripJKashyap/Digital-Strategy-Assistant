@@ -36,7 +36,7 @@ const SignupConfirmation = ({ email, setAuthState, loading, setLoading }) => {
         progress: undefined,
         theme: "colored",
       });
-      location.reload()
+      window.location.reload();
     } catch (error) {
       console.error("Confirmation error:", error);
       toast.error(`Error: ${error}`, {
