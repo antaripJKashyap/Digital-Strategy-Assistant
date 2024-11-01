@@ -9,10 +9,7 @@ import {
 } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { tailChase } from 'ldrs';
-import Loading from "../Loading/loading";
-
-tailChase.register();
+import Loading from "../Loading/Loading";
 
 export default function AnalyticsDashboard() {
   const [avg_feedback_per_role, setAvgFeedbackPerRole] = useState([]);
