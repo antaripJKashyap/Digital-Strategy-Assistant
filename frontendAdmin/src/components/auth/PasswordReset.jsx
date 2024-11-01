@@ -8,7 +8,7 @@ import { confirmResetPassword } from "aws-amplify/auth";
 
 
 const PasswordReset = ({ email, loading, setLoading, setAuthState }) => {
-  const [confirmationCode, setConfirmationCode] = useState(""); // State for confirmation code
+  const [confirmationCode, setConfirmationCode] = useState(""); 
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 

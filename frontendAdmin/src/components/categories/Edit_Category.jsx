@@ -3,25 +3,118 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Download } from "lucide-react";
-import { useState } from "react";
-import { toast } from "react-toastify"; // Ensure you have this installed for toast notifications
+import { Upload, X, Download, Trash } from "lucide-react";
+import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import "react-toastify/dist/ReactToastify.css";
+import { fetchAuthSession } from "aws-amplify/auth";
+import Loading from "../Loading/Loading";
 
 const allowed_document_types = [
-  "application/pdf", // PDF
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
-  "application/vnd.ms-powerpoint", // PPTX
-  "text/plain", // TXT
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // XLSX
-  "application/vnd.ms-xpsdocument", // XPS
-  "application/x-mobi8", // MOBI
-  "application/epub+zip", // EPUB
-  "application/zip", // CBZ
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "text/plain",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-xpsdocument",
+  "application/x-mobi8",
+  "application/epub+zip",
+  "application/zip",
 ];
 
-export default function Edit_Category() {
+export default function Edit_Category({ setSelectedPage, selectedCategory }) {
   const [files, setFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [newFiles, setNewFiles] = useState([]);
+  const [deletedFiles, setDeletedFiles] = useState([]);
+  const [metadata, setMetadata] = useState({});
+  const [loadingFiles, setLoadingFiles] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchFiles = async () => {
+      setLoadingFiles(true);
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_ENDPOINT
+        }admin/files_within_category?category_id=${encodeURIComponent(
+          selectedCategory.category_id
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const filesData = data.document_files;
+        console.log(filesData);
+        const tempFiles = [];
+
+        for (const fileName in filesData) {
+          const file = filesData[fileName];
+          const response = await fetch(file.url);
+          const data = await response.blob();
+          const fileObject = new File([data], fileName, {
+            type: data.type,
+          });
+          tempFiles.push(fileObject);
+        }
+        setFiles((prevFiles) => {
+          const combinedFiles = [...prevFiles, ...tempFiles];
+          const uniqueFiles = Array.from(
+            new Set(combinedFiles.map((file) => file.name))
+          ).map((name) => combinedFiles.find((file) => file.name === name));
+
+          return uniqueFiles;
+        });
+        setLoadingFiles(false);
+      } else {
+        toast.error("Failed to fetch files.");
+        setLoadingFiles(false);
+      }
+    };
+
+    fetchFiles();
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    // Populate category name from selectedCategory prop
+    if (selectedCategory) {
+      setCategoryName(selectedCategory.category_name || "");
+    }
+  }, [selectedCategory]);
+
+  function removeFileExtension(fileName) {
+    return fileName.replace(/\.[^/.]+$/, "");
+  }
+
+  const getFileType = (filename) => {
+    const parts = filename.split(".");
+    if (parts.length > 1) {
+      return parts.pop();
+    } else {
+      return "";
+    }
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -37,7 +130,6 @@ export default function Edit_Category() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     const droppedFiles = Array.from(e.dataTransfer.files);
     validateAndSetFiles(droppedFiles);
   };
@@ -51,46 +143,235 @@ export default function Edit_Category() {
   };
 
   const validateAndSetFiles = (filesToUpload) => {
+    const existingFileNames = new Set(
+      [...files, ...newFiles].map((file) => file.name)
+    );
     const validFiles = filesToUpload.filter((file) => {
-      const fileExtension = file.type; // Using file.type for validation
-      if (!allowed_document_types.includes(fileExtension)) {
+      if (!allowed_document_types.includes(file.type)) {
         toast.error(`${file.name} is not an allowed document type.`);
+        return false;
+      }
+      if (existingFileNames.has(file.name)) {
+        toast.error(`${file.name} is already uploaded.`);
         return false;
       }
       return true;
     });
 
-    setFiles((prev) => [...prev, ...validFiles]);
-  };
-
-  const removeFile = (fileName) => {
-    setFiles(files.filter((file) => file.name !== fileName));
+    // Update the state with valid files that are not duplicates
+    setNewFiles((prevNewFiles) => [...prevNewFiles, ...validFiles]);
   };
 
   const downloadFile = (file) => {
     const blob = new Blob([file], { type: file.type });
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = file.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    URL.revokeObjectURL(url); // Clean up the URL
+    URL.revokeObjectURL(url);
   };
+
+  const deleteCategory = async (token) => {
+    const response = await fetch(
+      `${
+        process.env.NEXT_PUBLIC_API_ENDPOINT
+      }admin/delete_category?category_id=${encodeURIComponent(
+        selectedCategory.category_id
+      )}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to delete category");
+    return await response.json();
+  };
+
+  const DeleteTrigger = async () => {
+    if (isDeleting) return;
+    if (!categoryName.trim()) {
+      toast.error("Category name is required.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+
+      // Step 1: Delete Category if applicable
+      await deleteCategory(token);
+
+      // Step 2: Upload Files (Add your upload logic here)
+      // Example: await uploadFilesLogic(files, token);
+
+      toast.success("Category deleted successfully.");
+      setFiles([]);
+      setCategoryName("");
+      setSelectedPage("categories");
+    } catch (error) {
+      toast.error("Operation failed.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      console.error("Error:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleMetadataChange = (fileName, value) => {
+    setMetadata((prev) => ({ ...prev, [fileName]: value }));
+  };
+
+  const handleRemoveFile = (fileName) => {
+    setFiles((prevFiles) => prevFiles.filter((file) => file.name !== fileName));
+    setDeletedFiles((prevDeletedFiles) => [...prevDeletedFiles, fileName]);
+  };
+
+  const handleSaveChanges = async () => {
+    if (deletedFiles.length === 0 && newFiles.length === 0) {
+      toast.info("No changes to save");
+      return;
+    }
+    setSaving(true);
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+
+    try {
+      // Step 1: Delete the files
+      const deleteFilePromises = deletedFiles.map((fileName) => {
+        return fetch(
+          `${
+            process.env.NEXT_PUBLIC_API_ENDPOINT
+          }admin/delete_file?category_id=${encodeURIComponent(
+            selectedCategory.category_id
+          )}&document_type=${encodeURIComponent(
+            getFileType(fileName)
+          )}&document_name=${encodeURIComponent(
+            removeFileExtension(fileName)
+          )}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        ).then((response) => {
+          if (!response.ok) {
+            throw new Error(`Failed to delete ${fileName}`);
+          }
+          return response.json();
+        });
+      });
+
+      await Promise.all(deleteFilePromises);
+
+      // Step 2: Upload the new files using presigned URLs
+      const uploadFilePromises = newFiles.map(async (file) => {
+        const presignedUrl = await generatePresignedUrl(
+          file,
+          selectedCategory.category_id,
+          token
+        );
+        console.log(presignedUrl); // Log the presigned URL for debugging
+        await uploadFile(file, presignedUrl);
+      });
+
+      await Promise.all(uploadFilePromises);
+
+      toast.success("Changes saved successfully!");
+      setDeletedFiles([]);
+      const tempNewFiles = newFiles;
+      setNewFiles([]);
+      setFiles((prevFiles) => [...prevFiles, ...tempNewFiles]);
+    } catch (error) {
+      toast.error("Failed to save changes.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      console.error("Error:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Assuming generatePresignedUrl and uploadFile are defined as before
+  const generatePresignedUrl = async (file, categoryId, token) => {
+    const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const response = await fetch(
+      `${
+        process.env.NEXT_PUBLIC_API_ENDPOINT
+      }admin/generate_presigned_url?category_id=${encodeURIComponent(
+        categoryId
+      )}&document_type=${encodeURIComponent(
+        getFileType(fileName)
+      )}&document_name=${encodeURIComponent(removeFileExtension(fileName))}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to generate presigned URL");
+    const data = await response.json();
+    const url = data.presignedurl;
+    console.log("Generated presigned URL:", url); // Log the presigned URL for debugging
+    return url;
+  };
+
+  const uploadFile = async (file, presignedUrl) => {
+    await fetch(presignedUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": file.type,
+      },
+      body: file,
+    });
+  };
+  if (loadingFiles) {
+    return <Loading />;
+  }
 
   return (
     <div className="w-full mx-auto p-4 space-y-6">
       <div className="space-y-2">
         <Label htmlFor="name">Category Name</Label>
-        <Input id="name" placeholder="Name" />
+        <Input
+          id="name"
+          placeholder="Name"
+          value={categoryName}
+          onChange={(e) => setCategoryName(e.target.value)}
+          disabled={saving || isDeleting} // Disable input while saving or deleting
+        />
       </div>
 
       <div className="space-y-2">
         <Label>Add Documents</Label>
-        <Label htmlFor="dropzone-file" className={`w-full`}>
+        <Label htmlFor="dropzone-file" className="w-full">
           <div
             className={`border-2 border-dashed rounded-lg p-6 cursor-pointer ${
               dragActive ? "border-primary bg-primary/10" : "border-muted"
@@ -111,15 +392,16 @@ export default function Edit_Category() {
                 </p>
               </div>
               <p className="text-xs text-muted-foreground">
-                PDF, DOCX, PPTX, TXT, XLSX, XPS, MOBI, CBZ, etc.
+                PDF, DOCX, PPTX, TXT, XLSX, etc.
               </p>
               <Input
                 id="dropzone-file"
                 type="file"
                 className="hidden"
                 multiple
-                accept=".pdf,.docx,.pptx,.txt,.xlsx,.xps,.mobi,.cbz" // Set allowed file types
+                accept=".pdf,.docx,.pptx,.txt,.xlsx"
                 onChange={handleChange}
+                disabled={saving || isDeleting} // Disable file input while saving or deleting
               />
             </div>
           </div>
@@ -143,7 +425,8 @@ export default function Edit_Category() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => removeFile(file.name)}
+                  onClick={() => handleRemoveFile(file.name)}
+                  disabled={saving || isDeleting} // Disable remove button while saving or deleting
                 >
                   <X className="h-4 w-4" />
                   <span className="sr-only">Remove file</span>
@@ -152,6 +435,42 @@ export default function Edit_Category() {
                   variant="ghost"
                   size="icon"
                   onClick={() => downloadFile(file)}
+                  disabled={saving || isDeleting} // Disable download button while saving or deleting
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="sr-only">Download file</span>
+                </Button>
+              </div>
+            </div>
+          ))}
+          {newFiles.map((file, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between p-2 border rounded-lg"
+            >
+              <div className="flex items-center space-x-2">
+                <div className="flex flex-col">
+                  <p className="text-sm font-medium">{file.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemoveFile(file.name)}
+                  disabled={saving || isDeleting} // Disable remove button while saving or deleting
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Remove file</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => downloadFile(file)}
+                  disabled={saving || isDeleting} // Disable download button while saving or deleting
                 >
                   <Download className="h-4 w-4" />
                   <span className="sr-only">Download file</span>
@@ -165,23 +484,54 @@ export default function Edit_Category() {
       <div className="flex flex-row justify-between">
         <div className="flex flex-row gap-x-8">
           <Button
+            onClick={() => setSelectedPage("categories")}
             className="bg-adminMain hover:bg-[#000060] px-8"
-            type="submit"
           >
             Cancel
           </Button>
-          <Button
-            className="bg-red-700 hover:bg-red-800 px-8"
-            type="submit"
-          >
-            Delete Category
-          </Button>
+          <Dialog>
+            <DialogTrigger>
+              <Button
+                variant="destructive"
+                className="bg-red-500 hover:bg-red-600 px-8"
+                disabled={saving} // Disable delete button while saving
+              >
+                {isDeleting ? "Deleting..." : "Delete Category"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Deletion</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to delete this category? This action
+                  cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end mt-4">
+                <DialogClose asChild>
+                  <Button variant="outline" disabled={saving || isDeleting}>
+                    Cancel
+                  </Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button
+                    onClick={DeleteTrigger}
+                    className="ml-2 bg-red-500 hover:bg-red-600"
+                    disabled={saving} // Disable confirmation button while saving
+                  >
+                    Delete
+                  </Button>
+                </DialogClose>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
         <Button
           className="px-8 bg-adminMain hover:bg-[#000060]"
-          type="submit"
+          onClick={handleSaveChanges}
+          disabled={isDeleting || saving} // Disable save button while deleting or saving
         >
-          Save
+          {saving ? "Saving..." : "Save"}
         </Button>
       </div>
     </div>

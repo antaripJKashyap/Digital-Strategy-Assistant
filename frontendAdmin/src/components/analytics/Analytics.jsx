@@ -9,26 +9,22 @@ import {
 } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { tailChase } from 'ldrs';
+import Loading from "../Loading/loading";
+
+tailChase.register();
+
 export default function AnalyticsDashboard() {
   const [avg_feedback_per_role, setAvgFeedbackPerRole] = useState([]);
   const [unique_users_per_month, setUniqueUsersPerMonth] = useState([]);
-  const [messages_per_role_per_month, setMessagesPerRolePerMonth] = useState(
-    []
-  );
-  useEffect(() => {
-    console.log("avg_feedback_per_role", avg_feedback_per_role);
-    console.log("unique_users_per_month", unique_users_per_month);
-    console.log("messages_per_role_per_month", messages_per_role_per_month);
-  }, [
-    avg_feedback_per_role,
-    unique_users_per_month,
-    messages_per_role_per_month,
-  ]);
+  const [messages_per_role_per_month, setMessagesPerRolePerMonth] = useState([]);
+  const [loading, setLoading] = useState(true); 
+
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
         const session = await fetchAuthSession();
-        var token = session.tokens.idToken;
+        const token = session.tokens.idToken;
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_ENDPOINT}admin/analytics`,
           {
@@ -39,6 +35,7 @@ export default function AnalyticsDashboard() {
             },
           }
         );
+
         if (response.ok) {
           const data = await response.json();
           setAvgFeedbackPerRole(data.avg_feedback_per_role);
@@ -49,11 +46,20 @@ export default function AnalyticsDashboard() {
         }
       } catch (error) {
         console.error("Error fetching analytics:", error);
+      } finally {
+        setLoading(false); 
       }
     };
 
     fetchAnalytics();
   }, []);
+
+ 
+  if (loading) {
+    return (
+      <Loading />
+    );
+  }
 
   const roleDisplayMap = {
     public: "Public",
@@ -72,7 +78,6 @@ export default function AnalyticsDashboard() {
     };
   });
 
-  // Get unique months
   const uniqueMonths = [
     ...new Set(messages_per_role_per_month.map((item) => item.month)),
   ];
@@ -245,7 +250,6 @@ export default function AnalyticsDashboard() {
                 </span>
               </div>
               <Progress
-              // {(feedback.score / 5) * 100}
                 value={((feedback.score - 1) / 4) * 100}
                 className="h-2 bg-adminAccent [&>div]:bg-adminMain"
               />

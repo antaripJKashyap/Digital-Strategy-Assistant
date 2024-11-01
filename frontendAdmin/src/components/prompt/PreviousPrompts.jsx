@@ -20,14 +20,14 @@ export default function PreviousPrompts() {
   const totalPages = 15 // Total number of pages
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-4 py-8">
+    <div className="w-full max-w-3xl mx-auto px-4 ">
       <Card className="border-0 shadow-none">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-center">
             Previous Prompts
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-2">
           {/* Navigation */}
           <div className="flex items-center justify-between mb-6">
             <Button
