@@ -18,8 +18,8 @@ const PublicHome = ({ setPage }) => {
             src="/logo.png"
             alt="logo"
             width={150}
-            height={150} // Keeping the logo small
-            className="md:w-[150px] md:h-[150px]" // Small even on medium/large screens
+            height={150}
+            className="md:w-[150px] md:h-[150px]"
           />
         </div>
         <div className="flex flex-col justify-center items-center text-xl md:text-2xl xl:text-2xl text-gray-700">

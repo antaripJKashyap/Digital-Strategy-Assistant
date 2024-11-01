@@ -63,14 +63,14 @@ const Chat = ({ setPage }) => {
             className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none"
             placeholder="Type a message..."
             maxLength={2096}
-            style={{ minHeight: "40px" }} // Set a minimum height
-            rows={1} // Start with 1 row
+            style={{ minHeight: "40px" }}
+            rows={1} 
             onInput={(e) => {
-              e.target.style.height = "auto"; // Reset height
+              e.target.style.height = "auto"; 
               e.target.style.height = `${Math.max(
                 e.target.scrollHeight,
                 48
-              )}px`; // Set height based on content with min height
+              )}px`; 
             }}
           />
           <LuSendHorizonal size={20} />
