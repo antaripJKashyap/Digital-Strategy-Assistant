@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { toast } from "react-toastify";
 import { fetchAuthSession } from "aws-amplify/auth";
-import Loading from "../Loading/Loading";
+import LoadingScreen from "../Loading/LoadingScreen";
 const Files = () => {
   const [categories, setCategories] = useState([]);
   const [filesByCategory, setFilesByCategory] = useState({});
@@ -114,7 +114,7 @@ const Files = () => {
   };
 
   if (loading) {
-    return <Loading />
+    return <LoadingScreen />
   }
 
   return (

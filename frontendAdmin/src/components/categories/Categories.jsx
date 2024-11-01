@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { fetchAuthSession } from "aws-amplify/auth";
 import SortableRow from "./SortableRow";
-import Loading from "../Loading/loading";
+import LoadingScreen from "../Loading/LoadingScreen";
 
 const Categories = ({
   setSelectedPage,
@@ -93,7 +93,7 @@ const Categories = ({
   };
 
   if (loading) {
-    return <Loading />;
+    return <LoadingScreen />;
   }
 
   return (

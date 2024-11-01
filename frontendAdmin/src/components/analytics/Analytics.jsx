@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import { fetchAuthSession } from "aws-amplify/auth";
-import Loading from "../Loading/Loading";
+import LoadingScreen from "../Loading/LoadingScreen";
 
 export default function AnalyticsDashboard() {
   const [avg_feedback_per_role, setAvgFeedbackPerRole] = useState([]);
@@ -54,7 +54,7 @@ export default function AnalyticsDashboard() {
  
   if (loading) {
     return (
-      <Loading />
+      <LoadingScreen />
     );
   }
 

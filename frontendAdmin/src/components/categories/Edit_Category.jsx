@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import "react-toastify/dist/ReactToastify.css";
 import { fetchAuthSession } from "aws-amplify/auth";
-import Loading from "../Loading/Loading";
+import LoadingScreen from "../Loading/LoadingScreen";
 
 const allowed_document_types = [
   "application/pdf",
@@ -353,7 +353,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
     });
   };
   if (loadingFiles) {
-    return <Loading />;
+    return <LoadingScreen />;
   }
 
   return (
