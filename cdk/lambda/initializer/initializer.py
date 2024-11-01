@@ -245,12 +245,6 @@ def handler(event, context):
         """
         cursor.execute(sql)
         print(cursor.fetchall())
-        
-        sql = """
-            SELECT * FROM messages_dynamo;
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
 
         sql = """
             SELECT * FROM documents;
