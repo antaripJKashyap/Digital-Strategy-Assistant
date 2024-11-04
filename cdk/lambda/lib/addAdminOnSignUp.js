@@ -12,7 +12,6 @@ exports.handler = async (event) => {
 
   const { userName, userPoolId } = event;
   const client = new CognitoIdentityProviderClient();
-
   try {
     // Add the user to the new group without removing existing groups
     const addUserToGroupCommand = new AdminAddUserToGroupCommand({
@@ -21,6 +20,9 @@ exports.handler = async (event) => {
       GroupName: "admin",
     });
     await client.send(addUserToGroupCommand);
+    const dbUser = await sqlConnection`
+      SELECT roles FROM "Users" WHERE user_email = ${email};
+    `;
 
     return event;
   } catch (err) {

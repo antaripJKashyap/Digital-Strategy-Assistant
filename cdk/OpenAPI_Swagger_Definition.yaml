@@ -1,7 +1,7 @@
 openapi: 3.0.0
 servers: []
 info:
-  title: AI Learning Assistant API
+  title: Digital Learning Strategy API
   description: This API intended to deploy on aws API Gateway
   version: "1.0.0"
 tags:
@@ -87,7 +87,7 @@ paths:
       operationId: user_text_generation_POST
       parameters:
         - in: query
-          name: course_id
+          name: category_id
           required: true
           description: ID of the course
           schema:
@@ -96,18 +96,6 @@ paths:
           name: session_id
           required: true
           description: ID of the session since multiple sessions can exist within a table
-          schema:
-            type: string
-        - in: query
-          name: module_id
-          required: true
-          description: ID of the module used to find the module name which becomes the conversation's label
-          schema:
-            type: string
-        - in: query
-          name: session_name
-          required: false
-          description: Name of the session passed from the front-end after it has been created by the LLM
           schema:
             type: string
       requestBody:
@@ -420,7 +408,7 @@ paths:
         - in: query
           name: document_name
           required: true
-          description: ID of the course
+          description: name of the document
           schema:
             type: string
       responses:

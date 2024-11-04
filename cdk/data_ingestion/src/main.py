@@ -19,6 +19,20 @@ DLS_DATA_INGESTION_BUCKET = os.environ["BUCKET"]
 # bucket_name="dls-data-ingestion-bucket"
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+def get_parameter(param_name):
+    """
+    Fetch a parameter value from Systems Manager Parameter Store.
+    """
+    try:
+        ssm_client = boto3.client("ssm")
+        response = ssm_client.get_parameter(Name=param_name, WithDecryption=True)
+        return response["Parameter"]["Value"]
+    except Exception as e:
+        logger.error(f"Error fetching parameter {param_name}: {e}")
+        raise
+## GET PARAMETER VALUES FOR CONSTANTS
+EMBEDDING_MODEL_ID = get_parameter(os.environ["EMBEDDING_MODEL_PARAM"])
+
 
 
 def get_secret():
@@ -143,7 +157,7 @@ def update_vectorstore_from_s3(bucket, category_id):
     )
     
     embeddings = BedrockEmbeddings(
-        model_id='amazon.titan-embed-text-v2:0', 
+        model_id=EMBEDDING_MODEL_ID, 
         client=bedrock_runtime,
         region_name=REGION
     )
@@ -197,8 +211,9 @@ def handler(event, context):
                     "body": json.dumps("Error parsing S3 file path.")
             }
 
-        # Insert the file into the PostgreSQL database
-        try:
+        if event_name.startswith('ObjectCreated:'):
+            # Insert the file into the PostgreSQL database
+            try:
                 insert_file_into_db(
                     category_id=category_id,
                     document_name=document_name,
@@ -206,13 +221,15 @@ def handler(event, context):
                     document_s3_file_path=document_key
                 )
                 logger.info(f"File {document_name}.{document_type} inserted successfully.")
-        except Exception as e:
+            except Exception as e:
                 logger.error(f"Error inserting file {document_name}.{document_type} into database: {e}")
                 return {
                     "statusCode": 500,
                     "body": json.dumps(f"Error inserting file {document_name}.{document_type}: {e}")
                 }
             
+        else:
+            logger.info(f"File {document_name}.{document_type} is being deleted. Deleting files from database does not occur here.")
         # Update embeddings for course after the file is successfully inserted into the database
         try:
                 update_vectorstore_from_s3(bucket_name, category_id)
