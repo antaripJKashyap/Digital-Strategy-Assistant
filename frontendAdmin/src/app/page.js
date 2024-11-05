@@ -1,22 +1,23 @@
+"use client"
 import Image from "next/image";
-import { Amplify } from "aws-amplify";
-import PublicHome from "@/components/PublicHome";
+import AdminHome from "@/components/AdminHome";
 
+import { Amplify } from "aws-amplify";
 
 Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+      userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
+      region: process.env.NEXT_PUBLIC_AWS_REGION,
+      allowGuestAccess: false,
+    }
+  },
   API: {
     REST: {
       MyApi: {
-        endpoint: process.env.NEXT_PUBLIC_API_ENDPOINT
+        endpoint: process.env.NEXT_PUBLIC_API_ENDPOINT,
       },
-    },
-  },
-  Auth: {
-    Cognito: {
-      region: process.env.NEXT_PUBLIC_AWS_REGION,
-      userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
-      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
-      allowGuestAccess: false,
     },
   },
 });
@@ -24,7 +25,7 @@ Amplify.configure({
 export default function Home() {
   return (
     <div>
-      <PublicHome />
+      <AdminHome />
     </div>
     
   );

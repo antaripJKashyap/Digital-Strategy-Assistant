@@ -7,8 +7,6 @@ info:
 tags:
   - name: User
     description: endpoints accessible by the general public
-  - name: Instructor
-    description: endpoints accessible by instructors
   - name: Admin
     description: endpoints accessible by admins
 x-amazon-apigateway-request-validators:

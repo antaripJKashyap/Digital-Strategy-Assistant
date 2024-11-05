@@ -1,8 +1,6 @@
 import Image from "next/image";
 import { Amplify } from "aws-amplify";
-import PublicHome from "@/components/PublicHome";
-
-
+import GeneralPublic from "@/components/home/GeneralPublic";
 Amplify.configure({
   API: {
     REST: {
@@ -24,7 +22,7 @@ Amplify.configure({
 export default function Home() {
   return (
     <div>
-      <PublicHome />
+      <GeneralPublic />
     </div>
     
   );
