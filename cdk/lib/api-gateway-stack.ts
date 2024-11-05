@@ -108,15 +108,7 @@ export class ApiGatewayStack extends cdk.Stack {
       description: "Contains the aws-jwt-verify library for JS",
     });
 
-    // /**
-    //  *
-    //  * Create Integration Lambda layer for aws-jwt-verify
-    //  */
-    // const data_ingestion_layer = new lambda.LayerVersion(this, "aws-data-ingestion", {
-    //   code: lambda.Code.fromAsset("./layers/data_ingestion.zip"),
-    //   compatibleRuntimes: [lambda.Runtime.PYTHON_3_11],
-    //   description: "Contains the data ingestion layer",
-    // });
+    
 
     /**
      *
@@ -139,33 +131,11 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
 
-     /**
-     *
-     * Create Integration Lambda layer for text_generation
-     */
-     const text_generationLayer = new lambda.LayerVersion(this, "text_generationLayer", {
-      code: lambda.Code.fromAsset("./layers/text_generation.zip"),
-      compatibleRuntimes: [Runtime.PYTHON_3_11],
-      description: "Contains the text_generation dependencies for python",
-    });
+     
 
-   /**
+  
 
-     *
-
-     * Create Lambda layer for data_ingestion
-
-     */
-
-   const data_ingestionLayer = new lambda.LayerVersion(this, "data_ingesdata_ingestionLayertion", {
-
-    code: lambda.Code.fromAsset("./layers/data_ingestion.zip"),
-
-    compatibleRuntimes: [Runtime.PYTHON_3_11],
-
-    description: "Contains the data_ingestion dependencies for python",
-
-  });
+     
 
     // powertoolsLayer does not follow the format of layerList
     const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
@@ -177,8 +147,8 @@ export class ApiGatewayStack extends cdk.Stack {
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
-    this.layerList["data_ingestionLayer"] = data_ingestionLayer;
-    this.layerList["text_generationLayer"] = text_generationLayer;
+    // this.layerList["data_ingestionLayer"] = data_ingestionLayer;
+    // this.layerList["text_generationLayer"] = text_generationLayer;
 
     // Create Cognito user pool
 
@@ -1097,7 +1067,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "DeleteCategoryFunc",
       {
-        runtime: lambda.Runtime.PYTHON_3_9,
+        runtime: lambda.Runtime.PYTHON_3_11,
         code: lambda.Code.fromAsset("lambda/deleteCategory"),
         handler: "deleteCategory.lambda_handler",
         timeout: Duration.seconds(300),

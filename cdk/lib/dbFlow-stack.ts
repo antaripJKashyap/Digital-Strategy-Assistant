@@ -70,7 +70,7 @@ export class DBFlowStack extends Stack {
         // Create an initilizer for the RDS instance, only invoke during deployment
         const initializerLambda = new triggers.TriggerFunction(this, "dls-triggerLambda", {
             functionName: "dls-initializerFunction",
-            runtime: lambda.Runtime.PYTHON_3_9,
+            runtime: lambda.Runtime.PYTHON_3_11,
             handler: "initializer.handler",
             timeout: Duration.seconds(300),
             memorySize: 512,
