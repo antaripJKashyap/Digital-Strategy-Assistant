@@ -58,6 +58,13 @@ def handler(event, context):
                 "time_account_created" timestamp,
                 "last_sign_in" timestamp
             );
+            
+            CREATE TABLE IF NOT EXISTS "prompts" (
+                "public" text,
+                "educator" text,
+                "admin" text
+            );
+            
 
             CREATE TABLE IF NOT EXISTS "categories" (
                 "category_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -235,12 +242,6 @@ def handler(event, context):
         
         sql = """
             SELECT * FROM sessions;
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-        
-        sql = """
-            SELECT * FROM messages_dynamo;
         """
         cursor.execute(sql)
         print(cursor.fetchall())

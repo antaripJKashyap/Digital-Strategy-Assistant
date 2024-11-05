@@ -152,7 +152,7 @@ def lambda_handler(event, context):
 
         for document_name in document_list:
             document_type = document_name.split('.')[-1]  # Get the file extension
-            presigned_url = generate_presigned_url(BUCKET, f"{document_name}")
+            presigned_url = generate_presigned_url(BUCKET, f"{document_prefix}{document_name}")
             document_name = document_name
             metadata = get_document_metadata_from_db(category_id, document_name.split('.')[0], document_type)
             document_list_urls[f"{document_name}"] = {

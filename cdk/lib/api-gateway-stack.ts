@@ -108,6 +108,7 @@ export class ApiGatewayStack extends cdk.Stack {
       description: "Contains the aws-jwt-verify library for JS",
     });
 
+
     /**
      *
      * Create Integration Lambda layer for PSQL
@@ -128,26 +129,11 @@ export class ApiGatewayStack extends cdk.Stack {
       description: "Lambda layer containing the psycopg2 Python library",
     });
 
+     
 
-     /**
-     *
-     * Create Integration Lambda layer for text_generation
-     */
-     const text_generationLayer = new lambda.LayerVersion(this, "text_generationLayer", {
-      code: lambda.Code.fromAsset("./layers/text_generation.zip"),
-      compatibleRuntimes: [Runtime.PYTHON_3_9],
-      description: "Contains the text_generation dependencies for python",
-    });
+  
 
-    /**
-     *
-     * Create Lambda layer for data_ingestion
-     */
-    const data_ingestionLayer = new lambda.LayerVersion(this, "data_ingesdata_ingestionLayertion", {
-      code: lambda.Code.fromAsset("./layers/data_ingestion.zip"),
-      compatibleRuntimes: [Runtime.PYTHON_3_9],
-      description: "Contains the data_ingestion dependencies for python",
-    });
+     
 
     // powertoolsLayer does not follow the format of layerList
     const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
@@ -159,8 +145,8 @@ export class ApiGatewayStack extends cdk.Stack {
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
-    this.layerList["data_ingestionLayer"] = data_ingestionLayer;
-    this.layerList["text_generationLayer"] = text_generationLayer;
+    // this.layerList["data_ingestionLayer"] = data_ingestionLayer;
+    // this.layerList["text_generationLayer"] = text_generationLayer;
 
     // Create Cognito user pool
 
@@ -663,48 +649,35 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
 
-    // Create secrets for Bedrock LLM ID, Embedding Model ID, and Table Name
-    // const bedrockLLMSecret = new secretsmanager.Secret(this, "BedrockLLMSecret", {
-    //   secretName: "BedrockLLMSecret",
-    //   description: "Secret containing the Bedrock LLM ID",
-    //   secretStringValue: cdk.SecretValue.unsafePlainText("meta.llama3-70b-instruct-v1:0"),
-    // });
-    const bedrockLLMSecret = new secretsmanager.Secret(
+    // Create parameters for Bedrock LLM ID, Embedding Model ID, and Table Name in Parameter Store
+    const bedrockLLMParameter = new ssm.StringParameter(
       this,
-      "BedrockLLMSecret",
+      "BedrockLLMParameter",
       {
-        secretName: "BedrockLLMSecret",
-        description: "Secret containing the Bedrock LLM ID",
-        secretStringValue: cdk.SecretValue.unsafePlainText(
-          "meta.llama3-70b-instruct-v1:0"
-        ),
+        parameterName: "/AILA/BedrockLLMId",
+        description: "Parameter containing the Bedrock LLM ID",
+        stringValue: "meta.llama3-70b-instruct-v1:0",
       }
     );
-    // const embeddingModelSecret = new secretsmanager.Secret(this, "EmbeddingModelSecret", {
-    //   secretName: "EmbeddingModelSecret",
-    //   description: "Secret containing the Embedding Model ID",
-    //   secretStringValue: cdk.SecretValue.unsafePlainText("amazon.titan-embed-text-v2:0"),
-    // });
-
-    const embeddingModelSecret = new secretsmanager.Secret(
+    const embeddingModelParameter = new ssm.StringParameter(
       this,
-      "EmbeddingModelSecret",
+      "EmbeddingModelParameter",
       {
-        secretName: "EmbeddingModelSecret",
-        description: "Secret containing the Embedding Model ID",
-        secretStringValue: cdk.SecretValue.unsafePlainText(
-          "amazon.titan-embed-text-v2:0"
-        ),
+        parameterName: "/AILA/EmbeddingModelId",
+        description: "Parameter containing the Embedding Model ID",
+        stringValue: "amazon.titan-embed-text-v2:0",
       }
     );
 
-    const tableNameSecret = new secretsmanager.Secret(this, "TableNameSecret", {
-      secretName: "TableNameSecret",
-      description: "Secret containing the DynamoDB table name",
-      secretStringValue: cdk.SecretValue.unsafePlainText(
-        "DynamoDB-Conversation-Table"
-      ),
-    });
+    const tableNameParameter = new ssm.StringParameter(
+      this,
+      "TableNameParameter",
+      {
+        parameterName: "/AILA/TableName",
+        description: "Parameter containing the DynamoDB table name",
+        stringValue: "DynamoDB-Conversation-Table",
+      }
+    );
 
     /**
      *
@@ -723,9 +696,9 @@ export class ApiGatewayStack extends cdk.Stack {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
-          BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
-          EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
-          TABLE_NAME_SECRET: tableNameSecret.secretName,
+          BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+          TABLE_NAME_PARAM: tableNameParameter.parameterName,
         },
       }
     );
@@ -785,6 +758,18 @@ export class ApiGatewayStack extends cdk.Stack {
           "dynamodb:GetItem",
         ],
         resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
+      })
+    );
+    // Grant access to SSM Parameter Store for specific parameters
+    textGenLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [
+          bedrockLLMParameter.parameterArn,
+          embeddingModelParameter.parameterArn,
+          tableNameParameter.parameterArn,
+        ],
       })
     );
 
@@ -851,9 +836,11 @@ export class ApiGatewayStack extends cdk.Stack {
           BUCKET: dataIngestionBucket.bucketName,
           REGION: this.region,
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
         },
       }
     );
+
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction
       .node.defaultChild as lambda.CfnFunction;
@@ -917,6 +904,15 @@ export class ApiGatewayStack extends cdk.Stack {
         resources: [
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
         ],
+      })
+    );
+
+    // Grant access to SSM Parameter Store for specific parameters
+    dataIngestLambdaDockerFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [embeddingModelParameter.parameterArn],
       })
     );
 

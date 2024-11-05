@@ -13,7 +13,7 @@ from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-
+print("printing hello")
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
@@ -39,10 +39,21 @@ def get_secret(secret_name, expect_json=True):
 
     
 
-## GET SECRET VALUES FOR CONSTANTS
-BEDROCK_LLM_ID = get_secret(os.environ["BEDROCK_LLM_SECRET"], expect_json=False)
-EMBEDDING_MODEL_ID = get_secret(os.environ["EMBEDDING_MODEL_SECRET"], expect_json=False)
-TABLE_NAME = get_secret(os.environ["TABLE_NAME_SECRET"], expect_json=False)
+def get_parameter(param_name):
+    """
+    Fetch a parameter value from Systems Manager Parameter Store.
+    """
+    try:
+        ssm_client = boto3.client("ssm", region_name=REGION)
+        response = ssm_client.get_parameter(Name=param_name, WithDecryption=True)
+        return response["Parameter"]["Value"]
+    except Exception as e:
+        logger.error(f"Error fetching parameter {param_name}: {e}")
+        raise
+## GET PARAMETER VALUES FOR CONSTANTS
+BEDROCK_LLM_ID = get_parameter(os.environ["BEDROCK_LLM_PARAM"])
+EMBEDDING_MODEL_ID = get_parameter(os.environ["EMBEDDING_MODEL_PARAM"])
+TABLE_NAME = get_parameter(os.environ["TABLE_NAME_PARAM"])
                         
 ## GETTING AMAZON TITAN EMBEDDINGS MODEL
 bedrock_runtime = boto3.client(
@@ -167,11 +178,6 @@ def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
 
     query_params = event.get("queryStringParameters", {})
-
-    # course_id = query_params.get("course_id", "")
-    # session_id = query_params.get("session_id", "")
-    # module_id = query_params.get("module_id", "")
-    # session_name = query_params.get("session_name")
 
     category_id = query_params.get("category_id", "")
     session_id = query_params.get("session_id", "")
