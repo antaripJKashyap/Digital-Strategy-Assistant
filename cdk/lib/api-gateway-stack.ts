@@ -108,7 +108,6 @@ export class ApiGatewayStack extends cdk.Stack {
       description: "Contains the aws-jwt-verify library for JS",
     });
 
-    
 
     /**
      *
@@ -129,7 +128,6 @@ export class ApiGatewayStack extends cdk.Stack {
       compatibleRuntimes: [Runtime.PYTHON_3_11],
       description: "Lambda layer containing the psycopg2 Python library",
     });
-
 
      
 
@@ -651,48 +649,35 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
 
-    // Create secrets for Bedrock LLM ID, Embedding Model ID, and Table Name
-    // const bedrockLLMSecret = new secretsmanager.Secret(this, "BedrockLLMSecret", {
-    //   secretName: "BedrockLLMSecret",
-    //   description: "Secret containing the Bedrock LLM ID",
-    //   secretStringValue: cdk.SecretValue.unsafePlainText("meta.llama3-70b-instruct-v1:0"),
-    // });
-    const bedrockLLMSecret = new secretsmanager.Secret(
+    // Create parameters for Bedrock LLM ID, Embedding Model ID, and Table Name in Parameter Store
+    const bedrockLLMParameter = new ssm.StringParameter(
       this,
-      "BedrockLLMSecret",
+      "BedrockLLMParameter",
       {
-        secretName: "BedrockLLMSecret",
-        description: "Secret containing the Bedrock LLM ID",
-        secretStringValue: cdk.SecretValue.unsafePlainText(
-          "meta.llama3-70b-instruct-v1:0"
-        ),
+        parameterName: "/AILA/BedrockLLMId",
+        description: "Parameter containing the Bedrock LLM ID",
+        stringValue: "meta.llama3-70b-instruct-v1:0",
       }
     );
-    // const embeddingModelSecret = new secretsmanager.Secret(this, "EmbeddingModelSecret", {
-    //   secretName: "EmbeddingModelSecret",
-    //   description: "Secret containing the Embedding Model ID",
-    //   secretStringValue: cdk.SecretValue.unsafePlainText("amazon.titan-embed-text-v2:0"),
-    // });
-
-    const embeddingModelSecret = new secretsmanager.Secret(
+    const embeddingModelParameter = new ssm.StringParameter(
       this,
-      "EmbeddingModelSecret",
+      "EmbeddingModelParameter",
       {
-        secretName: "EmbeddingModelSecret",
-        description: "Secret containing the Embedding Model ID",
-        secretStringValue: cdk.SecretValue.unsafePlainText(
-          "amazon.titan-embed-text-v2:0"
-        ),
+        parameterName: "/AILA/EmbeddingModelId",
+        description: "Parameter containing the Embedding Model ID",
+        stringValue: "amazon.titan-embed-text-v2:0",
       }
     );
 
-    const tableNameSecret = new secretsmanager.Secret(this, "TableNameSecret", {
-      secretName: "TableNameSecret",
-      description: "Secret containing the DynamoDB table name",
-      secretStringValue: cdk.SecretValue.unsafePlainText(
-        "DynamoDB-Conversation-Table"
-      ),
-    });
+    const tableNameParameter = new ssm.StringParameter(
+      this,
+      "TableNameParameter",
+      {
+        parameterName: "/AILA/TableName",
+        description: "Parameter containing the DynamoDB table name",
+        stringValue: "DynamoDB-Conversation-Table",
+      }
+    );
 
     /**
      *
@@ -711,34 +696,12 @@ export class ApiGatewayStack extends cdk.Stack {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
-          BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
-          EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
-          TABLE_NAME_SECRET: tableNameSecret.secretName,
+          BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+          TABLE_NAME_PARAM: tableNameParameter.parameterName,
         },
       }
     );
-    // const textGenLambdaLayerFunc = new lambda.Function(
-    //   this,
-    //   "textGenLambdaLayerFunction",
-    //   {
-    //     runtime: lambda.Runtime.PYTHON_3_11,
-    //     code: lambda.Code.fromAsset("lambda/text_generation"),
-    //     handler: "main.handler",
-    //     timeout: Duration.seconds(300),
-    //     memorySize: 512,
-    //     vpc: vpcStack.vpc,
-    //     environment: {
-    //             SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-    //             RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-    //             REGION: this.region,
-    //             BEDROCK_LLM_SECRET: bedrockLLMSecret.secretName,
-    //             EMBEDDING_MODEL_SECRET: embeddingModelSecret.secretName,
-    //             TABLE_NAME_SECRET: tableNameSecret.secretName,
-    //           },
-    //     functionName: "textGenLambdaLayerFunction",
-    //     layers: [text_generation_layer],
-    //   }
-    // );
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnTextGenDockerFunc = textGenLambdaDockerFunc.node
@@ -784,7 +747,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Grant access to DynamoDB actions
-    textGenLambdaDockerFunc.addToRolePolicy(  
+    textGenLambdaDockerFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -795,6 +758,18 @@ export class ApiGatewayStack extends cdk.Stack {
           "dynamodb:GetItem",
         ],
         resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
+      })
+    );
+    // Grant access to SSM Parameter Store for specific parameters
+    textGenLambdaDockerFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [
+          bedrockLLMParameter.parameterArn,
+          embeddingModelParameter.parameterArn,
+          tableNameParameter.parameterArn,
+        ],
       })
     );
 
@@ -861,32 +836,10 @@ export class ApiGatewayStack extends cdk.Stack {
           BUCKET: dataIngestionBucket.bucketName,
           REGION: this.region,
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
         },
       }
     );
-
-    // const dataIngestLambdaLayerFunction = new lambda.Function(
-    //   this,
-    //   "dataIngestLambdaLayerFunction",
-    //   {
-    //     runtime: lambda.Runtime.PYTHON_3_11,
-    //     code: lambda.Code.fromAsset("lambda/data_ingestion"),
-    //     handler: "main.handler",
-    //     timeout: Duration.seconds(300),
-    //     memorySize: 512,
-    //     vpc: vpcStack.vpc,
-    //     environment: {
-    //             SM_DB_CREDENTIALS: db.secretPathAdminName,
-    //             RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
-    //             BUCKET: dataIngestionBucket.bucketName,
-    //             REGION: this.region,
-    //             EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
-    //           },
-    //     functionName: "dataIngestLambdaLayerFunction",
-    //     layers: [data_ingestion_layer],
-    //   }
-    // );
-
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction
@@ -951,6 +904,15 @@ export class ApiGatewayStack extends cdk.Stack {
         resources: [
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
         ],
+      })
+    );
+
+    // Grant access to SSM Parameter Store for specific parameters
+    dataIngestLambdaDockerFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [embeddingModelParameter.parameterArn],
       })
     );
 
