@@ -125,7 +125,7 @@ export class ApiGatewayStack extends cdk.Stack {
      */
     const psycopgLayer = new LayerVersion(this, "psycopgLambdaLayer", {
       code: Code.fromAsset("./layers/psycopg2.zip"),
-      compatibleRuntimes: [Runtime.PYTHON_3_11],
+      compatibleRuntimes: [Runtime.PYTHON_3_9],
       description: "Lambda layer containing the psycopg2 Python library",
     });
 
@@ -778,7 +778,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "GeneratePreSignedURLFunc",
       {
-        runtime: lambda.Runtime.PYTHON_3_11,
+        runtime: lambda.Runtime.PYTHON_3_9,
         code: lambda.Code.fromAsset("lambda/generatePreSignedURL"),
         handler: "generatePreSignedURL.lambda_handler",
         timeout: Duration.seconds(300),
@@ -924,7 +924,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "GetDocumentsFunction",
       {
-        runtime: lambda.Runtime.PYTHON_3_11,
+        runtime: lambda.Runtime.PYTHON_3_9,
         code: lambda.Code.fromAsset("lambda/getDocumentsFunction"),
         handler: "getDocumentsFunction.lambda_handler",
         timeout: Duration.seconds(300),
@@ -976,7 +976,7 @@ export class ApiGatewayStack extends cdk.Stack {
      * Create Lambda function to delete certain file
      */
     const deleteDocument = new lambda.Function(this, "DeleteDocumentFunc", {
-      runtime: lambda.Runtime.PYTHON_3_11,
+      runtime: lambda.Runtime.PYTHON_3_9,
       code: lambda.Code.fromAsset("lambda/deleteDocument"),
       handler: "deleteDocument.lambda_handler",
       timeout: Duration.seconds(300),
@@ -1029,7 +1029,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "DeleteCategoryFunc",
       {
-        runtime: lambda.Runtime.PYTHON_3_11,
+        runtime: lambda.Runtime.PYTHON_3_9,
         code: lambda.Code.fromAsset("lambda/deleteCategory"),
         handler: "deleteCategory.lambda_handler",
         timeout: Duration.seconds(300),
