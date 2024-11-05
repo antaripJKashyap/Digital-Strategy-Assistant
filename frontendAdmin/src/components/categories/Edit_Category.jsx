@@ -243,10 +243,6 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
   };
 
   const handleSaveChanges = async () => {
-    if (deletedFiles.length === 0 && newFiles.length === 0) {
-      toast.info("No changes to save");
-      return;
-    }
     setSaving(true);
     const session = await fetchAuthSession();
     const token = session.tokens.idToken;
