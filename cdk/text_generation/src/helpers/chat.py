@@ -1,4 +1,4 @@
-import boto3, re
+import boto3, re, json
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockLLM
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -96,23 +96,6 @@ def get_student_query(raw_query: str) -> str:
     """
     return student_query
 
-
-# def get_initial_student_query():
-#     """
-#     Generate an initial query for the student to interact with the system. 
-#     The query asks the student to greet the system and then requests a question related to a specified topic.
-
-#     Args:
-#     topic (str): The topic for which the initial question should be generated.
-
-#     Returns:
-#     str: The formatted initial query string for the student.
-#     """
-#     student_query = f"""
-#     user
-#     Greet me and then ask me a if the user has any questions. 
-#     """
-#     return student_query
 def get_initial_student_query():
     """
     Generate an initial query for the user to interact with the system.
@@ -125,78 +108,66 @@ def get_initial_student_query():
     
     query_structure = {
         "message": "Hello! Please select the best role below that fits you. We can better answer your questions. Don’t include personal details such as your name and private content.",
-        "options": [
-            {
-                "label": "Student/prospective student",
-                "value": "student",
-                "questions": [
-                    {
-                        "label": "What is Digital Learning Strategy?",
-                        "follow_up_questions": [
-                            "Are there any discounts or other forms of financial support for students to access digital learning tools or services through the Digital Learning Strategy (DLS)?",
-                            "Will the DLS initiatives expand the digital learning offerings for courses and/or programs at my school?",
-                            "How does the DLS apply to students like me?"
-                        ]
-                    },
-                    {
-                        "label": "How does the Digital Learning Strategy affect me?",
-                        "follow_up_questions": [
-                            "Where can I find resources to improve my digital literacy? ",
-                            "How will the DLS improve my access to online learning resources, particularly if I live in a remote or underserved area?",
-                            "How will the DLS initiatives support completion of my post-secondary education?"
-                        ]
-                    }
-                ]
-            },
-            {
-                "label": "Educator/educational designer",
-                "value": "educator",
-                "questions": [
-                    {
-                        "label": "How can I implement the DLS recommendations in my teaching? ",
-                        "follow_up_questions": [
-                            "Can I find subject-specific teaching materials?",
-                            "Are there workshops for new educators?",
-                            "How can I request new resources?"
-                        ]
-                    },
-                    {
-                        "label": "Am I required to integrate the BC Digital Literacy Framework into my course?",
-                        "follow_up_questions": [
-                            "Am I required to integrate the Guidelines for Technology-Enhanced Learning into my course?",
-                            "Am I required to integrate the DLS recommendations into my teaching?",
-                            "Will the DLS provide any guidance on protecting Indigenous Knowledge and intellectual property?"
-                        ]
-                    }
-                ]
-            },
-            {
-                "label": "Admin",
-                "value": "admin",
-                "questions": [
-                    {
-                        "label": "How can the DLS support me as an administrator in a post-secondary institution? ",
-                        "follow_up_questions": [
-                            "How does the DLS support collaboration between institutions?",
-                            "Which strategic priorities and recommendations in the DLS should my institution focus on?",
-                            "Does the DLS offer any cost-saving opportunities for my institution?"
-                        ]
-                    },
-                    {
-                        "label": "Does the DLS require my institution to offer more online and/or hybrid learning options? ",
-                        "follow_up_questions": [
-                            "How can my institution take advantage of the joint procurement opportunities that BCNET offers?",
-                            "Where can I find the repository of software applications used across the post-secondary system?",
-                            "How does the DLS support remote learners?"
-                        ]
-                    }
-                ]
-            }
-        ]
+        "options": ["Student/prospective student", "Educator/educational designer", "Admin"],
+        "questions_by_role": {
+            "Student/prospective student": [
+                {
+                    "label": "What is Digital Learning Strategy?",
+                    "follow_up_questions": [
+                        "Are there any discounts or other forms of financial support for students to access digital learning tools or services through the Digital Learning Strategy (DLS)?",
+                        "Will the DLS initiatives expand the digital learning offerings for courses and/or programs at my school?",
+                        "How does the DLS apply to students like me?"
+                    ]
+                },
+                {
+                    "label": "How does the Digital Learning Strategy affect me?",
+                    "follow_up_questions": [
+                        "Where can I find resources to improve my digital literacy?",
+                        "How will the DLS improve my access to online learning resources, particularly if I live in a remote or underserved area?",
+                        "How will the DLS initiatives support completion of my post-secondary education?"
+                    ]
+                }
+            ],
+            "Educator/educational designer": [
+                {
+                    "label": "How can I implement the DLS recommendations in my teaching?",
+                    "follow_up_questions": [
+                        "Can I find subject-specific teaching materials?",
+                        "Are there workshops for new educators?",
+                        "How can I request new resources?"
+                    ]
+                },
+                {
+                    "label": "Am I required to integrate the BC Digital Literacy Framework into my course?",
+                    "follow_up_questions": [
+                        "Am I required to integrate the Guidelines for Technology-Enhanced Learning into my course?",
+                        "Am I required to integrate the DLS recommendations into my teaching?",
+                        "Will the DLS provide any guidance on protecting Indigenous Knowledge and intellectual property?"
+                    ]
+                }
+            ],
+            "Admin": [
+                {
+                    "label": "How can the DLS support me as an administrator in a post-secondary institution?",
+                    "follow_up_questions": [
+                        "How does the DLS support collaboration between institutions?",
+                        "Which strategic priorities and recommendations in the DLS should my institution focus on?",
+                        "Does the DLS offer any cost-saving opportunities for my institution?"
+                    ]
+                },
+                {
+                    "label": "Does the DLS require my institution to offer more online and/or hybrid learning options?",
+                    "follow_up_questions": [
+                        "How can my institution take advantage of the joint procurement opportunities that BCNET offers?",
+                        "Where can I find the repository of software applications used across the post-secondary system?",
+                        "How does the DLS support remote learners?"
+                    ]
+                }
+            ]
+        }
     }
 
     return json.dumps(query_structure, indent=4)
-
 
 def get_response(
     query: str,

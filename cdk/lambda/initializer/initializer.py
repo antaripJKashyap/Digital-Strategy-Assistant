@@ -33,6 +33,24 @@ def createConnection():
 dbSecret = getDbSecret()
 connection = createConnection()
 
+def insert_into_prompts(public_prompt, educator_prompt, admin_prompt):
+    """
+    Inserts values into the prompts table.
+    Parameters are set up to allow easy changes in the future.
+    """
+    try:
+        cursor = connection.cursor()
+        insert_query = """
+            INSERT INTO "prompts" ("public", "educator", "admin")
+            VALUES (%s, %s, %s)
+        """
+        cursor.execute(insert_query, (public_prompt, educator_prompt, admin_prompt))
+        connection.commit()
+        print("Values inserted into prompts table successfully.")
+    except Exception as e:
+        print(f"Error inserting into prompts table: {e}")
+    finally:
+        cursor.close()
 
 def handler(event, context):
     global connection
@@ -233,6 +251,16 @@ def handler(event, context):
         sm_client.put_secret_value(
             SecretId=DB_USER_SECRET_NAME, SecretString=json.dumps(dbSecret)
         )
+
+        # Load client username and password to SSM
+
+
+        public_prompt = "Welcome, guest!"
+        educator_prompt = "Educator dashboard access granted."
+        admin_prompt = "Admin privileges enabled."
+        
+        insert_into_prompts(public_prompt, educator_prompt, admin_prompt)
+
         sql = """
             SELECT * FROM users;
         """

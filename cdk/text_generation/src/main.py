@@ -3,7 +3,6 @@ import json
 import boto3
 import logging
 import psycopg2
-import boto3
 from langchain_aws import BedrockEmbeddings
 
 
@@ -181,7 +180,7 @@ def handler(event, context):
 
     category_id = query_params.get("category_id", "")
     session_id = query_params.get("session_id", "")
-    session_name = query_params.get("session_name")
+    # session_name = query_params.get("session_name")
 
     if not category_id:
         logger.error("Missing required parameter: category_id")
@@ -209,18 +208,7 @@ def handler(event, context):
             'body': json.dumps('Missing required parameter: session_id')
         }
 
-    # if not module_id:
-    #     logger.error("Missing required parameter: module_id")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Missing required parameter: module_id')
-    #     }
+
     
     # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
     #                     Here is a link to that website: "https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy".
@@ -260,11 +248,15 @@ def handler(event, context):
     question = body.get("message_content", "")
     
     if not question:
-        logger.info(f"Start of conversation. Creating conversation history table in DynamoDB.")
-        student_query = get_initial_student_query()
+        logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
+        initial_query = get_initial_student_query()
+        query_data = json.loads(initial_query)
+        options = query_data["options"]
+        student_query = initial_query
     else:
         logger.info(f"Processing student question: {question}")
         student_query = get_student_query(question)
+        options = []
     
     try:
         logger.info("Creating Bedrock LLM instance.")
@@ -372,8 +364,8 @@ def handler(event, context):
                 "Access-Control-Allow-Methods": "*",
             },
         "body": json.dumps({
-            "session_name": session_name,
+            "session_id": session_id,
             "llm_output": response.get("llm_output", "LLM failed to create response"),
-            "llm_verdict": response.get("llm_verdict", "LLM failed to create verdict")
+            "options": options
         })
     }
