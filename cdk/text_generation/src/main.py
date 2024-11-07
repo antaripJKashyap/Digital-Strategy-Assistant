@@ -68,110 +68,58 @@ embeddings = BedrockEmbeddings(
 
 create_dynamodb_history_table(TABLE_NAME)
 
-# def get_module_name(category_id):
-#     connection = None
-#     cur = None
-#     try:
-#         logger.info(f"Fetching module name for module_id: {module_id}")
-#         db_secret = get_secret(DB_SECRET_NAME)
-#         connection_params = {
-#             'dbname': db_secret["dbname"],
-#             'user': db_secret["username"],
-#             'password': db_secret["password"],
-#             'host': db_secret["host"],
-#             'port': db_secret["port"]
-#         }
+def get_system_prompts():
+    connection = None
+    cur = None
+    try:
+        logger.info(f"Fetching system prompt for all users.")
+        db_secret = get_secret(DB_SECRET_NAME)
 
-#         connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+        connection_params = {
+            'dbname': db_secret["dbname"],
+            'user': db_secret["username"],
+            'password': db_secret["password"],
+            'host': db_secret["host"],
+            'port': db_secret["port"]
+        }
 
-#         connection = psycopg2.connect(connection_string)
-#         cur = connection.cursor()
-#         logger.info("Connected to RDS instance!")
+        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
 
-#         cur.execute("""
-#             SELECT module_name 
-#             FROM "Course_Modules" 
-#             WHERE module_id = %s;
-#         """, (module_id,))
+        connection = psycopg2.connect(connection_string)
+        cur = connection.cursor()
+        logger.info("Connected to RDS instance!")
+
+        cur.execute("""
+            SELECT "public", "educator", "admin"
+            FROM "prompts";
+        """)
         
-#         result = cur.fetchone()
-#         logger.info(f"Query result: {result}")
-#         module_name = result[0] if result else None
-        
-#         cur.close()
-#         connection.close()
-        
-#         if module_name:
-#             logger.info(f"Module name for module_id {module_id} found: {module_name}")
-#         else:
-#             logger.warning(f"No module name found for module_id {module_id}")
-        
-#         return module_name
+        result = cur.fetchone()
+        logger.info(f"Query result: {result}")
+        if result:
+            public_prompt, educator_prompt, admin_prompt = result
+            logger.info("Prompts fetched successfully.")
+        else:
+            logger.warning("No prompts found in the prompts table.")
+            public_prompt = educator_prompt = admin_prompt = None
 
-    # except Exception as e:
-    #     logger.error(f"Error fetching module name: {e}")
-    #     if connection:
-    #         connection.rollback()
-    #     return None
-    # finally:
-    #     if cur:
-    #         cur.close()
-    #     if connection:
-    #         connection.close()
-    #     logger.info("Connection closed.")
+        return {
+            'public_prompt': public_prompt,
+            'educator_prompt': educator_prompt,
+            'admin_prompt': admin_prompt
+        }
 
-# def get_system_prompt(course_id):
-#     connection = None
-#     cur = None
-#     try:
-#         logger.info(f"Fetching system prompt for course_id: {course_id}")
-#         db_secret = get_secret(DB_SECRET_NAME)
-
-#         connection_params = {
-#             'dbname': db_secret["dbname"],
-#             'user': db_secret["username"],
-#             'password': db_secret["password"],
-#             'host': db_secret["host"],
-#             'port': db_secret["port"]
-#         }
-
-#         connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-
-#         connection = psycopg2.connect(connection_string)
-#         cur = connection.cursor()
-#         logger.info("Connected to RDS instance!")
-
-#         cur.execute("""
-#             SELECT system_prompt 
-#             FROM "Courses" 
-#             WHERE course_id = %s;
-#         """, (course_id,))
-        
-#         result = cur.fetchone()
-#         logger.info(f"Query result: {result}")
-#         system_prompt = result[0] if result else None
-        
-#         cur.close()
-#         connection.close()
-        
-#         if system_prompt:
-#             logger.info(f"System prompt for course_id {course_id} found: {system_prompt}")
-#         else:
-#             logger.warning(f"No system prompt found for course_id {course_id}")
-        
-#         return system_prompt
-
-#     except Exception as e:
-#         logger.error(f"Error fetching system prompt: {e}")
-#         if connection:
-#             connection.rollback()
-#         return None
-#     finally:
-#         if cur:
-#             cur.close()
-#         if connection:
-#             connection.close()
-#         logger.info("Connection closed.")
+    except Exception as e:
+        logger.error(f"Error fetching system prompts: {e}")
+        if connection:
+            connection.rollback()
+        return None
+    finally:
+        if cur:
+            cur.close()
+        if connection:
+            connection.close()
+        logger.info("Connection closed.")
 
 def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
@@ -219,11 +167,23 @@ def handler(event, context):
     #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
     #                     """
 
-    system_prompt = """You are an instructor for a course. Your job is to help the student master the topic"""
+    # system_prompt = """You are an instructor for a course. Your job is to help the student master the topic"""
+    logger.info("Fetching prompts from the database.")
+    prompts = get_system_prompts()
 
+    if prompts:
+        public_prompt = prompts['public_prompt']
+        educator_prompt = prompts['educator_prompt']
+        admin_prompt = prompts['admin_prompt']
 
-    if system_prompt is None:
-        logger.error(f"Error fetching system prompt for you!")
+        logger.info(f"Fetched prompts - Public: {public_prompt}, Educator: {educator_prompt}, Admin: {admin_prompt}")
+        # Use the prompts as needed
+    else:
+    # Handle the case where prompts are not available
+        logger.error("Failed to retrieve system prompts.")
+
+    if public_prompt is None:
+        logger.error(f"Error fetching public prompt for you!")
         return {
             'statusCode': 400,
             "headers": {
@@ -232,17 +192,35 @@ def handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
             },
-            'body': json.dumps('Error fetching system prompt')
+            'body': json.dumps('Error fetching public prompt')
+        }
+
+    if educator_prompt is None:
+        logger.error(f"Error fetching educator prompt for you!")
+        return {
+            'statusCode': 400,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps('Error fetching educator prompt')
         }
     
-    # topic = "ABC"
-
-    # if topic is None:
-    #     logger.error(f"Invalid module_id: {module_id}")
-    #     return {
-    #         'statusCode': 400,
-    #         'body': json.dumps('Invalid module_id')
-    #     }
+    if admin_prompt is None:
+        logger.error(f"Error fetching admin prompt for you!")
+        return {
+            'statusCode': 400,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps('Error fetching admin prompt')
+        }
+    
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
@@ -327,7 +305,9 @@ def handler(event, context):
             history_aware_retriever=history_aware_retriever,
             table_name=TABLE_NAME,
             session_id=session_id,
-            course_system_prompt=system_prompt
+            public_prompt=public_prompt,
+            educator_prompt=educator_prompt,
+            admin_prompt=admin_prompt
         )
     except Exception as e:
         logger.error(f"Error getting response: {e}")
@@ -342,17 +322,17 @@ def handler(event, context):
             'body': json.dumps('Error getting response')
         }
     
-    try:
-        logger.info("Updating session name if this is the first exchange between the LLM and student")
-        potential_session_name = update_session_name(TABLE_NAME, session_id, BEDROCK_LLM_ID)
-        if potential_session_name:
-            logger.info("This is the first exchange between the LLM and student. Updating session name.")
-            session_name = potential_session_name
-        else:
-            logger.info("Not the first exchange between the LLM and student. Session name remains the same.")
-    except Exception as e:
-        logger.error(f"Error updating session name: {e}")
-        session_name = "New Chat"
+    # try:
+    #     logger.info("Updating session name if this is the first exchange between the LLM and student")
+    #     potential_session_name = update_session_name(TABLE_NAME, session_id, BEDROCK_LLM_ID)
+    #     if potential_session_name:
+    #         logger.info("This is the first exchange between the LLM and student. Updating session name.")
+    #         session_name = potential_session_name
+    #     else:
+    #         logger.info("Not the first exchange between the LLM and student. Session name remains the same.")
+    # except Exception as e:
+    #     logger.error(f"Error updating session name: {e}")
+    #     session_name = "New Chat"
     
     logger.info("Returning the generated response.")
     return {
