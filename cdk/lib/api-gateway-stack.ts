@@ -615,6 +615,33 @@ export class ApiGatewayStack extends cdk.Stack {
       value: this.userPool.userPoolId,
       description: "The ID of the Cognito User Pool",
     });
+    
+    const updateTimestampLambda = new lambda.Function(
+      this,
+      "updateTimestampLambda",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        code: lambda.Code.fromAsset("lambda/lib"),
+        handler: "updateLastSignIn.handler",
+        timeout: Duration.seconds(300),
+        environment: {
+          SM_DB_CREDENTIALS: db.secretPathTableCreator.secretName,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointTableCreator,
+        },
+        vpc: vpcStack.vpc,
+        functionName: "updateLastSignIn",
+        memorySize: 128,
+        layers: [postgres],
+        role: coglambdaRole,
+      }
+    );
+
+    //cognito auto assign authenticated users to the admin group
+
+    this.userPool.addTrigger(
+      cognito.UserPoolOperation.POST_AUTHENTICATION,
+      updateTimestampLambda
+    );
 
     // **
     //  *

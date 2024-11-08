@@ -52,7 +52,6 @@ def list_documents_in_s3_prefix(bucket, prefix):
     documents = []
     continuation_token = None
 
-    # Fetch all objects in the module directory, handling pagination
     while True:
         if continuation_token:
             result = s3.list_objects_v2(
@@ -67,7 +66,6 @@ def list_documents_in_s3_prefix(bucket, prefix):
             for obj in result['Contents']:
                 documents.append(obj['Key'].replace(prefix, ''))
 
-        # Check if there's more data to fetch
         if result.get('IsTruncated'):
             continuation_token = result.get('NextContinuationToken')
         else:
@@ -95,7 +93,6 @@ def get_document_metadata_from_db(category_id, document_name, document_type):
 
     try:
         cur = connection.cursor()
-
         query = """
             SELECT metadata 
             FROM "documents" 
@@ -124,13 +121,9 @@ def get_document_metadata_from_db(category_id, document_name, document_type):
 @logger.inject_lambda_context
 def lambda_handler(event, context):
     query_params = event.get("queryStringParameters", {})
-
     category_id = query_params.get("category_id", "")
     if not category_id:
-        logger.error("Missing required parameters", extra={
-            "course_id": category_id,
-            "module_id": category_id,
-        })
+        logger.error("Missing required parameters", extra={"category_id": category_id})
         return {
             'statusCode': 400,
             "headers": {
@@ -144,16 +137,12 @@ def lambda_handler(event, context):
 
     try:
         document_prefix = f"{category_id}/"
+        document_list = list_documents_in_s3_prefix(BUCKET, document_prefix)
 
-        document_list = list_documents_in_s3_prefix(BUCKET,document_prefix)
-
-        # Retrieve metadata and generate presigned URLs for documents
         document_list_urls = {}
-
         for document_name in document_list:
-            document_type = document_name.split('.')[-1]  # Get the file extension
+            document_type = document_name.split('.')[-1]
             presigned_url = generate_presigned_url(BUCKET, f"{document_prefix}{document_name}")
-            document_name = document_name
             metadata = get_document_metadata_from_db(category_id, document_name.split('.')[0], document_type)
             document_list_urls[f"{document_name}"] = {
                 "url": presigned_url,
@@ -172,9 +161,7 @@ def lambda_handler(event, context):
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "*",
             },
-            'body': json.dumps({
-                'document_files': document_list_urls
-            })
+            'body': json.dumps({'document_files': document_list_urls})
         }
     except Exception as e:
         logger.exception(f"Error generating presigned URLs or retrieving metadata: {e}")

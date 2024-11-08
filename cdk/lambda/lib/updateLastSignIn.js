@@ -2,7 +2,6 @@ const { initializeConnection } = require("./lib.js");
 const {
   CognitoIdentityProviderClient,
   AdminGetUserCommand,
-  AdminAddUserToGroupCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
 const { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT } = process.env;
@@ -30,31 +29,16 @@ exports.handler = async (event) => {
     );
     const email = emailAttr ? emailAttr.Value : null;
 
-    // Add the user to the "admin" group without removing existing groups
-    const addUserToGroupCommand = new AdminAddUserToGroupCommand({
-      UserPoolId: userPoolId,
-      Username: userName,
-      GroupName: "admin",
-    });
-    await client.send(addUserToGroupCommand);
-
-    // Insert the new user into the Users table
+    // Update the last_sign_in field to the current timestamp
     await sqlConnection`
-      INSERT INTO "users" (user_id, user_email, time_account_created, last_sign_in)
-      VALUES (uuid_generate_v4(), ${email}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+      UPDATE "users"
+      SET last_sign_in = CURRENT_TIMESTAMP
+      WHERE user_email = ${email};
     `;
 
     return event;
   } catch (err) {
-    console.error(
-      "Error assigning user to group or inserting into database:",
-      err
-    );
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        message: "Internal Server Error",
-      }),
-    };
+    console.error("Error updating user last_sign_in timestamp:", err);
+    return event;
   }
 };

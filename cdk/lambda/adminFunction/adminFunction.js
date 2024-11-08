@@ -281,56 +281,72 @@ exports.handler = async (event) => {
           });
         }
         break;
-      case "PUT /admin/update_metadata":
+      case "PUT /instructor/update_metadata":
         if (
-          event.queryStringParameters &&
-          event.queryStringParameters.document_id &&
-          event.queryStringParameters.metadata
+          event.queryStringParameters != null &&
+          event.queryStringParameters.category_id &&
+          event.queryStringParameters.document_name &&
+          event.queryStringParameters.document_type
         ) {
-          const updateDocumentId = event.queryStringParameters.document_id;
-          const updateMetaData = event.queryStringParameters.metadata;
+          const categoryId = event.queryStringParameters.category_id;
+          const documentName = event.queryStringParameters.document_name;
+          const documentType = event.queryStringParameters.document_type;
+          const { metadata } = JSON.parse(event.body);
 
           try {
-            // Update meta_data query
-            const updateResult = await sqlConnectionTableCreator`
-                UPDATE documents
-                SET metadata = ${updateMetaData}
-                WHERE document_id = ${updateDocumentId}
-                RETURNING *;
-              `;
+            // Query to find the document with the given category_id, document_name, and document_type
+            const existingDocument = await sqlConnectionTableCreator`
+        SELECT * FROM documents
+        WHERE category_id = ${categoryId}
+        AND document_name = ${documentName}
+        AND document_type = ${documentType};
+      `;
 
-            if (updateResult.length === 0) {
-              response.statusCode = 404; // Not Found
-              response.body = JSON.stringify({ error: "Document not found" });
+            if (existingDocument.length === 0) {
+              // If document does not exist, insert a new entry
+              const result = await sqlConnectionTableCreator`
+          INSERT INTO documents (document_id, category_id, document_s3_file_path, document_name, document_type, metadata, time_created)
+          VALUES (uuid_generate_v4(), ${categoryId}, NULL, ${documentName}, ${documentType}, ${metadata}, CURRENT_TIMESTAMP)
+          RETURNING *;
+        `;
+              response.statusCode = 201;
+              response.body = JSON.stringify({
+                message: "Document metadata added successfully",
+                document: result[0],
+              });
             } else {
-              const userRole = "admin";
-              const engagementType = "meta data updated";
+              // Update the metadata field for an existing document
+              const result = await sqlConnectionTableCreator`
+          UPDATE documents
+          SET metadata = ${metadata}
+          WHERE category_id = ${categoryId}
+          AND document_name = ${documentName}
+          AND document_type = ${documentType}
+          RETURNING *;
+        `;
 
-              // Log the meta data update in user engagement log
-              await sqlConnectionTableCreator`
-                  INSERT INTO user_engagement_log (log_id, session_id, timestamp, engagement_type, user_info, user_role)
-                  VALUES (
-                    uuid_generate_v4(),
-                    NULL,
-                    CURRENT_TIMESTAMP,
-                    ${engagementType},
-                    NULL,
-                    ${userRole}
-                  )
-                `;
-
-              response.statusCode = 200; // OK
-              response.body = JSON.stringify(updateResult[0]); // Return the updated document
+              if (result.length > 0) {
+                response.statusCode = 200;
+                response.body = JSON.stringify({
+                  message: "Document metadata updated successfully",
+                  document: result[0],
+                });
+              } else {
+                response.statusCode = 500;
+                response.body = JSON.stringify({
+                  error: "Failed to update metadata.",
+                });
+              }
             }
           } catch (err) {
-            response.statusCode = 500; // Internal Server Error
+            response.statusCode = 500;
             console.error(err);
             response.body = JSON.stringify({ error: "Internal server error" });
           }
         } else {
-          response.statusCode = 400; // Bad Request
+          response.statusCode = 400;
           response.body = JSON.stringify({
-            error: "Missing required parameters",
+            error: "category_id, document_name, and document_type are required",
           });
         }
         break;
@@ -401,6 +417,179 @@ exports.handler = async (event) => {
           });
         }
         break;
+      case "GET /admin/latest_prompt":
+        try {
+          // Queries to get the most recent non-null entries for each role
+          const latestPublicPrompt = await sqlConnectionTableCreator`
+      SELECT public, time_created
+      FROM prompts
+      WHERE public IS NOT NULL
+      ORDER BY time_created DESC
+      LIMIT 1;
+    `;
+
+          const latestEducatorPrompt = await sqlConnectionTableCreator`
+      SELECT educator, time_created
+      FROM prompts
+      WHERE educator IS NOT NULL
+      ORDER BY time_created DESC
+      LIMIT 1;
+    `;
+
+          const latestAdminPrompt = await sqlConnectionTableCreator`
+      SELECT admin, time_created
+      FROM prompts
+      WHERE admin IS NOT NULL
+      ORDER BY time_created DESC
+      LIMIT 1;
+    `;
+
+          // Building the response object with non-null values for each role
+          const latestPrompt = {};
+          if (latestPublicPrompt.length > 0) {
+            latestPrompt.public = {
+              prompt: latestPublicPrompt[0].public,
+              time_created: latestPublicPrompt[0].time_created,
+            };
+          }
+          if (latestEducatorPrompt.length > 0) {
+            latestPrompt.educator = {
+              prompt: latestEducatorPrompt[0].educator,
+              time_created: latestEducatorPrompt[0].time_created,
+            };
+          }
+          if (latestAdminPrompt.length > 0) {
+            latestPrompt.admin = {
+              prompt: latestAdminPrompt[0].admin,
+              time_created: latestAdminPrompt[0].time_created,
+            };
+          }
+
+          // Check if any non-null prompts were found
+          if (Object.keys(latestPrompt).length === 0) {
+            response.statusCode = 404;
+            response.body = JSON.stringify({ error: "No prompts found" });
+          } else {
+            response.statusCode = 200;
+            response.body = JSON.stringify(latestPrompt);
+          }
+        } catch (err) {
+          // Handle any errors that occur during the query
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+      case "GET /admin/previous_prompts":
+        try {
+          // Subquery to get the latest non-null time_created for each role
+          const latestTimestamps = await sqlConnectionTableCreator`
+      SELECT 
+        MAX(time_created) FILTER (WHERE public IS NOT NULL) AS latest_public,
+        MAX(time_created) FILTER (WHERE educator IS NOT NULL) AS latest_educator,
+        MAX(time_created) FILTER (WHERE admin IS NOT NULL) AS latest_admin
+      FROM prompts;
+    `;
+
+          const { latest_public, latest_educator, latest_admin } =
+            latestTimestamps[0];
+
+          // Query to get all previous non-null entries for each role after the latest entry
+          const previousPrompts = await sqlConnectionTableCreator`
+      SELECT public, educator, admin, time_created
+      FROM prompts
+      WHERE 
+        (public IS NOT NULL AND time_created < ${latest_public}) OR
+        (educator IS NOT NULL AND time_created < ${latest_educator}) OR
+        (admin IS NOT NULL AND time_created < ${latest_admin})
+      ORDER BY time_created DESC;
+    `;
+
+          // Organize prompts by role and ignore null values
+          const organizedPrompts = {
+            public: previousPrompts
+              .filter((entry) => entry.public !== null)
+              .map((entry) => ({
+                prompt: entry.public,
+                time_created: entry.time_created,
+              })),
+            educator: previousPrompts
+              .filter((entry) => entry.educator !== null)
+              .map((entry) => ({
+                prompt: entry.educator,
+                time_created: entry.time_created,
+              })),
+            admin: previousPrompts
+              .filter((entry) => entry.admin !== null)
+              .map((entry) => ({
+                prompt: entry.admin,
+                time_created: entry.time_created,
+              })),
+          };
+
+          // Return the organized prompts by role
+          response.statusCode = 200;
+          response.body = JSON.stringify(organizedPrompts);
+        } catch (err) {
+          // Handle any errors that occur during the query
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+      case "POST /admin/insert_prompt":
+        try {
+          // Check if the required query parameter and body are provided
+          if (
+            !event.queryStringParameters ||
+            !event.queryStringParameters.role ||
+            !event.body
+          ) {
+            response.statusCode = 400;
+            response.body = JSON.stringify({
+              error: "Missing required parameters",
+            });
+            break;
+          }
+
+          // Get role from query string and prompt from request body
+          const role = event.queryStringParameters.role;
+          const { prompt } = JSON.parse(event.body);
+
+          // Validate that role is one of the accepted roles
+          if (!["public", "educator", "admin"].includes(role)) {
+            response.statusCode = 400;
+            response.body = JSON.stringify({ error: "Invalid role provided" });
+            break;
+          }
+
+          // Prepare the prompt data with null values for other roles
+          const promptData = {
+            public: role === "public" ? prompt : null,
+            educator: role === "educator" ? prompt : null,
+            admin: role === "admin" ? prompt : null,
+            time_created: new Date(), // Current timestamp
+          };
+
+          // Insert into the prompts table
+          await sqlConnectionTableCreator`
+      INSERT INTO prompts (public, educator, admin, time_created)
+      VALUES (${promptData.public}, ${promptData.educator}, ${promptData.admin}, ${promptData.time_created});
+    `;
+
+          // Return success response
+          response.statusCode = 201;
+          response.body = JSON.stringify({
+            message: "Prompt inserted successfully",
+          });
+        } catch (err) {
+          // Handle any errors that occur during the insert
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }
