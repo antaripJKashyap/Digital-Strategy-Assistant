@@ -1022,6 +1022,45 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     /**
+     * Create Lambda function to get messages for a session
+     */
+    const getMessagesFunction = new lambda.Function(this, "GetMessagesFunction", {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      code: lambda.Code.fromAsset("lambda/getMessages"), // Update the path to match your folder structure
+      handler: "getMessagesFunction.lambda_handler",
+      timeout: Duration.seconds(300),
+      memorySize: 128,
+      vpc: vpcStack.vpc, // Ensure it's in the correct VPC if needed
+      environment: {
+        TABLE_NAME: 'DynamoDB-Conversation-Table', // Use the correct DynamoDB table name
+        REGION: this.region,
+      },
+      functionName: "GetMessagesFunction",
+      layers: [psycopgLayer, powertoolsLayer], // Add layers if needed
+      role: coglambdaRole, // Ensure the role has the necessary permissions for DynamoDB
+    });
+    
+    // Override the Logical ID if needed
+    const cfnGetMessagesFunction = getMessagesFunction.node.defaultChild as lambda.CfnFunction;
+    cfnGetMessagesFunction.overrideLogicalId("GetMessagesFunction");
+    
+    getMessagesFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ["dynamodb:Query"],
+      resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/DynamoDB-Conversation-Table`],
+    }));
+    
+    getMessagesFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/conversation_messages`,
+    });
+    
+
+
+
+
+
+    /**
      *
      * Create Lambda function to delete an entire module directory
      */
