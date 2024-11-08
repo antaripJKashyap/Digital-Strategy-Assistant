@@ -36,19 +36,9 @@ exports.handler = async (event) => {
       WHERE user_email = ${email};
     `;
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        message: "User last_sign_in timestamp updated successfully",
-      }),
-    };
+    return event;
   } catch (err) {
     console.error("Error updating user last_sign_in timestamp:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        message: "Internal Server Error",
-      }),
-    };
+    return event;
   }
 };
