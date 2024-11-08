@@ -822,64 +822,6 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
-  /admin/update_metadata:
-    options:
-      summary: CORS support
-      description: |
-        Enable CORS by returning correct headers
-      responses:
-        200:
-          $ref: "#/components/responses/Success"
-      x-amazon-apigateway-integration:
-        type: mock
-        requestTemplates:
-          application/json: |
-            {
-              "statusCode" : 200
-            }
-        responses:
-          default:
-            statusCode: "200"
-            responseParameters:
-              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-              method.response.header.Access-Control-Allow-Methods: "'*'"
-              method.response.header.Access-Control-Allow-Origin: "'*'"
-            responseTemplates:
-              application/json: |
-                {}
-    put:
-      tags:
-        - Admin
-      summary: Update meta data of a document
-      operationId: admin_update_metadata_PUT
-      parameters:
-        - in: query
-          name: document_id
-          required: true
-          description: ID of the document to update
-          schema:
-            type: string
-        - in: query
-          name: metadata
-          required: true
-          description: New meta data to be set for the document
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Meta data updated successfully
-        "400":
-          description: Missing required parameters
-        "404":
-          description: Document not found
-        "500":
-          description: Internal Server Error
-      x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
-        passthroughBehavior: "when_no_match"
-        httpMethod: "POST"
-        type: "aws_proxy"
   /admin/files_within_category:
     options:
       summary: CORS support
@@ -1081,6 +1023,250 @@ paths:
           description: Unauthorized
         "429":
           description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/latest_prompt:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Admin
+      summary: Get the latest prompt
+      description: Retrieves the most recent entry in the prompts table, including public, educator, and admin prompts.
+      operationId: admin_get_latest_prompt_GET
+      responses:
+        "200":
+          description: Latest prompt retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  public:
+                    type: string
+                    description: Public prompt text
+                  educator:
+                    type: string
+                    description: Educator prompt text
+                  admin:
+                    type: string
+                    description: Admin prompt text
+                  time_created:
+                    type: string
+                    format: date-time
+                    description: Timestamp of prompt creation
+        "404":
+          description: No prompts found
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/previous_prompts:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Admin
+      summary: Get all previous prompts
+      description: Retrieves all previous prompts excluding the most recent one, organized by public, educator, and admin roles, sorted by timestamp from most recent to oldest.
+      operationId: admin_get_previous_prompts_GET
+      responses:
+        "200":
+          description: Previous prompts retrieved successfully
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/insert_prompt:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    post:
+      tags:
+        - Admin
+      summary: Insert a new prompt for a specific role
+      operationId: admin_insert_prompt_POST
+      parameters:
+        - name: role
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [public, educator, admin]
+          description: "The role for which the prompt is to be inserted (public, educator, admin)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prompt:
+                  type: string
+                  description: "The prompt text to insert."
+              required:
+                - prompt
+      responses:
+        "201":
+          description: Prompt inserted successfully
+        "400":
+          description: Missing or invalid parameters
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/update_metadata:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    put:
+      tags:
+        - Admin
+      summary: Update or insert metadata for a document
+      operationId: admin_update_metadata_PUT
+      parameters:
+        - name: category_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: "The ID of the category."
+        - name: document_name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "The name of the document."
+        - name: document_type
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "The type of the document."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                metadata:
+                  type: string
+                  description: "The metadata to update for the document."
+              required:
+                - metadata
+      responses:
+        "200":
+          description: Metadata updated successfully
+        "201":
+          description: Document metadata added successfully
+        "400":
+          description: Missing or invalid parameters
         "500":
           description: Internal Server Error
       x-amazon-apigateway-integration:

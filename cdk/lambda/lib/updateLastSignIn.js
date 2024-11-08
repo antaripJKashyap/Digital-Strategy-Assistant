@@ -32,7 +32,7 @@ exports.handler = async (event) => {
     // Update the last_sign_in field to the current timestamp
     await sqlConnection`
       UPDATE "Users"
-      SET last_sign_in = NOW()
+      SET last_sign_in = CURRENT_TIMESTAMP
       WHERE user_email = ${email};
     `;
 
