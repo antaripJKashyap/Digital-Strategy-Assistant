@@ -77,7 +77,7 @@ def get_messages(session_id):
             "body": json.dumps("Error retrieving messages")
         }
 
-def handler(event, context):
+def lambda_handler(event, context):
     # Extract the session_id from query parameters
     query_params = event.get("queryStringParameters", {})
     session_id = query_params.get("session_id", "")
