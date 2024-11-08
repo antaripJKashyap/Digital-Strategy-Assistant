@@ -71,8 +71,6 @@ def handler(event, context):
             CREATE TABLE IF NOT EXISTS "users" (
                 "user_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "user_email" varchar,
-                "first_name" varchar,
-                "last_name" varchar,
                 "time_account_created" timestamp,
                 "last_sign_in" timestamp
             );
