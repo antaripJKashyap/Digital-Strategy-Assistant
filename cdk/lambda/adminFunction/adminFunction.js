@@ -179,7 +179,7 @@ exports.handler = async (event) => {
         if (
           event.queryStringParameters.category_id &&
           event.queryStringParameters.category_name &&
-          event.queryStringParameters.category_name
+          event.queryStringParameters.category_number
         ) {
           const editCategoryId = event.queryStringParameters.category_id;
           const editCategoryName = event.queryStringParameters.category_name;
@@ -398,39 +398,6 @@ exports.handler = async (event) => {
           response.statusCode = 400; // Bad Request
           response.body = JSON.stringify({
             error: "Missing required parameter: user_role",
-          });
-        }
-        break;
-      case "GET /admin/conversation_messages":
-        if (
-          event.queryStringParameters &&
-          event.queryStringParameters.session_id
-        ) {
-          const sessionId = event.queryStringParameters.session_id;
-
-          try {
-            const messages = await sqlConnectionTableCreator`
-                SELECT
-                  uel.timestamp,
-                  uel.user_role,
-                  uel.engagement_details AS message
-                FROM user_engagement_log uel
-                WHERE uel.session_id = ${sessionId}
-                AND uel.engagement_type = 'message creation'
-                ORDER BY uel.timestamp ASC;
-              `;
-
-            response.body = JSON.stringify(messages);
-            response.statusCode = 200; // OK
-          } catch (err) {
-            response.statusCode = 500; // Internal Server Error
-            console.error(err);
-            response.body = JSON.stringify({ error: "Internal server error" });
-          }
-        } else {
-          response.statusCode = 400; // Bad Request
-          response.body = JSON.stringify({
-            error: "Missing required parameter: session_id",
           });
         }
         break;

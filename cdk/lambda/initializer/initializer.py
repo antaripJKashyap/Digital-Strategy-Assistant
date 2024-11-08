@@ -41,8 +41,8 @@ def insert_into_prompts(public_prompt, educator_prompt, admin_prompt):
     try:
         cursor = connection.cursor()
         insert_query = """
-            INSERT INTO "prompts" ("public", "educator", "admin")
-            VALUES (%s, %s, %s)
+            INSERT INTO "prompts" ("public", "educator", "admin", time_created)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP);
         """
         cursor.execute(insert_query, (public_prompt, educator_prompt, admin_prompt))
         connection.commit()
@@ -80,7 +80,8 @@ def handler(event, context):
             CREATE TABLE IF NOT EXISTS "prompts" (
                 "public" text,
                 "educator" text,
-                "admin" text
+                "admin" text,
+                "time_created" timestamp
             );
             
 
