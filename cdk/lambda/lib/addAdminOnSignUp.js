@@ -40,7 +40,7 @@ exports.handler = async (event) => {
 
     // Insert the new user into the Users table
     await sqlConnection`
-      INSERT INTO "Users" (user_id, user_email, time_account_created, last_sign_in)
+      INSERT INTO "users" (user_id, user_email, time_account_created, last_sign_in)
       VALUES (uuid_generate_v4(), ${email}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
     `;
 
