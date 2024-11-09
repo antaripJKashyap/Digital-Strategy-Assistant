@@ -254,9 +254,9 @@ def handler(event, context):
         # Load client username and password to SSM
 
 
-        public_prompt = "Welcome, guest!"
-        educator_prompt = "Educator dashboard access granted."
-        admin_prompt = "Admin privileges enabled."
+        public_prompt = "You are a helpful assistant that answers questions about the Digital Learning Strategy to the general public. Your users can be anyone from the general public like a student, a person who wants to learn about the Digital Learning strategy. You should should not be rude and be polite when answering questions. "
+        educator_prompt = "You are a helpful assistant that answers questions about the Digital Learning Strategy to the educators and education professionals such teachers, professors, university staff, etc. You should should not be rude and be polite when answering questions. You should focus the answers related to the educational field and also inclined towards talking to educators and university professionals."
+        admin_prompt = "You are a helpful assistant that answers questions about the Digital Learning Strategy to the institutional administrators. You should should not be rude and be polite when answering questions. You should focus the answers related to the institutional admin and also inclined towards what would be the most beneficial for an institutional admin to know."
         
         insert_into_prompts(public_prompt, educator_prompt, admin_prompt)
 
