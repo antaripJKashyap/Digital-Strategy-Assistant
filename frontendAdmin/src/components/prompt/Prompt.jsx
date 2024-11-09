@@ -8,7 +8,7 @@ import PromptSettings from "./PromptSettings";
 export default function Component() {
   return (
     <div className="ml-12 mb-8 flex justify-center p-4">
-      <Tabs defaultValue="public" className="w-[600px] lg:w-[800px] xl:w-[1200px]">
+      <Tabs defaultValue="public" className="w-[600px] lg:w-[800px] xl:w-[1000px]">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="public" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -25,15 +25,15 @@ export default function Component() {
         </TabsList>
 
         <TabsContent value="public">
-          <PromptSettings promptId="Public" /> {/* Use the component */}
+          <PromptSettings promptId="Public" />
         </TabsContent>
 
         <TabsContent value="educator">
-          <PromptSettings promptId="Educator" /> {/* Use the component */}
+          <PromptSettings promptId="Educator" />
         </TabsContent>
 
         <TabsContent value="admin">
-          <PromptSettings promptId="Admin" /> {/* Use the component */}
+          <PromptSettings promptId="Admin" />
         </TabsContent>
       </Tabs>
     </div>
