@@ -1028,6 +1028,7 @@ paths:
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
+<<<<<<< HEAD
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1272,8 +1273,10 @@ paths:
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+=======
+>>>>>>> e7f2803 (fix: changed POST to GET for conversation_messages)
         passthroughBehavior: "when_no_match"
-        httpMethod: "POST"
+        httpMethod: "GET"
         type: "aws_proxy"
 
 components:

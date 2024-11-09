@@ -1075,6 +1075,19 @@ export class ApiGatewayStack extends cdk.Stack {
       actions: ["dynamodb:Query"],
       resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/DynamoDB-Conversation-Table`],
     }));
+
+    const getMessagesIntegration = new apigateway.LambdaIntegration(getMessagesFunction, {
+      requestTemplates: { "application/json": '{ "statusCode": "200" }' }
+    });
+    
+    const getMessagesResource = this.api.root.addResource("conversation_messages");
+    getMessagesResource.addMethod("GET", getMessagesIntegration, {
+      requestParameters: {
+        "method.request.querystring.session_id": true, // Ensures session_id is a required query parameter
+      },
+      authorizationType: apigateway.AuthorizationType.IAM, // Adjust if you use a different auth mechanism
+    });
+    
     
     getMessagesFunction.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
