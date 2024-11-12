@@ -105,6 +105,7 @@ const PasswordReset = ({ email, loading, setLoading, setAuthState }) => {
           required
           className="mt-1"
           onChange={(e) => setConfirmationCode(e.target.value)}
+          maxLength={6}
         />
         <Input
           type="password"
@@ -113,6 +114,7 @@ const PasswordReset = ({ email, loading, setLoading, setAuthState }) => {
           required
           className="mt-1"
           onChange={(e) => setNewPassword(e.target.value)}
+          maxLength={50}
         />
         <Input
           type="password"
@@ -121,6 +123,7 @@ const PasswordReset = ({ email, loading, setLoading, setAuthState }) => {
           required
           className="mt-1"
           onChange={(e) => setConfirmNewPassword(e.target.value)}
+          maxLength={50}
         />
         <Button
           type="submit"

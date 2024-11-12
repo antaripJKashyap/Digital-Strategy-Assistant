@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Download } from "lucide-react";
 import { toast } from "react-toastify";
 import { fetchAuthSession } from "aws-amplify/auth";
@@ -11,10 +12,11 @@ const Files = () => {
   const [filesByCategory, setFilesByCategory] = useState({});
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [metadata, setMetadata] = useState({});
 
   useEffect(() => {
     const fetchCategories = async () => {
-      setLoading(true); 
+      setLoading(true);
       try {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
@@ -38,7 +40,7 @@ const Files = () => {
       } catch (error) {
         console.error("Error fetching categories:", error);
       } finally {
-        setLoading(false); 
+        setLoading(false);
       }
     };
 
@@ -82,6 +84,7 @@ const Files = () => {
 
           filesData[category.category_id] = await Promise.all(
             documentFilesArray.map(async (file) => {
+              setMetadata((prev) => ({ ...prev, [file.name]: file.metadata }));
               const fileResponse = await fetch(file.url);
               const blobData = await fileResponse.blob();
               return new File([blobData], file.name, { type: blobData.type });
@@ -114,7 +117,7 @@ const Files = () => {
   };
 
   if (loading) {
-    return <LoadingScreen />
+    return <LoadingScreen />;
   }
 
   return (
@@ -127,31 +130,42 @@ const Files = () => {
             )}
           </h2>
           {filesByCategory[category.category_id] &&
-            filesByCategory[category.category_id].map((file, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between p-4 border rounded-lg mb-2 mr-32"
-              >
-                <div className="flex items-center space-x-2">
-                  <div className="flex flex-col">
-                    <p className="text-sm font-medium">{file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
+            filesByCategory[category.category_id].map((file, index) => {
+              const fileName = file.fileName || file.name;
+              return (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-4 border rounded-lg mb-2 mr-32"
+                >
+                  <div className="w-5/12 flex items-center space-x-2 pr-4">
+                    <div className="flex flex-col">
+                      <p className="text-sm font-medium">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="File description"
+                    className="mt-1 w-full p-1 text-sm border rounded disabled:bg-transparent disabled:text-black disabled:opacity-100 disabled:cursor-text"
+                    value={metadata[fileName] || ""}
+                    maxLength={80}
+                    disabled
+                  />
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => downloadFile(file)}
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="sr-only">Download file</span>
+                    </Button>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => downloadFile(file)}
-                  >
-                    <Download className="h-4 w-4" />
-                    <span className="sr-only">Download file</span>
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
       ))}
     </div>

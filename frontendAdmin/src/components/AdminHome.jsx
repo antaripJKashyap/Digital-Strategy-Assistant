@@ -54,7 +54,7 @@ const AdminHome = () => {
         case "category_creation":
           return <Category_creation setSelectedPage={setSelectedPage} nextCategoryNumber={nextCategoryNumber} setNextCategoryNumber={setNextCategoryNumber}/>;
         case "edit_category":
-          return <Edit_Category selectedCategory={selectedCategory} setSelectedPage={setSelectedPage}/>;
+          return <Edit_Category selectedCategory={selectedCategory} setSelectedPage={setSelectedPage} />;
         default:
           return <Analytics />;
       }

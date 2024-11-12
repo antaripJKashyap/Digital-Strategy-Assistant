@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { fetchAuthSession } from "aws-amplify/auth";
@@ -30,6 +30,7 @@ export default function Category_creation({
   const [dragActive, setDragActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [categoryName, setCategoryName] = useState("");
+  const [metadata, setMetadata] = useState({});
 
   function removeFileExtension(fileName) {
     return fileName.replace(/\.[^/.]+$/, "");
@@ -168,6 +169,44 @@ export default function Category_creation({
     });
   };
 
+  const handleMetadataChange = (fileName, value) => {
+    setMetadata((prev) => ({ ...prev, [fileName]: value }));
+  };
+
+  const cleanFileName = (fileName) => {
+    return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  };
+
+  const updateMetaData = async (files, category_id) => {
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+    files.forEach((file) => {
+      const fileNameWithExtension = file.fileName || file.name;
+      const fileMetadata = metadata[fileNameWithExtension] || "";
+      const fileName = cleanFileName(
+        removeFileExtension(fileNameWithExtension)
+      );
+      const fileType = getFileType(fileNameWithExtension);
+      return fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_ENDPOINT
+        }admin/update_metadata?category_id=${encodeURIComponent(
+          category_id
+        )}&document_name=${encodeURIComponent(
+          fileName
+        )}&document_type=${encodeURIComponent(fileType)}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ metadata: fileMetadata }),
+        }
+      );
+    });
+  };
+
   const uploadFiles = async () => {
     if (isUploading) return;
     if (!categoryName.trim()) {
@@ -195,6 +234,8 @@ export default function Category_creation({
           await uploadFile(file, presigned_url);
         })
       );
+    //step 3: update metadata
+    updateMetaData(files, category_id);
     } catch (error) {
       toast.error("Category creation or file upload failed.", {
         position: "top-center",
@@ -213,6 +254,7 @@ export default function Category_creation({
       setCategoryName("");
       setSelectedPage("categories");
       setIsUploading(false);
+      setNextCategoryNumber(nextCategoryNumber + 1);
     }
   };
 
@@ -225,6 +267,7 @@ export default function Category_creation({
           placeholder="Name"
           value={categoryName}
           onChange={(e) => setCategoryName(e.target.value)}
+          maxLength={100}
         />
       </div>
 
@@ -266,39 +309,52 @@ export default function Category_creation({
         </Label>
 
         <div className="space-y-2">
-          {files.map((file, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-2 border rounded-lg"
-            >
-              <div className="flex items-center space-x-2">
-                <div className="flex flex-col">
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+          {files.map((file, index) => {
+            const fileName = file.fileName || file.name;
+            return (
+              <div
+                key={index + file.name}
+                className="flex items-center justify-between p-2 border rounded-lg"
+              >
+                <div className="w-5/12 flex items-center space-x-2 pr-4">
+                  <div className="flex flex-col">
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <Input
+                  type="text"
+                  placeholder="File description"
+                  className="mt-1 w-full p-1 text-sm border rounded"
+                  value={metadata[fileName] || ""}
+                  onChange={(e) =>
+                    handleMetadataChange(fileName, e.target.value)
+                  }
+                  maxLength={80}
+                />
+                <div className="flex space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeFile(file.name)}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Remove file</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => downloadFile(file)}
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="sr-only">Download file</span>
+                  </Button>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeFile(file.name)}
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Remove file</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => downloadFile(file)}
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="sr-only">Download file</span>
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

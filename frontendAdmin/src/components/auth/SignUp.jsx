@@ -114,6 +114,7 @@ const SignUp = ({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="mt-1"
+          maxLength={50}
         />
         <Input
           type="password"
@@ -122,6 +123,7 @@ const SignUp = ({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mt-1"
+          maxLength={50}
         />
         <Input
           type="password"
@@ -130,6 +132,7 @@ const SignUp = ({
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="mt-1"
+          maxLength={50}
         />
         <Button
           type="submit"

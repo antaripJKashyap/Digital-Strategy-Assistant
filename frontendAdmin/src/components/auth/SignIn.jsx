@@ -52,6 +52,7 @@ const SignIn = ({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="mt-1"
+          maxLength={50}
         />
         <Input
           type="password"
@@ -60,6 +61,7 @@ const SignIn = ({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="mt-1"
+          maxLength={50}
         />
         <p className="text-sm text-gray-600">
           <a
