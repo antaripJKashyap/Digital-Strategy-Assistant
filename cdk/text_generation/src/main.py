@@ -39,7 +39,7 @@ def get_secret(secret_name, expect_json=True):
 # def log_user_engagement(
 #     session_id, 
 #     document_id=None, 
-#     engagement_type="role_selection", 
+#     engagement_type="message creation", 
 #     engagement_details=None, 
 #     user_role=None, 
 #     user_info=None
@@ -192,6 +192,7 @@ def handler(event, context):
 
     category_id = query_params.get("category_id", "")
     session_id = query_params.get("session_id", "")
+    user_info = query_params.get("user_info", "")
     # session_name = query_params.get("session_name")
 
     if not category_id:
@@ -295,7 +296,7 @@ def handler(event, context):
         logger.info(f"User role received: {user_role}")
     #     log_user_engagement(
     #     session_id=session_id,
-    #     engagement_type="role_selection",
+    #     engagement_type="message_creation",
     #     user_role=user_role
     # )
     #     logger.info(f"User role {user_role} logged in engagement log.")
@@ -305,13 +306,13 @@ def handler(event, context):
     if not question:
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
         initial_query = get_initial_student_query()
-        query_data = json.loads(initial_query)
-        options = query_data["options"]
+        # query_data = json.loads(initial_query)
+        # options = query_data["options"]
         student_query = initial_query
     else:
         logger.info(f"Processing student question: {question}")
         student_query = get_student_query(question)
-        options = []
+        # options = []
     
     try:
         logger.info("Creating Bedrock LLM instance.")
