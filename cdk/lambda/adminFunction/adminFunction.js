@@ -397,10 +397,12 @@ exports.handler = async (event) => {
           try {
             const sessions = await sqlConnectionTableCreator`
                 SELECT DISTINCT ON (uel.session_id)
-                  uel.session_id,
-                  uel.timestamp AS last_message_time
+                      uel.session_id,
+                      uel.timestamp AS last_message_time
                 FROM user_engagement_log uel
-                WHERE uel.user_role = ${userRole} AND uel.engagement_type = 'message creation'
+                WHERE uel.user_role = ${userRole} 
+                  AND uel.engagement_type = 'message creation'
+                  AND uel.session_id IS NOT NULL
                 ORDER BY uel.session_id, uel.timestamp DESC;
               `;
 
