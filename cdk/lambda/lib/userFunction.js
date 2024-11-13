@@ -84,10 +84,8 @@ exports.handler = async (event) => {
         }
         break;
       case "POST /user/create_session":
-        if (event.queryStringParameters.user_info && event.queryStringParameters.user_role) {
+        if (event.queryStringParameters.user_info) {
           const userInfo = event.queryStringParameters.user_info;
-          const userRole = event.queryStringParameters.user_role;
-
           try {
             const sessionData = await sqlConnection`
                   INSERT INTO sessions (session_id, time_created)
@@ -101,14 +99,13 @@ exports.handler = async (event) => {
 
             if (sessionId) {
               await sqlConnection`
-                    INSERT INTO user_engagement_log (log_id, session_id, timestamp, engagement_type, user_info, user_role)
+                    INSERT INTO user_engagement_log (log_id, session_id, timestamp, engagement_type, user_info)
                     VALUES (
                       uuid_generate_v4(),
                       ${sessionId},
                       CURRENT_TIMESTAMP,
                       'session creation',
-                      ${userInfo},
-                      ${userRole}
+                      ${userInfo}
                     )
                   `;
             }

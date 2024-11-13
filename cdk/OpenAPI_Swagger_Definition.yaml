@@ -183,12 +183,6 @@ paths:
           description: salted user info
           schema:
             type: string
-        - in: query
-          name: user_role
-          required: true
-          description: role of the user
-          schema:
-            type: string
       responses:
         "200":
           description: Session created
