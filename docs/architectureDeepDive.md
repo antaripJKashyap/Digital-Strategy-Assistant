@@ -50,10 +50,17 @@
 | ---------------------- | --------------------------------------- |
 | `user_id`              | The ID of the user                      |
 | `user_email`           | The email of the user                   |
-| `first_name`           | The first name of the user              |
-| `last_name`            | The last name of the user               |
 | `time_account_created` | The time the account was created        |
 | `last_sign_in`         | The time the user last signed in        |
+
+### `prompts` table
+
+| Column Name            | Description                             |
+| ---------------------- | --------------------------------------- |
+| `public`              | The current and previous prompts for the general public                       |
+| `educator`           | The current and previous prompts for educators                 |
+| `admin`           | The current and previous prompts for admins             |
+| `time_created`            | The time the prompt was created              |
 
 ### `categories` table
 
@@ -68,18 +75,7 @@
 | Column Name     | Description                           |
 | --------------- | ------------------------------------- |
 | `session_id`    | The ID of the session                 |
-| `session_name`  | The name of the session               |
 | `time_created`  | The timestamp when the session was created |
-
-### `messages_dynamo` table
-
-| Column Name     | Description                                   |
-| --------------- | --------------------------------------------- |
-| `session_id`    | The ID of the session              |
-| `message_id`    | The ID of the message                         |
-| `message_content` | The content of the message                  |
-| `user_sent`     | True if the message was sent by the user      |
-| `time_created`  | The timestamp when the message was created    |
 
 ### `documents` table
 
@@ -102,6 +98,7 @@
 | `document_id`      | The ID of the associated document            |
 | `engagement_type`  | The type of engagement (e.g., document view) |
 | `engagement_details` | Additional details about the engagement     |
+| `user_role`        | The role of the user: one of public, educator, and admin                  |
 | `user_info`        | Salted information about the user                   |
 | `timestamp`        | The timestamp of the engagement              |
 
@@ -113,17 +110,17 @@
 | `session_id`          | The ID of the associated session              |
 | `feedback_rating`     | The rating provided in the feedback (1-5) |
 | `feedback_description` | The description of the feedback              |
+| `timestamp`        | The time the feedback was created           |
+
 
 ## S3 Structure
 
 ```
 .
 ├── {category_id_1}
-│   └── documents
-│       ├── document1.pdf
-│       └── document2.pdf
+│   ├── document1.pdf
+│   └── document2.pdf
 └── {category_id_2}
-    └── documents
-        ├── document1.pdf
-        └── document2.pdf
+    ├── document1.pdf
+    └── document2.pdf
 ```
