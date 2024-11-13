@@ -144,7 +144,10 @@ def get_response(
         "system"
         "You are an assistant for the Digital Learning Strategy. "
         f"Your job is to help different users understand the Digital Learning Strategy in greater detail. \n"
-        f"The user is asked to select their role(Student/prospective student, Educator/educational designer, Institutional Admin). Depending upon their response choose a prompt from the following 3 prompts and continue with that prompt for that particular session. \n"        
+        f"""The user is asked to select their role(Student/prospective student, Educator/educational designer, Institutional Admin). Depending upon their response choose a prompt from the following 3 prompts and continue with that prompt for that particular session. 
+        This is how you should ask the user to choose a role:
+        "message": "Hello! Please select the best role below that fits you. We can better answer your questions. Don't include personal details such as your name and private content.",
+        "options": ["Student/prospective student", "Educator/educational designer", "Admin"]\n"""        
         f"{public_prompt}"
         f"{educator_prompt}"
         f"{admin_prompt}"

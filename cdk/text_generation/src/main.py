@@ -36,71 +36,71 @@ def get_secret(secret_name, expect_json=True):
         logger.error(f"Error fetching secret {secret_name}: {e}")
         raise
 
-# def log_user_engagement(
-#     session_id, 
-#     document_id=None, 
-#     engagement_type="message creation", 
-#     engagement_details=None, 
-#     user_role=None, 
-#     user_info=None
-# ):
-#     connection = None
-#     cur = None
-#     try:
-#         # Get database credentials and establish a connection
-#         db_secret = get_secret(DB_SECRET_NAME)
-#         connection_params = {
-#             'dbname': db_secret["dbname"],
-#             'user': db_secret["username"],
-#             'password': db_secret["password"],
-#             'host': db_secret["host"],
-#             'port': db_secret["port"]
-#         }
+def log_user_engagement(
+    session_id, 
+    document_id=None, 
+    engagement_type="message creation", 
+    engagement_details=None, 
+    user_role=None, 
+    user_info=None
+):
+    connection = None
+    cur = None
+    try:
+        # Get database credentials and establish a connection
+        db_secret = get_secret(DB_SECRET_NAME)
+        connection_params = {
+            'dbname': db_secret["dbname"],
+            'user': db_secret["username"],
+            'password': db_secret["password"],
+            'host': db_secret["host"],
+            'port': db_secret["port"]
+        }
 
-#         connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-#         connection = psycopg2.connect(connection_string)
-#         cur = connection.cursor()
+        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+        connection = psycopg2.connect(connection_string)
+        cur = connection.cursor()
 
-#         # Define the SQL query
-#         query = """
-#         INSERT INTO user_engagement_log (
-#             log_id, session_id, document_id, engagement_type, 
-#             engagement_details, user_role, user_info, timestamp
-#         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-#         """
+        # Define the SQL query
+        query = """
+        INSERT INTO user_engagement_log (
+            log_id, session_id, document_id, engagement_type, 
+            engagement_details, user_role, user_info, timestamp
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
 
-#         # Generate a unique log ID and current timestamp
-#         log_id = str(uuid.uuid4())
-#         timestamp = datetime.datetime.now()
+        # Generate a unique log ID and current timestamp
+        log_id = str(uuid.uuid4())
+        timestamp = datetime.datetime.now()
 
-#         # Execute the query
-#         cur.execute(
-#             query, 
-#             (
-#                 log_id, 
-#                 session_id, 
-#                 document_id, 
-#                 engagement_type, 
-#                 engagement_details, 
-#                 user_role, 
-#                 user_info, 
-#                 timestamp
-#             )
-#         )
+        # Execute the query
+        cur.execute(
+            query, 
+            (
+                log_id, 
+                session_id, 
+                document_id, 
+                engagement_type, 
+                engagement_details, 
+                user_role, 
+                user_info, 
+                timestamp
+            )
+        )
 
-#         # Commit the transaction
-#         connection.commit()
-#         logger.info("User engagement logged successfully.")
+        # Commit the transaction
+        connection.commit()
+        logger.info("User engagement logged successfully.")
 
-#     except Exception as e:
-#         if connection:
-#             connection.rollback()
-#         logger.error(f"Error logging user engagement: {e}")
-#     finally:
-#         if cur:
-#             cur.close()
-#         if connection:
-#             connection.close()
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        logger.error(f"Error logging user engagement: {e}")
+    finally:
+        if cur:
+            cur.close()
+        if connection:
+            connection.close()
 
 def get_parameter(param_name):
     """
@@ -154,18 +154,58 @@ def get_system_prompts():
         logger.info("Connected to RDS instance!")
 
         cur.execute("""
-            SELECT "public", "educator", "admin"
-            FROM "prompts";
+            SELECT public, time_created
+            FROM prompts
+            WHERE public IS NOT NULL
+            ORDER BY time_created DESC NULLS LAST
+            LIMIT 1;
         """)
         
         result = cur.fetchone()
         logger.info(f"Query result: {result}")
         if result:
-            public_prompt, educator_prompt, admin_prompt = result
-            logger.info("Prompts fetched successfully.")
+            public_prompt, time_created = result
+            logger.info("Public Prompts fetched successfully.")
+            print(public_prompt)
         else:
             logger.warning("No prompts found in the prompts table.")
-            public_prompt = educator_prompt = admin_prompt = None
+            public_prompt = None
+
+        cur.execute("""
+            SELECT educator, time_created
+            FROM prompts
+            WHERE educator IS NOT NULL
+            ORDER BY time_created DESC NULLS LAST
+            LIMIT 1;
+        """)
+        
+        result = cur.fetchone()
+        logger.info(f"Query result: {result}")
+        if result:
+            educator_prompt, time_created = result
+            logger.info("Educator Prompts fetched successfully.")
+            print(educator_prompt)
+        else:
+            logger.warning("No prompts found in the prompts table.")
+            educator_prompt = None
+        
+        cur.execute("""
+            SELECT admin, time_created
+            FROM prompts
+            WHERE admin IS NOT NULL
+            ORDER BY time_created DESC NULLS LAST
+            LIMIT 1;
+        """)
+        
+        result = cur.fetchone()
+        logger.info(f"Query result: {result}")
+        if result:
+            admin_prompt, time_created = result
+            logger.info("Educator Prompts fetched successfully.")
+            print(admin_prompt)
+        else:
+            logger.warning("No prompts found in the prompts table.")
+            admin_prompt = None
 
         return {
             'public_prompt': public_prompt,
@@ -305,14 +345,23 @@ def handler(event, context):
 
     if not question:
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
-        initial_query = get_initial_student_query()
+        # initial_query = get_initial_student_query()
         # query_data = json.loads(initial_query)
         # options = query_data["options"]
-        student_query = initial_query
+        student_query = get_student_query("")
+        options = []
+        
     else:
         logger.info(f"Processing student question: {question}")
         student_query = get_student_query(question)
-        # options = []
+        options = []
+        log_user_engagement(
+            session_id=session_id,
+            engagement_type="message creation",
+            user_info=user_info,
+            user_role=user_role
+        )
+        logger.info(f"User role {user_role} logged in engagement log.")
     
     try:
         logger.info("Creating Bedrock LLM instance.")
@@ -411,8 +460,9 @@ def handler(event, context):
                 "Access-Control-Allow-Methods": "*",
             },
         "body": json.dumps({
-            "session_id": session_id,
-            "llm_output": response.get("llm_output", "LLM failed to create response"),
-            "options": options
+            "type": "ai",
+            "content": response.get("llm_output", "LLM failed to create response"),
+            "options": options,
+            "user_role": user_role
         })
     }
