@@ -1,6 +1,7 @@
 # Digital Learning Strategy
 
-This prototype explores how Large Language Models (LLMs) can enhance education by offering a personalized and adaptive learning experience. The LLM complements an instructor's role by providing tailored feedback, identifying knowledge gaps, and recommending targeted resources to students. This approach resonates with the core principles of personalized education, transforming the learning experience into a journey of self-discovery and growth.
+This prototype explores how Large Language Models (LLMs) can enhance digital learning by providing an accessible and interactive way for the general public, educators, and administrators to engage with the Digital Learning Strategy (DLS). Acting as a conversational guide, the chatbot allows users to ask questions and receive tailored responses aligned with DLS principles and recommendations. This approach fosters a broader understanding of technology-enhanced learning, making digital literacy concepts and strategies more approachable and relevant across educational and public contexts.
+
 
 
 | Index                                               | Description                                             |
@@ -64,34 +65,33 @@ Please refer to the [Web App User Guide](./docs/userGuide.md) for instructions o
 ```
 
 1. `/cdk`: Contains the deployment code for the app's AWS infrastructure
-    - `/bin`: Contains the instantiation of CDK stack
-    - `/data_ingestion`: Contains the code required for the Data Ingestion step in retrieval-augmented generation. This folder is used by a Lambda function that runs a container which updates the vectorstore for a course when files are uploaded or deleted.
-    - `/lambda`: Contains the lambda functions for the project
-    - `/layers`: Contains the required layers for lambda functions
-    - `/lib`: Contains the deployment code for all infrastructure stacks
-    - `/text_generation`: Contains the code required for the Text Generation step in retrieval-augmented generation. This folder is used by a Lambda function that runs a container which retrieves specific documents and invokes the LLM to generate appropriate responses during a conversation.
+   - `/bin`: Contains the instantiation of CDK stack
+   - `/data_ingestion`: Contains the code required for the Data Ingestion step in retrieval-augmented generation. This folder is used by a Lambda function that runs a container which updates the vectorstore for a course when files are uploaded or deleted.
+   - `/lambda`: Contains the lambda functions for the project
+   - `/layers`: Contains the required layers for lambda functions
+   - `/lib`: Contains the deployment code for all infrastructure stacks
+   - `/text_generation`: Contains the code required for the Text Generation step in retrieval-augmented generation. This folder is used by a Lambda function that runs a container which retrieves specific documents and invokes the LLM to generate appropriate responses during a conversation.
 2. `/docs`: Contains documentation for the application
 3. `/frontend`: Contains the user interface of the general public application
-    - `/public`: public assets used in the application
-    - `/src`: contains the frontend code of the application
-        - `/app`: Nextjs App Router
-        - `/components`: Contains components used in the application
-            - `/chat`: Contains chat components used in the application
-            - `/home`: Contains home components used in the application
-            - `/ui`: Contains shadcn ui components used in the application
+   - `/public`: public assets used in the application
+   - `/src`: contains the frontend code of the application
+     - `/app`: Nextjs App Router
+     - `/components`: Contains components used in the application
+       - `/chat`: Contains chat components used in the application
+       - `/home`: Contains home components used in the application
+       - `/ui`: Contains shadcn ui components used in the application
 4. `/frontendAdmin`: Contains the user interface of the administrator application
-    - `/public`: public assets used in the application
-    - `/src`: contains the frontend code of the application
-        - `/app`: Nextjs App Router
-        - `/components`: Contains components used in the application
-            - `/analytics`: Contains chat components used in the application
-            - `/auth`: Contains auth components used in the application
-            - `/categories`: Contains category components used in the application
-            - `/files`: Contains file components used in the application
-            - `/history`: Contains chat history components used in the application
-            - `/prompt`: Contains prompt modification components used in the application
-            - `/ui`: Contains shadcn ui components used in the application
-
+   - `/public`: public assets used in the application
+   - `/src`: contains the frontend code of the application
+     - `/app`: Nextjs App Router
+     - `/components`: Contains components used in the application
+       - `/analytics`: Contains chat components used in the application
+       - `/auth`: Contains auth components used in the application
+       - `/categories`: Contains category components used in the application
+       - `/files`: Contains file components used in the application
+       - `/history`: Contains chat history components used in the application
+       - `/prompt`: Contains prompt modification components used in the application
+       - `/ui`: Contains shadcn ui components used in the application
 
 ## API Documentation
 
@@ -102,6 +102,7 @@ Here you can learn about the API the project uses: [API Documentation](./docs/ap
 Steps to implement optional modifications such as changing the colours of the application can be found [here](./docs/modificationGuide.md)
 
 ## Changelog
+
 N/A
 
 ## Credits
@@ -115,8 +116,10 @@ This project is distributed under the [MIT License](LICENSE).
 Licenses of libraries and tools used by the system are listed below:
 
 [PostgreSQL license](https://www.postgresql.org/about/licence/)
+
 - For PostgreSQL and pgvector
 - "a liberal Open Source license, similar to the BSD or MIT licenses."
 
 [LLaMa 3 Community License Agreement](https://llama.meta.com/llama3/license/)
+
 - For Llama 3 70B Instruct model
