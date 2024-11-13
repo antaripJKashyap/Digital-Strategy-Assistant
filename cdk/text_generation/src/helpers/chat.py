@@ -10,7 +10,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 class LLM_evaluation(BaseModel):
     response: str = Field(description="Assessment of the student's answer with a follow-up question.")
-    verdict: str = Field(description="'True' if the student has mastered the concept, 'False' otherwise.")
+    
 
 
 def create_dynamodb_history_table(table_name: str) -> bool:
@@ -282,8 +282,7 @@ def get_llm_output(response: str) -> dict:
     
     if "COMPETENCY ACHIEVED" not in response:
         return dict(
-            llm_output=response,
-            llm_verdict=False
+            llm_output=response
         )
     
     elif "COMPETENCY ACHIEVED" in response:
@@ -296,18 +295,15 @@ def get_llm_output(response: str) -> dict:
                 
                 if sentences[i-1][-1] == '?':
                     return dict(
-                        llm_output=llm_response,
-                        llm_verdict=False
+                        llm_output=llm_response
                     )
                 else:
                     return dict(
-                        llm_output=llm_response + competion_sentence,
-                        llm_verdict=True
+                        llm_output=llm_response + competion_sentence
                     )
     elif "compet" in response or "master" in response:
         return dict(
-            llm_output=response + competion_sentence,
-            llm_verdict=True
+            llm_output=response + competion_sentence
         )
 
 def split_into_sentences(paragraph: str) -> list[str]:
@@ -329,91 +325,91 @@ def split_into_sentences(paragraph: str) -> list[str]:
     sentences = re.split(sentence_endings, paragraph)
     return sentences
 
-def update_session_name(table_name: str, session_id: str, bedrock_llm_id: str) -> str:
-    """
-    Check if both the LLM and the student have exchanged exactly one message each.
-    If so, generate and return a session name using the content of the student's first message
-    and the LLM's first response. Otherwise, return None.
+# def update_session_name(table_name: str, session_id: str, bedrock_llm_id: str) -> str:
+#     """
+#     Check if both the LLM and the student have exchanged exactly one message each.
+#     If so, generate and return a session name using the content of the student's first message
+#     and the LLM's first response. Otherwise, return None.
 
-    Args:
-    session_id (str): The unique ID for the session.
-    table_name (str): The DynamoDB table name where the conversation history is stored.
+#     Args:
+#     session_id (str): The unique ID for the session.
+#     table_name (str): The DynamoDB table name where the conversation history is stored.
 
-    Returns:
-    str: The updated session name if conditions are met, otherwise None.
-    """
+#     Returns:
+#     str: The updated session name if conditions are met, otherwise None.
+#     """
     
-    dynamodb_client = boto3.client("dynamodb")
+#     dynamodb_client = boto3.client("dynamodb")
     
-    # Retrieve the conversation history from the DynamoDB table
-    try:
-        response = dynamodb_client.get_item(
-            TableName=table_name,
-            Key={
-                'SessionId': {
-                    'S': session_id
-                }
-            }
-        )
-    except Exception as e:
-        print(f"Error fetching conversation history from DynamoDB: {e}")
-        return None
+#     # Retrieve the conversation history from the DynamoDB table
+#     try:
+#         response = dynamodb_client.get_item(
+#             TableName=table_name,
+#             Key={
+#                 'SessionId': {
+#                     'S': session_id
+#                 }
+#             }
+#         )
+#     except Exception as e:
+#         print(f"Error fetching conversation history from DynamoDB: {e}")
+#         return None
 
-    history = response.get('Item', {}).get('History', {}).get('L', [])
+#     history = response.get('Item', {}).get('History', {}).get('L', [])
 
 
 
-    human_messages = []
-    ai_messages = []
+#     human_messages = []
+#     ai_messages = []
     
-    # Find the first human and ai messages in the history
-    # Check if length of human messages is 2 since the prompt counts as 1
-    # Check if length of AI messages is 2 since after first response by student, another response is generated
-    for item in history:
-        message_type = item.get('M', {}).get('data', {}).get('M', {}).get('type', {}).get('S')
+#     # Find the first human and ai messages in the history
+#     # Check if length of human messages is 2 since the prompt counts as 1
+#     # Check if length of AI messages is 2 since after first response by student, another response is generated
+#     for item in history:
+#         message_type = item.get('M', {}).get('data', {}).get('M', {}).get('type', {}).get('S')
         
-        if message_type == 'human':
-            human_messages.append(item)
-            if len(human_messages) > 2:
-                print("More than one student message found; not the first exchange.")
-                return None
+#         if message_type == 'human':
+#             human_messages.append(item)
+#             if len(human_messages) > 2:
+#                 print("More than one student message found; not the first exchange.")
+#                 return None
         
-        elif message_type == 'ai':
-            ai_messages.append(item)
-            if len(ai_messages) > 2:
-                print("More than one AI message found; not the first exchange.")
-                return None
+#         elif message_type == 'ai':
+#             ai_messages.append(item)
+#             if len(ai_messages) > 2:
+#                 print("More than one AI message found; not the first exchange.")
+#                 return None
 
-    if len(human_messages) != 2 or len(ai_messages) != 2:
-        print("Not a complete first exchange between the LLM and student.")
-        return None
+#     if len(human_messages) != 2 or len(ai_messages) != 2:
+#         print("Not a complete first exchange between the LLM and student.")
+#         return None
     
-    student_message = human_messages[0].get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', "")
-    llm_message = ai_messages[0].get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', "")
+#     student_message = human_messages[0].get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', "")
+#     llm_message = ai_messages[0].get('M', {}).get('data', {}).get('M', {}).get('content', {}).get('S', "")
     
-    llm = BedrockLLM(
-                        model_id = bedrock_llm_id
-                    )
+#     llm = BedrockLLM(
+#                         model_id = bedrock_llm_id
+#                     )
     
-    system_prompt = """
-        You are given the first message from an AI and the first message from a student in a conversation. 
-        Based on these two messages, come up with a name that describes the conversation. 
-        The name should be less than 30 characters. ONLY OUTPUT THE NAME YOU GENERATED. NO OTHER TEXT.
-    """
+#     system_prompt = """
+#         You are given the first message from an AI and the first message from a student in a conversation. 
+#         Based on these two messages, come up with a name that describes the conversation. 
+#         The name should be less than 30 characters. ONLY OUTPUT THE NAME YOU GENERATED. NO OTHER TEXT.
+#     """
     
-    prompt = f"""
-        <|begin_of_text|>
-        <|start_header_id|>system<|end_header_id|>
-        {system_prompt}
-        <|eot_id|>
-        <|start_header_id|>AI Message<|end_header_id|>
-        {llm_message}
-        <|eot_id|>
-        <|start_header_id|>Student Message<|end_header_id|>
-        {student_message}
-        <|eot_id|>
-        <|start_header_id|>assistant<|end_header_id|>
-    """
+#     prompt = f"""
+#         <|begin_of_text|>
+#         <|start_header_id|>system<|end_header_id|>
+#         {system_prompt}
+#         <|eot_id|>
+#         <|start_header_id|>AI Message<|end_header_id|>
+#         {llm_message}
+#         <|eot_id|>
+#         <|start_header_id|>Student Message<|end_header_id|>
+#         {student_message}
+#         <|eot_id|>
+#         <|start_header_id|>assistant<|end_header_id|>
+#     """
     
-    session_name = llm.invoke(prompt)
-    return session_name
+#     session_name = llm.invoke(prompt)
+#     return session_name
