@@ -163,9 +163,10 @@ exports.handler = async (event) => {
         try {
           // Query to get all categories
           const categoriesData = await sqlConnectionTableCreator`
-              SELECT category_id, category_name, category_number
-              FROM categories;
-            `;
+            SELECT category_id, category_name, category_number
+            FROM categories
+            ORDER BY category_number ASC;
+          `;
 
           response.statusCode = 200;
           response.body = JSON.stringify(categoriesData);
@@ -281,7 +282,7 @@ exports.handler = async (event) => {
           });
         }
         break;
-      case "PUT /instructor/update_metadata":
+      case "PUT /admin/update_metadata":
         if (
           event.queryStringParameters != null &&
           event.queryStringParameters.category_id &&
@@ -424,7 +425,7 @@ exports.handler = async (event) => {
       SELECT public, time_created
       FROM prompts
       WHERE public IS NOT NULL
-      ORDER BY time_created DESC
+      ORDER BY time_created DESC NULLS LAST
       LIMIT 1;
     `;
 
@@ -432,7 +433,7 @@ exports.handler = async (event) => {
       SELECT educator, time_created
       FROM prompts
       WHERE educator IS NOT NULL
-      ORDER BY time_created DESC
+      ORDER BY time_created DESC NULLS LAST
       LIMIT 1;
     `;
 
@@ -440,7 +441,7 @@ exports.handler = async (event) => {
       SELECT admin, time_created
       FROM prompts
       WHERE admin IS NOT NULL
-      ORDER BY time_created DESC
+      ORDER BY time_created DESC NULLS LAST
       LIMIT 1;
     `;
 

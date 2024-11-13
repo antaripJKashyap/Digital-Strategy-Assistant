@@ -2,18 +2,6 @@
 import React, { useState } from "react";
 import Header from "../Header";
 import Image from "next/image";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  signIn,
-  signUp,
-  confirmSignIn,
-  confirmSignUp,
-  resendSignUpCode,
-  resetPassword,
-  confirmResetPassword,
-  fetchAuthSession,
-} from "aws-amplify/auth";
 import SignIn from "./SignIn";
 import SignUp from "./SignUp";
 import SignupConfirmation from "./SignupConfirmation";

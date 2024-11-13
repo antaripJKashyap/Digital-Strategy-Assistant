@@ -77,6 +77,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
             type: data.type,
           });
           tempFiles.push(fileObject);
+          setMetadata((prev) => ({ ...prev, [fileName]: file.metadata }));
         }
         setFiles((prevFiles) => {
           const combinedFiles = [...prevFiles, ...tempFiles];
@@ -102,6 +103,39 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
       setCategoryName(selectedCategory.category_name || "");
     }
   }, [selectedCategory]);
+
+  const cleanFileName = (fileName) => {
+    return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+  };
+  const updateMetaData = async (files, category_id) => {
+    const session = await fetchAuthSession();
+    const token = session.tokens.idToken;
+    files.forEach((file) => {
+      const fileNameWithExtension = file.fileName || file.name;
+      const fileMetadata = metadata[fileNameWithExtension] || "";
+      const fileName = cleanFileName(
+        removeFileExtension(fileNameWithExtension)
+      );
+      const fileType = getFileType(fileNameWithExtension);
+      return fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_ENDPOINT
+        }admin/update_metadata?category_id=${encodeURIComponent(
+          category_id
+        )}&document_name=${encodeURIComponent(
+          fileName
+        )}&document_type=${encodeURIComponent(fileType)}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ metadata: fileMetadata }),
+        }
+      );
+    });
+  };
 
   function removeFileExtension(fileName) {
     return fileName.replace(/\.[^/.]+$/, "");
@@ -242,6 +276,30 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
     setDeletedFiles((prevDeletedFiles) => [...prevDeletedFiles, fileName]);
   };
 
+  const updateCategoryName = async (categoryName, token) => {
+    const response = await fetch(
+      `${
+        process.env.NEXT_PUBLIC_API_ENDPOINT
+      }admin/edit_category?category_id=${encodeURIComponent(
+        selectedCategory.category_id
+      )}&category_name=${encodeURIComponent(
+        categoryName
+      )}&category_number=${encodeURIComponent(
+        selectedCategory.category_number
+      )}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: token,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) throw new Error("Failed to delete category");
+    return await response.json();
+  }
+
   const handleSaveChanges = async () => {
     setSaving(true);
     const session = await fetchAuthSession();
@@ -290,6 +348,17 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
 
       await Promise.all(uploadFilePromises);
 
+      // Step 3: Update the metadata
+      await updateMetaData(files, selectedCategory.category_id);
+      await updateMetaData(newFiles, selectedCategory.category_id);
+
+      // Step 4: Update the category name
+      await updateCategoryName(
+        categoryName,
+        token
+      );
+
+      //step 5: cleanup
       toast.success("Changes saved successfully!");
       setDeletedFiles([]);
       const tempNewFiles = newFiles;
@@ -362,6 +431,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
           value={categoryName}
           onChange={(e) => setCategoryName(e.target.value)}
           disabled={saving || isDeleting} // Disable input while saving or deleting
+          maxLength={100}
         />
       </div>
 
@@ -404,76 +474,102 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
         </Label>
 
         <div className="space-y-2">
-          {files.map((file, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-2 border rounded-lg"
-            >
-              <div className="flex items-center space-x-2">
-                <div className="flex flex-col">
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+          {files.map((file, index) => {
+            const fileName = file.fileName || file.name;
+            return (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 border rounded-lg"
+              >
+                <div className="w-5/12 flex items-center space-x-2 pr-4">
+                  <div className="flex flex-col">
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <Input
+                  type="text"
+                  placeholder="File description"
+                  className="mt-1 w-full p-1 text-sm border rounded"
+                  value={metadata[fileName] || ""}
+                  onChange={(e) =>
+                    handleMetadataChange(fileName, e.target.value)
+                  }
+                  maxLength={80}
+                />
+                <div className="flex space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveFile(file.name)}
+                    disabled={saving || isDeleting} // Disable remove button while saving or deleting
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Remove file</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => downloadFile(file)}
+                    disabled={saving || isDeleting} // Disable download button while saving or deleting
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="sr-only">Download file</span>
+                  </Button>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveFile(file.name)}
-                  disabled={saving || isDeleting} // Disable remove button while saving or deleting
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Remove file</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => downloadFile(file)}
-                  disabled={saving || isDeleting} // Disable download button while saving or deleting
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="sr-only">Download file</span>
-                </Button>
-              </div>
-            </div>
-          ))}
-          {newFiles.map((file, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-2 border rounded-lg"
-            >
-              <div className="flex items-center space-x-2">
-                <div className="flex flex-col">
-                  <p className="text-sm font-medium">{file.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
+            );
+          })}
+          {newFiles.map((file, index) => {
+            const fileName = file.fileName || file.name;
+            return (
+              <div
+                key={index}
+                className="flex items-center justify-between p-2 border rounded-lg"
+              >
+                <div className="w-5/12 flex items-center space-x-2 pr-4">
+                  <div className="flex flex-col">
+                    <p className="text-sm font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <Input
+                  type="text"
+                  placeholder="File description"
+                  className="mt-1 w-full p-1 text-sm border rounded"
+                  value={metadata[fileName] || ""}
+                  onChange={(e) =>
+                    handleMetadataChange(fileName, e.target.value)
+                  }
+                  maxLength={80}
+                />
+                <div className="flex space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveFile(file.name)}
+                    disabled={saving || isDeleting} // Disable remove button while saving or deleting
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Remove file</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => downloadFile(file)}
+                    disabled={saving || isDeleting} // Disable download button while saving or deleting
+                  >
+                    <Download className="h-4 w-4" />
+                    <span className="sr-only">Download file</span>
+                  </Button>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveFile(file.name)}
-                  disabled={saving || isDeleting} // Disable remove button while saving or deleting
-                >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Remove file</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => downloadFile(file)}
-                  disabled={saving || isDeleting} // Disable download button while saving or deleting
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="sr-only">Download file</span>
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

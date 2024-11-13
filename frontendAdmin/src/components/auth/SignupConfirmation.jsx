@@ -84,11 +84,10 @@ const SignupConfirmation = ({ email, setAuthState, loading, setLoading }) => {
           type="text"
           id="confirmationCode"
           placeholder="Confirmation Code"
-          maxLength={15}
+          maxLength={6}
           required
           className="mt-1"
-          onChange={(e) => setConfirmationCode(e.target.value)}
-        />
+          onChange={(e) => setConfirmationCode(e.target.value)}        />
         <Button
           type="submit"
           className="w-full bg-blue-900 hover:bg-blue-800 text-md"

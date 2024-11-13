@@ -46,6 +46,7 @@ const ForgotPassword = ({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="mt-1"
+          maxLength={50}
         />
         <Button
           type="submit"
