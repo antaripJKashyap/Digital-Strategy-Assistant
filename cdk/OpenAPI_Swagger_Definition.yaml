@@ -96,6 +96,12 @@ paths:
           description: ID of the session since multiple sessions can exist within a table
           schema:
             type: string
+        - in: query
+          name: user_info
+          required: true
+          description: salted info of the user
+          schema:
+            type: string
       requestBody:
         required: false
         content:
@@ -106,6 +112,9 @@ paths:
                 message_content:
                   type: string
                   description: Content of the user's message
+                user_role:
+                  type: string
+                  description: Role of the user
       responses:
         "200":
           description: Response with generated array and input value
@@ -356,7 +365,7 @@ paths:
           description: Internal Server Error
       x-amazon-apigateway-integration:
         uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"

@@ -3,6 +3,7 @@ import json
 import boto3
 import logging
 import psycopg2
+import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
 
@@ -12,7 +13,7 @@ from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-print("printing hello")
+
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
@@ -35,8 +36,71 @@ def get_secret(secret_name, expect_json=True):
         logger.error(f"Error fetching secret {secret_name}: {e}")
         raise
 
+# def log_user_engagement(
+#     session_id, 
+#     document_id=None, 
+#     engagement_type="message creation", 
+#     engagement_details=None, 
+#     user_role=None, 
+#     user_info=None
+# ):
+#     connection = None
+#     cur = None
+#     try:
+#         # Get database credentials and establish a connection
+#         db_secret = get_secret(DB_SECRET_NAME)
+#         connection_params = {
+#             'dbname': db_secret["dbname"],
+#             'user': db_secret["username"],
+#             'password': db_secret["password"],
+#             'host': db_secret["host"],
+#             'port': db_secret["port"]
+#         }
 
-    
+#         connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+#         connection = psycopg2.connect(connection_string)
+#         cur = connection.cursor()
+
+#         # Define the SQL query
+#         query = """
+#         INSERT INTO user_engagement_log (
+#             log_id, session_id, document_id, engagement_type, 
+#             engagement_details, user_role, user_info, timestamp
+#         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+#         """
+
+#         # Generate a unique log ID and current timestamp
+#         log_id = str(uuid.uuid4())
+#         timestamp = datetime.datetime.now()
+
+#         # Execute the query
+#         cur.execute(
+#             query, 
+#             (
+#                 log_id, 
+#                 session_id, 
+#                 document_id, 
+#                 engagement_type, 
+#                 engagement_details, 
+#                 user_role, 
+#                 user_info, 
+#                 timestamp
+#             )
+#         )
+
+#         # Commit the transaction
+#         connection.commit()
+#         logger.info("User engagement logged successfully.")
+
+#     except Exception as e:
+#         if connection:
+#             connection.rollback()
+#         logger.error(f"Error logging user engagement: {e}")
+#     finally:
+#         if cur:
+#             cur.close()
+#         if connection:
+#             connection.close()
 
 def get_parameter(param_name):
     """
@@ -128,6 +192,7 @@ def handler(event, context):
 
     category_id = query_params.get("category_id", "")
     session_id = query_params.get("session_id", "")
+    user_info = query_params.get("user_info", "")
     # session_name = query_params.get("session_name")
 
     if not category_id:
@@ -224,17 +289,30 @@ def handler(event, context):
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
+    user_role = body.get("user_role", "")
     
+    # Check if user_role is provided after the initial greeting
+    if user_role:
+        logger.info(f"User role received: {user_role}")
+    #     log_user_engagement(
+    #     session_id=session_id,
+    #     engagement_type="message_creation",
+    #     user_role=user_role
+    # )
+    #     logger.info(f"User role {user_role} logged in engagement log.")
+    else:
+        logger.info("Awaiting user role selection.")
+
     if not question:
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
         initial_query = get_initial_student_query()
-        query_data = json.loads(initial_query)
-        options = query_data["options"]
+        # query_data = json.loads(initial_query)
+        # options = query_data["options"]
         student_query = initial_query
     else:
         logger.info(f"Processing student question: {question}")
         student_query = get_student_query(question)
-        options = []
+        # options = []
     
     try:
         logger.info("Creating Bedrock LLM instance.")
