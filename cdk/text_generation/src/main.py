@@ -7,7 +7,7 @@ from langchain_aws import BedrockEmbeddings
 
 
 from helpers.vectorstore import get_vectorstore_retriever
-from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response, update_session_name
+from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
@@ -322,17 +322,6 @@ def handler(event, context):
             'body': json.dumps('Error getting response')
         }
     
-    # try:
-    #     logger.info("Updating session name if this is the first exchange between the LLM and student")
-    #     potential_session_name = update_session_name(TABLE_NAME, session_id, BEDROCK_LLM_ID)
-    #     if potential_session_name:
-    #         logger.info("This is the first exchange between the LLM and student. Updating session name.")
-    #         session_name = potential_session_name
-    #     else:
-    #         logger.info("Not the first exchange between the LLM and student. Session name remains the same.")
-    # except Exception as e:
-    #     logger.error(f"Error updating session name: {e}")
-    #     session_name = "New Chat"
     
     logger.info("Returning the generated response.")
     return {
