@@ -1,4 +1,4 @@
-import boto3, re
+import boto3, re, json
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockLLM
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -96,31 +96,88 @@ def get_student_query(raw_query: str) -> str:
     """
     return student_query
 
-def get_initial_student_query(topic: str) -> str:
+def get_initial_student_query():
     """
-    Generate an initial query for the student to interact with the system. 
-    The query asks the student to greet the system and then requests a question related to a specified topic.
-
-    Args:
-    topic (str): The topic for which the initial question should be generated.
+    Generate an initial query for the user to interact with the system.
+    Present the user with role options and provide selectable follow-up questions
+    based on the selected role, each having a sample answer and additional questions.
 
     Returns:
-    str: The formatted initial query string for the student.
+    str: The formatted initial query string for the user.
     """
-    student_query = f"""
-    user
-    Greet me and then ask me a question related to the topic: {topic}. 
-    """
-    return student_query
+    
+    query_structure = {
+        "message": "Hello! Please select the best role below that fits you. We can better answer your questions. Don’t include personal details such as your name and private content.",
+        "options": ["Student/prospective student", "Educator/educational designer", "Admin"],
+        "questions_by_role": {
+            "Student/prospective student": [
+                {
+                    "label": "What is Digital Learning Strategy?",
+                    "follow_up_questions": [
+                        "Are there any discounts or other forms of financial support for students to access digital learning tools or services through the Digital Learning Strategy (DLS)?",
+                        "Will the DLS initiatives expand the digital learning offerings for courses and/or programs at my school?",
+                        "How does the DLS apply to students like me?"
+                    ]
+                },
+                {
+                    "label": "How does the Digital Learning Strategy affect me?",
+                    "follow_up_questions": [
+                        "Where can I find resources to improve my digital literacy?",
+                        "How will the DLS improve my access to online learning resources, particularly if I live in a remote or underserved area?",
+                        "How will the DLS initiatives support completion of my post-secondary education?"
+                    ]
+                }
+            ],
+            "Educator/educational designer": [
+                {
+                    "label": "How can I implement the DLS recommendations in my teaching?",
+                    "follow_up_questions": [
+                        "Can I find subject-specific teaching materials?",
+                        "Are there workshops for new educators?",
+                        "How can I request new resources?"
+                    ]
+                },
+                {
+                    "label": "Am I required to integrate the BC Digital Literacy Framework into my course?",
+                    "follow_up_questions": [
+                        "Am I required to integrate the Guidelines for Technology-Enhanced Learning into my course?",
+                        "Am I required to integrate the DLS recommendations into my teaching?",
+                        "Will the DLS provide any guidance on protecting Indigenous Knowledge and intellectual property?"
+                    ]
+                }
+            ],
+            "Admin": [
+                {
+                    "label": "How can the DLS support me as an administrator in a post-secondary institution?",
+                    "follow_up_questions": [
+                        "How does the DLS support collaboration between institutions?",
+                        "Which strategic priorities and recommendations in the DLS should my institution focus on?",
+                        "Does the DLS offer any cost-saving opportunities for my institution?"
+                    ]
+                },
+                {
+                    "label": "Does the DLS require my institution to offer more online and/or hybrid learning options?",
+                    "follow_up_questions": [
+                        "How can my institution take advantage of the joint procurement opportunities that BCNET offers?",
+                        "Where can I find the repository of software applications used across the post-secondary system?",
+                        "How does the DLS support remote learners?"
+                    ]
+                }
+            ]
+        }
+    }
+
+    return json.dumps(query_structure, indent=4)
 
 def get_response(
     query: str,
-    topic: str,
     llm: ChatBedrock,
     history_aware_retriever,
     table_name: str,
     session_id: str,
-    course_system_prompt: str
+    public_prompt: str,
+    educator_prompt: str,
+    admin_prompt: str
 ) -> dict:
     """
     Generates a response to a query using the LLM and a history-aware retriever for context.
@@ -141,8 +198,10 @@ def get_response(
         ""
         "system"
         "You are an instructor for a course. "
-        f"Your job is to help the student master the topic: {topic}. \n"        
-        f"{course_system_prompt}"
+        f"Your job is to help the student master the topic. \n"        
+        f"{public_prompt}"
+        f"{educator_prompt}"
+        f"{admin_prompt}"
         "Continue this process until you determine that the student has mastered the topic. \nOnce mastery is achieved, include COMPETENCY ACHIEVED in your response and do not ask any further questions about the topic. "
         "Use the following pieces of retrieved context to answer "
         "a question asked by the student. Use three sentences maximum and keep the "

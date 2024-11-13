@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 import logging
 
 from helpers.vectorstore import update_vectorstore
-from langchain_community.embeddings import BedrockEmbeddings
+from langchain_aws import BedrockEmbeddings
+
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
@@ -14,6 +15,25 @@ logger = logging.getLogger()
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
+DLS_DATA_INGESTION_BUCKET = os.environ["BUCKET"]
+# bucket_name="dls-data-ingestion-bucket"
+
+EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+def get_parameter(param_name):
+    """
+    Fetch a parameter value from Systems Manager Parameter Store.
+    """
+    try:
+        ssm_client = boto3.client("ssm")
+        response = ssm_client.get_parameter(Name=param_name, WithDecryption=True)
+        return response["Parameter"]["Value"]
+    except Exception as e:
+        logger.error(f"Error fetching parameter {param_name}: {e}")
+        raise
+## GET PARAMETER VALUES FOR CONSTANTS
+EMBEDDING_MODEL_ID = get_parameter(os.environ["EMBEDDING_MODEL_PARAM"])
+
+
 
 def get_secret():
     # secretsmanager client to get db credentials
@@ -43,20 +63,20 @@ def connect_to_db():
             connection.close()
         return None
 
-def parse_s3_file_path(file_key):
-    # Assuming the file path is of the format: {course_id}/{module_id}/{documents}/{file_name}.{file_type}
+def parse_s3_file_path(document_key):
+    # Assuming the file path is of the format: {category_id}/{document_name}.{document_type}
     try:
-        course_id, module_id, file_category, filename_with_ext = file_key.split('/')
-        file_name, file_type = filename_with_ext.split('.')
-        return course_id, module_id, file_category, file_name, file_type
+        category_id, documentname_with_ext = document_key.split('/')
+        document_name, document_type = documentname_with_ext.split('.')
+        return category_id, document_name, document_type
     except Exception as e:
-        logger.error(f"Error parsing S3 file path: {e}")
+        logger.error(f"Error parsing S3 document path: {e}")
         return {
                     "statusCode": 400,
-                    "body": json.dumps("Error parsing S3 file path.")
+                    "body": json.dumps("Error parsing S3 document path.")
                 }
 
-def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name):    
+def insert_file_into_db(category_id, document_name, document_type, document_s3_file_path):
     connection = connect_to_db()
     if connection is None:
         logger.error("No database connection available.")
@@ -70,54 +90,52 @@ def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name)
 
         # Check if a record already exists
         select_query = """
-        SELECT * FROM "Module_Files"
-        WHERE module_id = %s
-        AND filename = %s
-        AND filetype = %s;
+        SELECT * FROM "documents"
+        WHERE category_id = %s
+        AND document_name = %s
+        AND document_type = %s;
         """
-        cur.execute(select_query, (module_id, file_name, file_type))
+        cur.execute(select_query, (category_id, document_name, document_type))
 
-        existing_file = cur.fetchone()
+        existing_document = cur.fetchone()
 
-        if existing_file:
+        if existing_document:
             # Update the existing record
             update_query = """
-                UPDATE "Module_Files"
-                SET s3_bucket_reference = %s,
-                filepath = %s,
-                time_uploaded = %s
-                WHERE module_id = %s
-                AND filename = %s
-                AND filetype = %s;
+                UPDATE "documents"
+                SET document_s3_file_path = %s,
+                time_created = %s
+                WHERE category_id = %s
+                AND document_name = %s
+                AND document_type = %s;
             """
             timestamp = datetime.now(timezone.utc)
             cur.execute(update_query, (
-                bucket_name,  # s3_bucket_reference
-                file_path,  # filepath
+                document_s3_file_path,  # filepath
                 timestamp,  # time_uploaded
-                module_id,  # module_id
-                file_name,  # filename
-                file_type  # filetype
+                category_id,  # module_id
+                document_name,  # filename
+                document_type  # filetype
             ))
-            logger.info(f"Successfully updated file {file_name}.{file_type} in database for module {module_id}.")
+            logger.info(f"Successfully updated file {document_name}.{document_type} in database for module {category_id}.")
         else:
             # Insert a new record
             insert_query = """
-                INSERT INTO "Module_Files" 
-                (module_id, filetype, s3_bucket_reference, filepath, filename, time_uploaded, metadata)
-                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                INSERT INTO "documents" 
+                (category_id, document_s3_file_path, document_name, document_type, metadata, time_created)
+                VALUES (%s, %s, %s, %s, %s, %s);
             """
             timestamp = datetime.now(timezone.utc)
             cur.execute(insert_query, (
-                module_id,  # module_id
-                file_type,  # filetype
-                bucket_name,  # s3_bucket_reference
-                file_path,  # filepath
-                file_name,  # filename
-                timestamp,  # time_uploaded
-                ""  # metadata
+                category_id,  # module_id
+                document_s3_file_path,
+                document_name,  # filename
+                document_type, # filetype
+                "",
+                timestamp
+
         ))
-        logger.info(f"Successfully inserted file {file_name}.{file_type} into database for module {module_id}.")
+        logger.info(f"Successfully inserted document {document_name}.{document_type} into database for module {category_id}.")
 
         connection.commit()
         cur.close()
@@ -128,18 +146,18 @@ def insert_file_into_db(module_id, file_name, file_type, file_path, bucket_name)
         if connection:
             connection.rollback()
             connection.close()
-        logger.error(f"Error inserting file {file_name}.{file_type} into database: {e}")
+        logger.error(f"Error inserting document {document_name}.{document_type} into database: {e}")
         raise
 
-def update_vectorstore_from_s3(bucket, course_id):
-    
+def update_vectorstore_from_s3(bucket, category_id):
+    # bucket = "dls-data-ingestion-bucket"
     bedrock_runtime = boto3.client(
         service_name="bedrock-runtime",
         region_name=REGION
     )
     
     embeddings = BedrockEmbeddings(
-        model_id='amazon.titan-embed-text-v2:0', 
+        model_id=EMBEDDING_MODEL_ID, 
         client=bedrock_runtime,
         region_name=REGION
     )
@@ -147,7 +165,7 @@ def update_vectorstore_from_s3(bucket, course_id):
     db_secret = get_secret()
 
     vectorstore_config_dict = {
-        'collection_name': f'{course_id}',
+        'collection_name': f'{category_id}',
         'dbname': db_secret["dbname"],
         'user': db_secret["username"],
         'password': db_secret["password"],
@@ -158,12 +176,12 @@ def update_vectorstore_from_s3(bucket, course_id):
     try:
         update_vectorstore(
             bucket=bucket,
-            course=course_id,
+            category_id=category_id,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
     except Exception as e:
-        logger.error(f"Error updating vectorstore for course {course_id}: {e}")
+        logger.error(f"Error updating vectorstore for course {category_id}: {e}")
         raise
 
 def handler(event, context):
@@ -175,55 +193,63 @@ def handler(event, context):
         }
 
     for record in records:
-        if record['eventName'].startswith('ObjectCreated:'):
-            bucket_name = record['s3']['bucket']['name']
-            file_key = record['s3']['object']['key']
+        event_name = record['eventName']
+        bucket_name = record['s3']['bucket']['name']
 
-            # Parse the file path
-            course_id, module_id, file_category, file_name, file_type = parse_s3_file_path(file_key)
-            if not course_id or not module_id or not file_name or not file_type:
-                return {
+        # Only process files from the AILA_DATA_INGESTION_BUCKET
+        if bucket_name != DLS_DATA_INGESTION_BUCKET:
+            print(f"Ignoring event from non-target bucket: {bucket_name}")
+            continue  # Ignore this event and move to the next one
+        document_key = record['s3']['object']['key']
+
+
+        # Parse the file path
+        category_id, document_name, document_type = parse_s3_file_path(document_key)
+        if not category_id or not document_name or not document_type:
+            return {
                     "statusCode": 400,
                     "body": json.dumps("Error parsing S3 file path.")
-                }
+            }
 
+        if event_name.startswith('ObjectCreated:'):
             # Insert the file into the PostgreSQL database
             try:
                 insert_file_into_db(
-                    module_id=module_id,
-                    file_name=file_name,
-                    file_type=file_type,
-                    file_path=file_key,
-                    bucket_name=bucket_name
+                    category_id=category_id,
+                    document_name=document_name,
+                    document_type=document_type,
+                    document_s3_file_path=document_key
                 )
-                logger.info(f"File {file_name}.{file_type} inserted successfully.")
+                logger.info(f"File {document_name}.{document_type} inserted successfully.")
             except Exception as e:
-                logger.error(f"Error inserting file {file_name}.{file_type} into database: {e}")
+                logger.error(f"Error inserting file {document_name}.{document_type} into database: {e}")
                 return {
                     "statusCode": 500,
-                    "body": json.dumps(f"Error inserting file {file_name}.{file_type}: {e}")
+                    "body": json.dumps(f"Error inserting file {document_name}.{document_type}: {e}")
                 }
             
-            # Update embeddings for course after the file is successfully inserted into the database
-            try:
-                update_vectorstore_from_s3(bucket_name, course_id)
-                logger.info(f"Vectorstore updated successfully for course {course_id}.")
-            except Exception as e:
-                logger.error(f"Error updating vectorstore for course {course_id}: {e}")
+        else:
+            logger.info(f"File {document_name}.{document_type} is being deleted. Deleting files from database does not occur here.")
+        # Update embeddings for course after the file is successfully inserted into the database
+        try:
+                update_vectorstore_from_s3(bucket_name, category_id)
+                logger.info(f"Vectorstore updated successfully for course {category_id}.")
+        except Exception as e:
+                logger.error(f"Error updating vectorstore for course {category_id}: {e}")
                 return {
                     "statusCode": 500,
-                    "body": json.dumps(f"File inserted, but error updating vectorstore: {e}")
+                    "body": json.dumps(f"Document inserted, but error updating vectorstore: {e}")
                 }
 
-            return {
+        return {
                 "statusCode": 200,
                 "body": json.dumps({
                     "message": "New file inserted into database.",
-                    "location": f"s3://{bucket_name}/{file_key}"
+                    "location": f"s3://{bucket_name}/{document_key}"
                 })
             }
 
     return {
         "statusCode": 400,
-        "body": json.dumps("No new file upload event found.")
+        "body": json.dumps("No new document upload or deletion event found.")
     }

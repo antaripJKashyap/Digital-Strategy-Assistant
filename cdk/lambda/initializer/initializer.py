@@ -33,6 +33,24 @@ def createConnection():
 dbSecret = getDbSecret()
 connection = createConnection()
 
+def insert_into_prompts(public_prompt, educator_prompt, admin_prompt):
+    """
+    Inserts values into the prompts table.
+    Parameters are set up to allow easy changes in the future.
+    """
+    try:
+        cursor = connection.cursor()
+        insert_query = """
+            INSERT INTO "prompts" ("public", "educator", "admin", time_created)
+            VALUES (%s, %s, %s, CURRENT_TIMESTAMP);
+        """
+        cursor.execute(insert_query, (public_prompt, educator_prompt, admin_prompt))
+        connection.commit()
+        print("Values inserted into prompts table successfully.")
+    except Exception as e:
+        print(f"Error inserting into prompts table: {e}")
+    finally:
+        cursor.close()
 
 def handler(event, context):
     global connection
@@ -51,41 +69,38 @@ def handler(event, context):
         sqlTableCreation = """
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE TABLE IF NOT EXISTS "users" (
-                "user_id" uuid PRIMARY KEY,
+                "user_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "user_email" varchar,
-                "first_name" varchar,
-                "last_name" varchar,
                 "time_account_created" timestamp,
                 "last_sign_in" timestamp
             );
+            
+            CREATE TABLE IF NOT EXISTS "prompts" (
+                "public" text,
+                "educator" text,
+                "admin" text,
+                "time_created" timestamp
+            );
+            
 
             CREATE TABLE IF NOT EXISTS "categories" (
-                "category_id" uuid PRIMARY KEY,
+                "category_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "category_name" varchar,
                 "category_number" integer
             );
 
             CREATE TABLE IF NOT EXISTS "sessions" (
-                "session_id" uuid PRIMARY KEY,
-                "session_name" varchar,
-                "time_created" timestamp
-            );
-
-            CREATE TABLE IF NOT EXISTS "messages_dynamo" (
-                "session_id" uuid PRIMARY KEY,
-                "message_id" uuid,
-                "message_content" varchar,
-                "user_sent" bool,
+                "session_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "time_created" timestamp
             );
 
             CREATE TABLE IF NOT EXISTS "documents" (
-                "document_id" uuid PRIMARY KEY,
+                "document_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "category_id" uuid,
                 "document_s3_file_path" varchar,
                 "document_name" varchar,
                 "document_type" varchar,
-                "meta_data" varchar,
+                "metadata" text,
                 "time_created" timestamp
             );
 
@@ -95,6 +110,8 @@ def handler(event, context):
                 "document_id" uuid,
                 "engagement_type" varchar,
                 "engagement_details" text,
+                "user_role" varchar,
+                "user_info" text,
                 "timestamp" timestamp
             );
 
@@ -102,6 +119,7 @@ def handler(event, context):
                 "feedback_id" uuid PRIMARY KEY,
                 "session_id" uuid,
                 "feedback_rating" integer,
+                "timestamp" timestamp,
                 "feedback_description" varchar
             );
 
@@ -232,6 +250,16 @@ def handler(event, context):
         sm_client.put_secret_value(
             SecretId=DB_USER_SECRET_NAME, SecretString=json.dumps(dbSecret)
         )
+
+        # Load client username and password to SSM
+
+
+        public_prompt = "You are a helpful assistant that answers questions about the Digital Learning Strategy to the general public. Your users can be anyone from the general public like a student, a person who wants to learn about the Digital Learning strategy. You should should not be rude and be polite when answering questions. "
+        educator_prompt = "You are a helpful assistant that answers questions about the Digital Learning Strategy to the educators and education professionals such teachers, professors, university staff, etc. You should should not be rude and be polite when answering questions. You should focus the answers related to the educational field and also inclined towards talking to educators and university professionals."
+        admin_prompt = "You are a helpful assistant that answers questions about the Digital Learning Strategy to the institutional administrators. You should should not be rude and be polite when answering questions. You should focus the answers related to the institutional admin and also inclined towards what would be the most beneficial for an institutional admin to know."
+        
+        insert_into_prompts(public_prompt, educator_prompt, admin_prompt)
+
         sql = """
             SELECT * FROM users;
         """
@@ -241,12 +269,6 @@ def handler(event, context):
         
         sql = """
             SELECT * FROM sessions;
-        """
-        cursor.execute(sql)
-        print(cursor.fetchall())
-        
-        sql = """
-            SELECT * FROM messages;
         """
         cursor.execute(sql)
         print(cursor.fetchall())
