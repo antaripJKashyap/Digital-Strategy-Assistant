@@ -350,6 +350,23 @@ def get_llm_output(response: str) -> dict:
         - questions (list): A list of follow-up questions.
     """
     # Split the content into main content and questions
+    # match = re.search(r"(.*)You might have the following questions:(.*)", response, re.DOTALL)
+    
+    # if match:
+    #     main_content = match.group(1).strip()  # Content before the questions section
+    #     questions_text = match.group(2).strip()  # Text containing the questions
+    # else:
+    #     main_content = response.strip()  # If no questions section, return full content
+    #     questions_text = ""
+    
+    # # Split questions into a list
+    # questions = [question.strip() for question in questions_text.splitlines() if question.strip()]
+    
+    # return {
+    #         "llm_output": main_content, 
+    #         "options": questions
+    #         }
+
     match = re.search(r"(.*)You might have the following questions:(.*)", response, re.DOTALL)
     
     if match:
@@ -359,14 +376,16 @@ def get_llm_output(response: str) -> dict:
         main_content = response.strip()  # If no questions section, return full content
         questions_text = ""
     
+    # Add a comma after each question mark
+    questions_text = re.sub(r'\?(?!\n)', '?,', questions_text)
+    
     # Split questions into a list
     questions = [question.strip() for question in questions_text.splitlines() if question.strip()]
     
     return {
-            "llm_output": main_content, 
-            "options": questions
-            }
-
+        "llm_output": main_content,
+        "options": questions
+    }
 
 # def parse_follow_up_questions(content: str):
 #     """

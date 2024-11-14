@@ -261,18 +261,6 @@ def handler(event, context):
             'body': json.dumps('Missing required parameter: session_id')
         }
 
-
-    
-    # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
-    #                     Here is a link to that website: "https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy".
-    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
-    #                     """
-
-     # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
-    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
-    #                     """
-
-    # system_prompt = """You are an instructor for a course. Your job is to help the student master the topic"""
     logger.info("Fetching prompts from the database.")
     prompts = get_system_prompts()
 
@@ -334,22 +322,31 @@ def handler(event, context):
     # Check if user_role is provided after the initial greeting
     if user_role:
         logger.info(f"User role received: {user_role}")
-    #     log_user_engagement(
-    #     session_id=session_id,
-    #     engagement_type="message_creation",
-    #     user_role=user_role
-    # )
-    #     logger.info(f"User role {user_role} logged in engagement log.")
     else:
         logger.info("Awaiting user role selection.")
 
     if not question:
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
-        # initial_query = get_initial_student_query()
-        # query_data = json.loads(initial_query)
-        # options = query_data["options"]
-        student_query = get_student_query("")
-        options = []
+        initial_query = get_initial_student_query()
+        query_data = json.loads(initial_query)
+        options = query_data["options"]
+        # student_query = get_student_query("")
+        # options = []
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            "body": json.dumps({
+                "type": "ai",
+                "content": "Please select an option to proceed.",
+                "options": options,
+                "user_role": user_role
+            })
+        }
         
     else:
         logger.info(f"Processing student question: {question}")
