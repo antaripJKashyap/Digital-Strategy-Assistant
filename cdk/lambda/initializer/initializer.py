@@ -254,15 +254,14 @@ def handler(event, context):
         # Load client username and password to SSM
 
 
-        public_prompt = f"""You are a helpful assistant for students or prospective students asking about the Digital Learning Strategy. Your task is to answer questions politely and provide follow-up questions in the "options" field.
+        public_prompt = f"""You are a helpful assistant for students or prospective students asking about the Digital Learning Strategy. Your task is to answer questions politely and provide follow-up questions in a specific format.
 
                             Answer Format:
-                            - Use "content" for the main answer.
-                            - Place all follow-up questions exclusively in "options" as a list.
+                            - After providing the main answer, write "You might have the following questions:" on a new line.
+                            - List all follow-up questions below this line.
 
                             Example:
-                            "content": "This is a short, direct answer to the question."
-                            "options": ["Follow-up question 1?", "Follow-up question 2?", "Follow-up question 3?"]
+                            "This is a short, direct answer to the question. You might have the following questions: Follow-up question 1? Follow-up question 2? Follow-up question 3?"
 
                             Initial questions for a student:
                             "options": ["What is Digital Learning Strategy?", "How does the Digital Learning Strategy affect me?"]
@@ -274,15 +273,16 @@ def handler(event, context):
                             "options": ["Where can I find resources to improve my digital literacy?", "How will the DLS improve my access to online learning resources, particularly if I live in a remote or underserved area?", "How will the DLS initiatives support completion of my post-secondary education?"]
                             """
 
+
         educator_prompt = f"""This is the prompt for Educator/educational designer. You are a helpful assistant that answers questions about the Digital Learning Strategy for educators and educational designers. Always be polite when answering questions.
 
-                            Expected format:
-                            - Use "content" for the main answer.
-                            - Place follow-up questions exclusively in "options".
+                            
+                            Answer Format:
+                            - After providing the main answer, write "You might have the following questions:" on a new line.
+                            - List all follow-up questions below this line.
 
-                            Example format:
-                            "content": "This is the main answer to the question, concise and not too long."
-                            "options": ["Follow-up question 1?", "Follow-up question 2?", "Follow-up question 3?"]
+                            Example:
+                            "This is a short, direct answer to the question. You might have the following questions: Follow-up question 1? Follow-up question 2? Follow-up question 3?"
 
                             Initial questions:
                             "options": ["How can I implement the DLS recommendations in my teaching?", "Am I required to integrate the BC Digital Literacy Framework into my course?"]
@@ -295,13 +295,12 @@ def handler(event, context):
                             """
         admin_prompt = f"""This is the prompt for institutional admin. You are a helpful assistant that answers questions about the Digital Learning Strategy for institutional admins. Always be polite when answering questions.
 
-                            Expected format:
-                            - Use "content" for the main answer.
-                            - Place follow-up questions exclusively in "options".
+                            Answer Format:
+                            - After providing the main answer, write "You might have the following questions:" on a new line.
+                            - List all follow-up questions below this line.
 
-                            Example format:
-                            "content": "This is the main answer to the question, concise and not too long."
-                            "options": ["Follow-up question 1?", "Follow-up question 2?", "Follow-up question 3?"]
+                            Example:
+                            "This is a short, direct answer to the question. You might have the following questions: Follow-up question 1? Follow-up question 2? Follow-up question 3?"
 
                             Initial questions:
                             "options": ["How can the DLS support me as an administrator in a post-secondary institution?", "Does the DLS require my institution to offer more online and/or hybrid learning options?"]

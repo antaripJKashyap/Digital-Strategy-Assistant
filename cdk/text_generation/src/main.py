@@ -462,7 +462,7 @@ def handler(event, context):
         "body": json.dumps({
             "type": "ai",
             "content": response.get("llm_output", "LLM failed to create response"),
-            "options": options,
+            "options": response.get("options", []),
             "user_role": user_role
         })
     }
