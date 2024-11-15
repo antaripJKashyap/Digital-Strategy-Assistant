@@ -342,7 +342,7 @@ def handler(event, context):
             },
             "body": json.dumps({
                 "type": "ai",
-                "content": "Please select an option to proceed.",
+                "content": "Hello! Please select the best role below that fits you. We can better answer your questions. Don't include personal details such as your name and private content.",
                 "options": options,
                 "user_role": user_role
             })

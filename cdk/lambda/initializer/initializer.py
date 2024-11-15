@@ -265,7 +265,7 @@ def handler(event, context):
 
                             Initial questions for a student:
                             "options": ["What is Digital Learning Strategy?", "How does the Digital Learning Strategy affect me?"]
-
+                            Use proper english grammar and punctuation. For example when giving a follow-up question, this how it should look like ["How does the Digital Learning Strategy affect me?", "What is Digital Learning Strategy?"]. There should be no comma after the last question.
                             Follow-up questions for "What is Digital Learning Strategy?":
                             "options": ["Are there any discounts or other forms of financial support for students to access digital learning tools or services through the Digital Learning Strategy (DLS)?", "Will the DLS initiatives expand the digital learning offerings for courses and/or programs at my school?", "How does the DLS apply to students like me?"]
 

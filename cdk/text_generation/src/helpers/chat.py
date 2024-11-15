@@ -367,6 +367,50 @@ def get_llm_output(response: str) -> dict:
     #         "options": questions
     #         }
 
+    # match = re.search(r"(.*)You might have the following questions:(.*)", response, re.DOTALL)
+    
+    # if match:
+    #     main_content = match.group(1).strip()  # Content before the questions section
+    #     questions_text = match.group(2).strip()  # Text containing the questions
+    # else:
+    #     main_content = response.strip()  # If no questions section, return full content
+    #     questions_text = ""
+    
+    # # Add a comma after each question mark
+    # questions_text = re.sub(r'\?(?!\n)', '?,', questions_text)
+    
+    # # Split questions into a list
+    # questions = [question.strip() for question in questions_text.splitlines() if question.strip()]
+    
+    # return {
+    #     "llm_output": main_content,
+    #     "options": questions
+    # }
+
+
+    
+    # match = re.search(r"(.*)You might have the following questions:(.*)", response, re.DOTALL)
+    
+    # if match:
+    #     main_content = match.group(1).strip()  # Content before the questions section
+    #     questions_text = match.group(2).strip()  # Text containing the questions
+    # else:
+    #     main_content = response.strip()  # If no questions section, return full content
+    #     questions_text = ""
+    
+    # # Add a comma after each question mark without creating blank lines
+    # questions_text = re.sub(r'\?(?=[^\n]|$)', '?,', questions_text)
+    
+    # # Split questions into a list and remove any newline characters
+    # questions = [question.replace('\n', '').strip() for question in questions_text.splitlines() if question.strip()]
+    
+    # return {
+    #     "llm_output": main_content,
+    #     "options": questions
+
+
+    # }
+######################## best response till now
     match = re.search(r"(.*)You might have the following questions:(.*)", response, re.DOTALL)
     
     if match:
@@ -376,32 +420,16 @@ def get_llm_output(response: str) -> dict:
         main_content = response.strip()  # If no questions section, return full content
         questions_text = ""
     
-    # Add a comma after each question mark
-    questions_text = re.sub(r'\?(?!\n)', '?,', questions_text)
+    # Remove all newline characters
+    questions_text = questions_text.replace('\n', '')
     
-    # Split questions into a list
-    questions = [question.strip() for question in questions_text.splitlines() if question.strip()]
+    # Split the questions based on question marks followed by optional whitespace and the end of a question
+    questions = re.split(r'\?\s*(?=\S|$)', questions_text)
+    
+    # Clean up each question, add question marks back, and filter out any empty strings
+    questions = [question.strip() + '?' for question in questions if question.strip()]
     
     return {
         "llm_output": main_content,
         "options": questions
     }
-
-# def parse_follow_up_questions(content: str):
-#     """
-#     Extracts follow-up questions listed after the phrase "You might have the following questions:"
-    
-#     Args:
-#     content (str): The text containing the main response and follow-up questions.
-
-#     Returns:
-#     list: A list of follow-up questions.
-#     """
-#     # Find text after "You might have the following questions:"
-#     match = re.search(r"You might have the following questions:(.*)", content, re.DOTALL)
-#     questions_text = match.group(1).strip() if match else ""
-    
-#     # Split text into individual questions using newlines or line breaks
-#     questions = [question.strip() for question in questions_text.splitlines() if question.strip()]
-    
-#     return questions
