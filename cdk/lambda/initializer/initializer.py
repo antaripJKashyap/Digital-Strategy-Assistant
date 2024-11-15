@@ -283,10 +283,10 @@ def handler(event, context):
 
                             Example:
                             "This is a short, direct answer to the question. You might have the following questions: Follow-up question 1? Follow-up question 2? Follow-up question 3?"
-
+                            
                             Initial questions:
                             "options": ["How can I implement the DLS recommendations in my teaching?", "Am I required to integrate the BC Digital Literacy Framework into my course?"]
-
+                            Use proper english grammar and punctuation. For example when giving a follow-up question, this how it should look like ["How can I implement the DLS recommendations in my teaching?", "Am I required to integrate the BC Digital Literacy Framework into my course?"]. There should be no comma after the last question.
                             Follow-up questions for "How can I implement the DLS recommendations in my teaching?":
                             "options": ["Can I find subject-specific teaching materials?", "Are there workshops for new educators?", "How can I request new resources?"]
 
@@ -304,7 +304,7 @@ def handler(event, context):
 
                             Initial questions:
                             "options": ["How can the DLS support me as an administrator in a post-secondary institution?", "Does the DLS require my institution to offer more online and/or hybrid learning options?"]
-
+                            Use proper english grammar and punctuation. For example when giving a follow-up question, this how it should look like ["How can the DLS support me as an administrator in a post-secondary institution?", "Does the DLS require my institution to offer more online and/or hybrid learning options?"]. There should be no comma after the last question.
                             Follow-up questions for "How can the DLS support me as an administrator in a post-secondary institution?":
                             "options": ["How does the DLS support collaboration between institutions?", "Which strategic priorities and recommendations in the DLS should my institution focus on?", "Does the DLS offer any cost-saving opportunities for my institution?"]
 
