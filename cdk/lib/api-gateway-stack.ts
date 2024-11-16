@@ -682,7 +682,7 @@
         this,
         "BedrockLLMParameter",
         {
-          parameterName: "/AILA/BedrockLLMId",
+          parameterName: "/DLS/BedrockLLMId",
           description: "Parameter containing the Bedrock LLM ID",
           stringValue: "meta.llama3-70b-instruct-v1:0",
         }
@@ -691,7 +691,7 @@
         this,
         "EmbeddingModelParameter",
         {
-          parameterName: "/AILA/EmbeddingModelId",
+          parameterName: "/DLS/EmbeddingModelId",
           description: "Parameter containing the Embedding Model ID",
           stringValue: "amazon.titan-embed-text-v2:0",
         }
@@ -701,7 +701,7 @@
         this,
         "TableNameParameter",
         {
-          parameterName: "/AILA/TableName",
+          parameterName: "/DLS/TableName",
           description: "Parameter containing the DynamoDB table name",
           stringValue: "DynamoDB-Conversation-Table",
         }
