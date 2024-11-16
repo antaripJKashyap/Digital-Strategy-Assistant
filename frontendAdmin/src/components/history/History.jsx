@@ -93,6 +93,7 @@ export default function History() {
   const [adminSessions, setAdminSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   useEffect(() => {
     const fetchSessions = async (userRole, setSession) => {
@@ -119,6 +120,10 @@ export default function History() {
         }
 
         const data = await response.json();
+        data.sort(
+          (a, b) =>
+            new Date(b.last_message_time) - new Date(a.last_message_time)
+        );
         setSession(data);
       } catch (error) {
         console.error(`Error fetching ${userRole} sessions:`, error);
@@ -142,6 +147,72 @@ export default function History() {
 
     loadSessions();
   }, [setPublicSessions, setEducatorSessions, setAdminSessions]);
+
+  const handleDownloadAllData = async () => {
+    setDownloadLoading(true);
+    const allSessions = [
+      ...publicSessions,
+      ...educatorSessions,
+      ...adminSessions,
+    ];
+    const csvData = [];
+
+    for (const session of allSessions) {
+      try {
+        const authSession = await fetchAuthSession();
+        const token = authSession.tokens.idToken;
+
+        const messagesResponse = await fetch(
+          `${
+            process.env.NEXT_PUBLIC_API_ENDPOINT
+          }admin/conversation_messages?session_id=${encodeURIComponent(
+            session.session_id
+          )}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: token,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!messagesResponse.ok) {
+          throw new Error(`HTTP error! status: ${messagesResponse.status}`);
+        }
+
+        const messagesData = await messagesResponse.json();
+        const messages = messagesData.messages;
+
+        messages.forEach((message) => {
+          csvData.push({
+            SessionID: session.session_id,
+            Role: session.role,
+            MessageType: message.Type,
+            MessageContent: message.Content,
+            MessageOptions: JSON.stringify(message.Options),
+            Timestamp: message.Timestamp,
+          });
+        });
+      } catch (error) {
+        console.error("Error fetching session data:", error);
+      }
+    }
+
+    const csvString =
+      Object.keys(csvData[0]).join(",") +
+      "\n" +
+      csvData.map((row) => Object.values(row).join(",")).join("\n");
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(
+      new Blob([csvString], { type: "text/csv" })
+    );
+    link.download = "conversation_data.csv";
+    link.click();
+
+    setDownloadLoading(false);
+  };
 
   const handleSessionClick = (role, session) => {
     setSelectedSession({ role, ...session });
@@ -177,6 +248,13 @@ export default function History() {
         sessions={adminSessions}
         onSessionClick={handleSessionClick}
       />
+      <Button
+        onClick={handleDownloadAllData}
+        disabled={downloadLoading}
+        className="mb-4 bg-adminMain hover:bg-adminHover"
+      >
+        {downloadLoading ? "Downloading..." : "Download All Messages"}
+      </Button>
     </div>
   );
 }

@@ -165,7 +165,7 @@ def update_vectorstore_from_s3(bucket, category_id):
     db_secret = get_secret()
 
     vectorstore_config_dict = {
-        'collection_name': f'{category_id}',
+        'collection_name': "all",
         'dbname': db_secret["dbname"],
         'user': db_secret["username"],
         'password': db_secret["password"],

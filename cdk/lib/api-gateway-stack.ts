@@ -1106,7 +1106,7 @@
       const getMessagesResource = this.api.root.addResource("conversation_messages");
       getMessagesResource.addMethod("GET", getMessagesIntegration, {
         requestParameters: {
-          "method.request.querystring.session_id": true, // Ensures session_id is a required query parameter
+          "method.request.querystring.session_id": true, 
         },
         authorizationType: apigateway.AuthorizationType.IAM, // Adjust if you use a different auth mechanism
       });
@@ -1116,6 +1116,12 @@
         principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
         action: "lambda:InvokeFunction",
         sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/conversation_messages`,
+      });
+
+      getMessagesFunction.addPermission("AllowApiGatewayInvokeUser", {
+        principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+        action: "lambda:InvokeFunction",
+        sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/get_messages`,
       });
       
 
