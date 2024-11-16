@@ -132,10 +132,11 @@ If you have trouble running the above command, try removing all the \ and run it
 ### Step 1: Build AWS Amplify App
 
 1. Log in to AWS console, and navigate to **AWS Amplify**. You can do so by typing `Amplify` in the search bar at the top.
-2. From `All apps`, click `aila-amplify`.
+2. From `All apps`, click `dls-amplify`.
 3. Then click `main` under `branches`
 4. Click `run job` and wait for the build to complete.
 5. You now have access to the `Amplify App ID` and the public domain name to use the web app.
+6. From `All apps`, click `dls-amplify-admin` and repeat steps 3-5.
 
 ### Step 2: Visit Web App
 You can now navigate to the web app URL to see your application in action.
