@@ -13,7 +13,7 @@ import { useState } from "react";
 export default function PreviousPrompts({ previousPrompts }) {
   const [currentPage, setCurrentPage] = useState(0);
   return (
-    <div className="w-full max-w-[80%] sm:max-w-xl mx-auto px-4 py-1">
+    <div className="w-full sm:max-w-xl md:max-w-full mx-auto px-4 py-1">
       <Card className="border-0 shadow-none">
         <CardHeader>
           <CardTitle className="text-base sm:text-md font-semibold text-center">

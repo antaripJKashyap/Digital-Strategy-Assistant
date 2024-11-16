@@ -38,7 +38,7 @@ const PostAuthHeader = ({ page }) => {
         <h1 className="text-center text-3xl font-bold">
           {headerMapping(page)}
         </h1>
-        <Button className="bg-adminMain hover:bg-[#000060] text-white text-md py-4" onClick={handleSignOut}>
+        <Button className="bg-adminMain hover:bg-adminHover text-white text-md py-4" onClick={handleSignOut}>
           Sign Out
         </Button>
       </div>

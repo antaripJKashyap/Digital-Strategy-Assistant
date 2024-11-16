@@ -208,13 +208,13 @@ const Categories = ({
       <div className="flex flex-row justify-between">
         <Button
           onClick={() => setSelectedPage("category_creation")}
-          className="bg-adminMain hover:bg-[#000060] text-white font-semibold py-4"
+          className="bg-adminMain hover:bg-adminHover text-white font-semibold py-4"
         >
           Create New Category
         </Button>
         <Button
           onClick={() => saveOrder()}
-          className="bg-adminMain hover:bg-[#000060] text-white font-semibold py-4"
+          className="bg-adminMain hover:bg-adminHover text-white font-semibold py-4"
         >
           Save Order
         </Button>

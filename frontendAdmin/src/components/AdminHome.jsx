@@ -14,12 +14,14 @@ import Category_creation from "./categories/Category_creation.jsx";
 import Edit_Category from "./categories/Edit_Category.jsx";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import LoadingScreen from "./Loading/LoadingScreen.jsx";
 const AdminHome = () => {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
   const [selectedPage, setSelectedPage] = useState("analytics");
   const [nextCategoryNumber, setNextCategoryNumber] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     const fetchAuthData = () => {
       fetchAuthSession()
@@ -32,6 +34,9 @@ const AdminHome = () => {
         })
         .catch((error) => {
           console.log(error);
+        })
+        .finally(() => {
+          setLoading(false);
         });
     };
 
@@ -62,6 +67,12 @@ const AdminHome = () => {
       return <Login />;
     }
   };
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+
+
   if (userGroup && userGroup.includes("admin")) {
     return (
       <div className="flex flex-col">

@@ -29,15 +29,40 @@ const SignIn = ({
 }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      toast.error("Please enter a valid email address.", {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
+      return;
+    }
+
     try {
       await signIn({
         username: email,
         password: password,
       });
       window.location.reload();
-      
     } catch (error) {
       console.error("Sign in error:", error);
+      toast.error(`Error: ${error}`, {
+        position: "top-center",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "colored",
+      });
     }
   };
 
@@ -46,7 +71,6 @@ const SignIn = ({
       <h2 className="text-2xl mb-6">Sign in</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          type="email"
           id="email"
           placeholder="Email address"
           value={email}
@@ -89,18 +113,6 @@ const SignIn = ({
           </a>
         </p>
       </div>
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
     </div>
   );
 };
