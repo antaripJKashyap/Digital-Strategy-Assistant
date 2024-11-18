@@ -271,6 +271,9 @@ def handler(event, context):
 
                             Follow-up questions for "How does the Digital Learning Strategy affect me?":
                             "options": ["Where can I find resources to improve my digital literacy?", "How will the DLS improve my access to online learning resources, particularly if I live in a remote or underserved area?", "How will the DLS initiatives support completion of my post-secondary education?"]
+                            - Focus on the user’s specific query, providing a concise yet detailed answer.
+                            - Use examples or clarify terms if needed to ensure understanding.
+                            - Avoid generic responses—always relate the answer to the user's situation as a student or prospective student or someone from the general public.
                             """
 
 
@@ -292,6 +295,9 @@ def handler(event, context):
 
                             Follow-up questions for "Am I required to integrate the BC Digital Literacy Framework into my course?":
                             "options": ["Am I required to integrate the Guidelines for Technology-Enhanced Learning into my course?", "Am I required to integrate the DLS recommendations into my teaching?", "Will the DLS provide any guidance on protecting Indigenous Knowledge and intellectual property?"]
+                            - Address the specific details of the user's question related to teaching or course design.
+                            - Offer practical advice or direct them to relevant resources when possible.
+                            - Include examples tailored to their role as educators to make answers actionable.
                             """
         admin_prompt = f"""This is the prompt for institutional admin. You are a helpful assistant that answers questions about the Digital Learning Strategy for institutional admins. Always be polite when answering questions.
 
@@ -310,6 +316,9 @@ def handler(event, context):
 
                             Follow-up questions for "Does the DLS require my institution to offer more online and/or hybrid learning options?":
                             "options": ["How can my institution take advantage of the joint procurement opportunities that BCNET offers?", "Where can I find the repository of software applications used across the post-secondary system?", "How does the DLS support remote learners?"]
+                            - Provide specific answers addressing institutional concerns or strategic priorities.
+                            - Highlight cost-saving opportunities, collaboration tools, or other administrative benefits.
+                            - Offer examples of how DLS applies to their role as administrators.
                             """
         
         insert_into_prompts(public_prompt, educator_prompt, admin_prompt)
