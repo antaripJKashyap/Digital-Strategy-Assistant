@@ -17,6 +17,12 @@ export default function AnalyticsDashboard() {
   const [messages_per_role_per_month, setMessagesPerRolePerMonth] = useState([]);
   const [loading, setLoading] = useState(true); 
 
+  const getMaxValue = (data, keys) => {
+    return Math.max(
+      ...data.flatMap((item) => keys.map((key) => item[key] || 0))
+    );
+  };
+
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
@@ -114,6 +120,13 @@ export default function AnalyticsDashboard() {
     };
   });
 
+    const maxValue = getMaxValue(processedData, [
+      "public",
+      "educator",
+      "admin",
+    ]);
+
+
   return (
     <main className="ml-12 flex-1 p-6 w-full">
       <div className="text-lg mb-4">Number of Users by Month</div>
@@ -204,6 +217,7 @@ export default function AnalyticsDashboard() {
               angle: -90,
               position: "insideLeft",
             }}
+            domain={[0, maxValue]}
           />
           <Line
             type="monotone"
@@ -243,7 +257,7 @@ export default function AnalyticsDashboard() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{feedback.userType}</span>
                 <span className="text-sm text-muted-foreground">
-                  {feedback.score.toFixed(1)}
+                  {Number(feedback.score).toFixed(1)}
                 </span>
               </div>
               <Progress

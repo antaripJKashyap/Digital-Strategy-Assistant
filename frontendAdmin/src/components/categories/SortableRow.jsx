@@ -45,7 +45,7 @@ const SortableRow = ({ category, setSelectedCategory, setSelectedPage }) => {
         </div>
       </TableCell>
       <TableCell>
-        <Button onClick={handleManage} className="py-4 bg-adminMain hover:bg-[#000060] text-white font-semibold">
+        <Button onClick={handleManage} className="py-4 bg-adminMain hover:bg-adminHover text-white font-semibold">
           MANAGE
         </Button>
       </TableCell>

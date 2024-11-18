@@ -112,7 +112,9 @@ const PromptSettings = ({
         <CardTitle>{promptId} Prompt Settings</CardTitle>
         <CardDescription>
           Warning: modifying the prompt in the text area below can significantly
-          impact the quality and accuracy of the responses.
+          impact the quality and accuracy of the responses. Modifying the format
+          of the output is discouraged, as it may result in unexpected or
+          incorrect behaviour.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -123,7 +125,7 @@ const PromptSettings = ({
           <textarea
             id={`prompt-${promptId}`}
             placeholder="Type your text here..."
-            className="min-h-[5rem] w-full md:min-h-[9rem] xl:min-h-[11rem] resize-none overflow-y-auto border p-2 rounded"
+            className="min-h-[25rem] w-full resize-none overflow-y-auto border p-2 rounded"
             maxLength={4096}
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
@@ -131,11 +133,11 @@ const PromptSettings = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-center">
-        <div className="flex flex-col">
+        <div className="flex flex-col items-center">
           <PreviousPrompts previousPrompts={previousPrompts} />
           <Button
             onClick={handleSave}
-            className="bg-adminMain hover:hover:bg-[#000060]"
+            className="bg-adminMain hover:hover:bg-adminHover w-[80%]"
           >
             Save
           </Button>

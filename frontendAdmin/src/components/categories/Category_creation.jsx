@@ -362,13 +362,13 @@ export default function Category_creation({
         <div className="flex flex-row gap-x-8">
           <Button
             onClick={() => setSelectedPage("categories")}
-            className="bg-adminMain hover:bg-[#000060] px-8"
+            className="bg-adminMain hover:bg-adminHover px-8"
           >
             Cancel
           </Button>
         </div>
         <Button
-          className="px-8 bg-adminMain hover:bg-[#000060]"
+          className="px-8 bg-adminMain hover:bg-adminHover"
           onClick={uploadFiles}
           disabled={isUploading}
         >

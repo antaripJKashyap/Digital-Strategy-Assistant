@@ -3,16 +3,17 @@ import json
 import boto3
 import logging
 import psycopg2
+import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
 
 from helpers.vectorstore import get_vectorstore_retriever
-from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response, update_session_name
+from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-print("printing hello")
+
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
@@ -35,8 +36,71 @@ def get_secret(secret_name, expect_json=True):
         logger.error(f"Error fetching secret {secret_name}: {e}")
         raise
 
+def log_user_engagement(
+    session_id, 
+    document_id=None, 
+    engagement_type="message creation", 
+    engagement_details=None, 
+    user_role=None, 
+    user_info=None
+):
+    connection = None
+    cur = None
+    try:
+        # Get database credentials and establish a connection
+        db_secret = get_secret(DB_SECRET_NAME)
+        connection_params = {
+            'dbname': db_secret["dbname"],
+            'user': db_secret["username"],
+            'password': db_secret["password"],
+            'host': db_secret["host"],
+            'port': db_secret["port"]
+        }
 
-    
+        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+        connection = psycopg2.connect(connection_string)
+        cur = connection.cursor()
+
+        # Define the SQL query
+        query = """
+        INSERT INTO user_engagement_log (
+            log_id, session_id, document_id, engagement_type, 
+            engagement_details, user_role, user_info, timestamp
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        # Generate a unique log ID and current timestamp
+        log_id = str(uuid.uuid4())
+        timestamp = datetime.datetime.now()
+
+        # Execute the query
+        cur.execute(
+            query, 
+            (
+                log_id, 
+                session_id, 
+                document_id, 
+                engagement_type, 
+                engagement_details, 
+                user_role, 
+                user_info, 
+                timestamp
+            )
+        )
+
+        # Commit the transaction
+        connection.commit()
+        logger.info("User engagement logged successfully.")
+
+    except Exception as e:
+        if connection:
+            connection.rollback()
+        logger.error(f"Error logging user engagement: {e}")
+    finally:
+        if cur:
+            cur.close()
+        if connection:
+            connection.close()
 
 def get_parameter(param_name):
     """
@@ -90,18 +154,58 @@ def get_system_prompts():
         logger.info("Connected to RDS instance!")
 
         cur.execute("""
-            SELECT "public", "educator", "admin"
-            FROM "prompts";
+            SELECT public, time_created
+            FROM prompts
+            WHERE public IS NOT NULL
+            ORDER BY time_created DESC NULLS LAST
+            LIMIT 1;
         """)
         
         result = cur.fetchone()
         logger.info(f"Query result: {result}")
         if result:
-            public_prompt, educator_prompt, admin_prompt = result
-            logger.info("Prompts fetched successfully.")
+            public_prompt, time_created = result
+            logger.info("Public Prompts fetched successfully.")
+            print(public_prompt)
         else:
             logger.warning("No prompts found in the prompts table.")
-            public_prompt = educator_prompt = admin_prompt = None
+            public_prompt = None
+
+        cur.execute("""
+            SELECT educator, time_created
+            FROM prompts
+            WHERE educator IS NOT NULL
+            ORDER BY time_created DESC NULLS LAST
+            LIMIT 1;
+        """)
+        
+        result = cur.fetchone()
+        logger.info(f"Query result: {result}")
+        if result:
+            educator_prompt, time_created = result
+            logger.info("Educator Prompts fetched successfully.")
+            print(educator_prompt)
+        else:
+            logger.warning("No prompts found in the prompts table.")
+            educator_prompt = None
+        
+        cur.execute("""
+            SELECT admin, time_created
+            FROM prompts
+            WHERE admin IS NOT NULL
+            ORDER BY time_created DESC NULLS LAST
+            LIMIT 1;
+        """)
+        
+        result = cur.fetchone()
+        logger.info(f"Query result: {result}")
+        if result:
+            admin_prompt, time_created = result
+            logger.info("Educator Prompts fetched successfully.")
+            print(admin_prompt)
+        else:
+            logger.warning("No prompts found in the prompts table.")
+            admin_prompt = None
 
         return {
             'public_prompt': public_prompt,
@@ -126,22 +230,23 @@ def handler(event, context):
 
     query_params = event.get("queryStringParameters", {})
 
-    category_id = query_params.get("category_id", "")
+    # category_id = query_params.get("category_id", "")
     session_id = query_params.get("session_id", "")
+    user_info = query_params.get("user_info", "")
     # session_name = query_params.get("session_name")
 
-    if not category_id:
-        logger.error("Missing required parameter: category_id")
-        return {
-            'statusCode': 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('Missing required parameter: category_id')
-        }
+    # if not category_id:
+    #     logger.error("Missing required parameter: category_id")
+    #     return {
+    #         'statusCode': 400,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Access-Control-Allow-Headers": "*",
+    #             "Access-Control-Allow-Origin": "*",
+    #             "Access-Control-Allow-Methods": "*",
+    #         },
+    #         'body': json.dumps('Missing required parameter: category_id')
+    #     }
 
     if not session_id:
         logger.error("Missing required parameter: session_id")
@@ -156,18 +261,6 @@ def handler(event, context):
             'body': json.dumps('Missing required parameter: session_id')
         }
 
-
-    
-    # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
-    #                     Here is a link to that website: "https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy".
-    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
-    #                     """
-
-     # system_prompt = """You are an AI assistant for a program called Digital Learning Strategy by the Government of British Columbia. 
-    #                     Your job is to help the different types of users. Different types of users include: Student, prospective student, educator, educational designer, Post-secondary institution administrator, Post-secondary institution leader. 
-    #                     """
-
-    # system_prompt = """You are an instructor for a course. Your job is to help the student master the topic"""
     logger.info("Fetching prompts from the database.")
     prompts = get_system_prompts()
 
@@ -224,17 +317,48 @@ def handler(event, context):
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
+    user_role = body.get("user_role", "")
     
+    # Check if user_role is provided after the initial greeting
+    if user_role:
+        logger.info(f"User role received: {user_role}")
+    else:
+        logger.info("Awaiting user role selection.")
+
     if not question:
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
         initial_query = get_initial_student_query()
         query_data = json.loads(initial_query)
         options = query_data["options"]
-        student_query = initial_query
+        # student_query = get_student_query("")
+        # options = []
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            "body": json.dumps({
+                "type": "ai",
+                "content": "Hello! Please select the best role below that fits you. We can better answer your questions. Don't include personal details such as your name and private content.",
+                "options": options,
+                "user_role": user_role
+            })
+        }
+        
     else:
         logger.info(f"Processing student question: {question}")
         student_query = get_student_query(question)
         options = []
+        log_user_engagement(
+            session_id=session_id,
+            engagement_type="message creation",
+            user_info=user_info,
+            user_role=user_role
+        )
+        logger.info(f"User role {user_role} logged in engagement log.")
     
     try:
         logger.info("Creating Bedrock LLM instance.")
@@ -256,7 +380,7 @@ def handler(event, context):
         logger.info("Retrieving vectorstore config.")
         db_secret = get_secret(DB_SECRET_NAME)
         vectorstore_config_dict = {
-            'collection_name': category_id,
+            'collection_name': "all",
             'dbname': db_secret["dbname"],
             'user': db_secret["username"],
             'password': db_secret["password"],
@@ -322,17 +446,6 @@ def handler(event, context):
             'body': json.dumps('Error getting response')
         }
     
-    # try:
-    #     logger.info("Updating session name if this is the first exchange between the LLM and student")
-    #     potential_session_name = update_session_name(TABLE_NAME, session_id, BEDROCK_LLM_ID)
-    #     if potential_session_name:
-    #         logger.info("This is the first exchange between the LLM and student. Updating session name.")
-    #         session_name = potential_session_name
-    #     else:
-    #         logger.info("Not the first exchange between the LLM and student. Session name remains the same.")
-    # except Exception as e:
-    #     logger.error(f"Error updating session name: {e}")
-    #     session_name = "New Chat"
     
     logger.info("Returning the generated response.")
     return {
@@ -344,8 +457,9 @@ def handler(event, context):
                 "Access-Control-Allow-Methods": "*",
             },
         "body": json.dumps({
-            "session_id": session_id,
-            "llm_output": response.get("llm_output", "LLM failed to create response"),
-            "options": options
+            "type": "ai",
+            "content": response.get("llm_output", "LLM failed to create response"),
+            "options": response.get("options", []),
+            "user_role": user_role
         })
     }

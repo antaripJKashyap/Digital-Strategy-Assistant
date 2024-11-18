@@ -18,6 +18,7 @@ module.exports = {
   			adminAccent: '#F1F8FE',
   			adminBackground: '#f1f1f1',
   			adminHome: '#d5cde5',
+			adminHover:'#000060',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

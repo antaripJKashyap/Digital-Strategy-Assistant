@@ -85,15 +85,15 @@ paths:
       operationId: user_text_generation_POST
       parameters:
         - in: query
-          name: category_id
-          required: true
-          description: ID of the course
-          schema:
-            type: string
-        - in: query
           name: session_id
           required: true
           description: ID of the session since multiple sessions can exist within a table
+          schema:
+            type: string
+        - in: query
+          name: user_info
+          required: false
+          description: salted info of the user
           schema:
             type: string
       requestBody:
@@ -106,6 +106,9 @@ paths:
                 message_content:
                   type: string
                   description: Content of the user's message
+                user_role:
+                  type: string
+                  description: Role of the user
       responses:
         "200":
           description: Response with generated array and input value
@@ -172,12 +175,6 @@ paths:
           name: user_info
           required: true
           description: salted user info
-          schema:
-            type: string
-        - in: query
-          name: user_role
-          required: true
-          description: role of the user
           schema:
             type: string
       responses:
@@ -356,7 +353,7 @@ paths:
           description: Internal Server Error
       x-amazon-apigateway-integration:
         uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -428,6 +425,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GeneratePreSignedURLFunc.Arn}/invocations"
@@ -494,6 +493,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteDocumentFunc.Arn}/invocations"
@@ -548,6 +549,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteCategoryFunc.Arn}/invocations"
@@ -595,6 +598,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -684,6 +689,8 @@ paths:
                   error:
                     type: string
                     description: Description of the error.
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -752,6 +759,8 @@ paths:
                   error:
                     type: string
                     description: Description of the error.
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -816,6 +825,8 @@ paths:
           description: Category not found
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -870,6 +881,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDocumentsFunction.Arn}/invocations"
@@ -917,6 +930,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -971,6 +986,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -1025,6 +1042,8 @@ paths:
           description: Too Many Requests
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
@@ -1087,6 +1106,8 @@ paths:
           description: No prompts found
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -1129,6 +1150,8 @@ paths:
           description: Previous prompts retrieved successfully
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -1192,6 +1215,8 @@ paths:
           description: Missing or invalid parameters
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
@@ -1269,12 +1294,66 @@ paths:
           description: Missing or invalid parameters
         "500":
           description: Internal Server Error
+      security:
+        - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "GET"
         type: "aws_proxy"
+  /admin/get_feedback:
+      options:
+        summary: CORS support
+        description: |
+          Enable CORS by returning correct headers
+        responses:
+          200:
+            $ref: "#/components/responses/Success"
+        x-amazon-apigateway-integration:
+          type: mock
+          requestTemplates:
+            application/json: |
+              {
+                "statusCode" : 200
+              }
+          responses:
+            default:
+              statusCode: "200"
+              responseParameters:
+                method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+                method.response.header.Access-Control-Allow-Methods: "'*'"
+                method.response.header.Access-Control-Allow-Origin: "'*'"
+              responseTemplates:
+                application/json: |
+                  {}
+      get:
+        tags:
+          - Admin
+        summary: Get feedback for a particular session
+        description: Retrieves all feedback related to a specific session_id
+        operationId: admin_get_feedback_GET
+        parameters:
+        - in: query
+          name: session_id
+          required: true
+          description: ID of the session for which feedback are requested
+          schema:
+            type: string
+        responses:
+          "200":
+            description: feedback retrieved successfully
+          "500":
+            description: Internal Server Error
+        security:
+          - adminAuthorizer: []
+        x-amazon-apigateway-integration:
+          uri:
+            Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+          passthroughBehavior: "when_no_match"
+          httpMethod: "POST"
+          type: "aws_proxy"
+      
 components:
   securitySchemes:
     adminAuthorizer:

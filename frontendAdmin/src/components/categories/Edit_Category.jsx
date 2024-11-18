@@ -577,7 +577,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
         <div className="flex flex-row gap-x-8">
           <Button
             onClick={() => setSelectedPage("categories")}
-            className="bg-adminMain hover:bg-[#000060] px-8"
+            className="bg-adminMain hover:bg-adminHover px-8"
           >
             Cancel
           </Button>
@@ -619,7 +619,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
           </Dialog>
         </div>
         <Button
-          className="px-8 bg-adminMain hover:bg-[#000060]"
+          className="px-8 bg-adminMain hover:bg-adminHover"
           onClick={handleSaveChanges}
           disabled={isDeleting || saving} // Disable save button while deleting or saving
         >

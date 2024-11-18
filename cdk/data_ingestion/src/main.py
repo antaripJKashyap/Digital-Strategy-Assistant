@@ -165,7 +165,7 @@ def update_vectorstore_from_s3(bucket, category_id):
     db_secret = get_secret()
 
     vectorstore_config_dict = {
-        'collection_name': f'{category_id}',
+        'collection_name': "all",
         'dbname': db_secret["dbname"],
         'user': db_secret["username"],
         'password': db_secret["password"],
@@ -196,7 +196,7 @@ def handler(event, context):
         event_name = record['eventName']
         bucket_name = record['s3']['bucket']['name']
 
-        # Only process files from the AILA_DATA_INGESTION_BUCKET
+        # Only process files from the DLS_DATA_INGESTION_BUCKET
         if bucket_name != DLS_DATA_INGESTION_BUCKET:
             print(f"Ignoring event from non-target bucket: {bucket_name}")
             continue  # Ignore this event and move to the next one

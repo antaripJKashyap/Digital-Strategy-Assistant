@@ -397,10 +397,12 @@ exports.handler = async (event) => {
           try {
             const sessions = await sqlConnectionTableCreator`
                 SELECT DISTINCT ON (uel.session_id)
-                  uel.session_id,
-                  uel.timestamp AS last_message_time
+                      uel.session_id,
+                      uel.timestamp AS last_message_time
                 FROM user_engagement_log uel
-                WHERE uel.user_role = ${userRole} AND uel.engagement_type = 'message creation'
+                WHERE uel.user_role = ${userRole} 
+                  AND uel.engagement_type = 'message creation'
+                  AND uel.session_id IS NOT NULL
                 ORDER BY uel.session_id, uel.timestamp DESC;
               `;
 
@@ -585,6 +587,41 @@ exports.handler = async (event) => {
           });
         } catch (err) {
           // Handle any errors that occur during the insert
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+      case "GET /admin/get_feedback":
+        try {
+          if (
+            !event.queryStringParameters ||
+            !event.queryStringParameters.session_id
+          ) {
+            response.statusCode = 400;
+            response.body = JSON.stringify({
+              error: "Missing required parameter: session_id",
+            });
+            break;
+          }
+
+          const session_id = event.queryStringParameters.session_id;
+          const feedbackEntries = await sqlConnectionTableCreator`
+        SELECT feedback_id, session_id, feedback_rating, feedback_description, timestamp
+        FROM feedback
+        WHERE session_id = ${session_id}
+        ORDER BY timestamp DESC;
+        `;
+          if (feedbackEntries.length === 0) {
+            response.statusCode = 404;
+            response.body = JSON.stringify({
+              error: "No feedback found for the given session_id",
+            });
+          } else {
+            response.statusCode = 200;
+            response.body = JSON.stringify(feedbackEntries);
+          }
+        } catch (err) {
           response.statusCode = 500;
           console.error(err);
           response.body = JSON.stringify({ error: "Internal server error" });
