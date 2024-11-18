@@ -74,9 +74,7 @@ const PublicHome = ({ setPage }) => {
                          text-sm sm:text-base md:text-lg 
                          flex flex-row items-center gap-2 sm:gap-3 md:gap-4
                          w-[90%] sm:w-[70%] md:w-[50%] lg:w-[40%] xl:w-[30%]
-                         rounded-lg shadow-md hover:shadow-lg 
-                         transition-all duration-300
-                         hover:transform hover:scale-105"
+                         rounded-lg shadow-md transition-all duration-300"
               >
                 {item.icon}
                 <span className="flex-1">{item.text}</span>
