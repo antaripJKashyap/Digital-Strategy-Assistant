@@ -200,9 +200,6 @@ def process_documents(
             for document in page['Contents']:
                 
                 documentname = document['Key']
-                # if documentname.split('/')[-2] == "documents": # Ensures that only files in the 'documents' folder are processed
-                #     if documentname.endswith((".pdf", ".docx", ".pptx", ".txt", ".xlsx", ".xps", ".mobi", ".cbz")):
-                        # module = filename.split('/')[1]
                 this_doc_chunks = add_document(
                     bucket=bucket,
                     category_id=category_id,
