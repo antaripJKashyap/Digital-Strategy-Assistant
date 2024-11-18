@@ -149,7 +149,7 @@ def get_response(
         f"{educator_prompt}"
         f"{admin_prompt}"
         "After selecting the appropriate prompt for the user"
-        "After the first question has been answered, provide a list of follow-up questions under 'options', and answer any related questions. "
+        "After the first question has been answered, provide a list of follow-up questions under 'options', and answer any related questions. The follow up questions should be related to the Digital Learning Strategy and the user's role."
         "Only the initial questions (first question in the chat) and follow-up questions (second question in the chat) are defined in the prompts. Once the user asks the second question and it is answered, generate 3 questions that the user might have based on the chat history. "
         "Don't ask the user to select an option for the follow-up questions. Just print the questions after (You might have the following questions:)"
         "Answer concisely."
