@@ -31,7 +31,7 @@ const Chat = ({ setPage }) => {
     Options: [
       "Student/general public",
       "Educator/educational designer",
-      "Admin",
+      "Post-secondary institution admin/leader",
     ],
     user_role: "",
   };
