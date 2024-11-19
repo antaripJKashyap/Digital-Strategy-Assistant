@@ -28,7 +28,8 @@ const ForgotPassword = ({
     e.preventDefault();
     try {
       await resetPassword({
-        username: email});
+        username: email.toLowerCase(),
+      });
       setAuthState("passwordReset");
     } catch (error) {
       console.error("Reset password error:", error);
