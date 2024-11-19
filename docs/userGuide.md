@@ -15,7 +15,18 @@ Administrators can sign up by pressing the sign up button and filling in their i
 ![image](./images/sign-up.png)
 ![image](./images/create-account.png)
 
-After inputting the confirmation code sent to their email, they can log in.
+Approve administrators by changing their user group with Cognito through the AWS Console: 
+![image](./images/user-pool.png)
+
+After clicking the user pool of the project, find the emails of the administrators to be approved:
+![image](./images/users.png)
+
+After clicking their email, add the 'admin' user group:
+![image](./images/add-user-group.png)
+![image](./images/select-admin.png)
+![image](./images/only-admin.png)
+
+After inputting the confirmation code sent to their email, administrators can log in.
 ![image](./images/confirmation.png)
 
 Upon logging in, the administrator will see the analytics of the public view of the Digital Learning Strategy. This includes the number of users by month, the number of messages sent by each role by month, and the average feedback score for each role.
