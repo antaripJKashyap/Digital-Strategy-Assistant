@@ -74,7 +74,7 @@ const SignUp = ({
       setLoading(true);
       console.log("signing up");
       const { isSignUpComplete, userId, nextStep } = await signUp({
-        username: email,
+        username: email.toLowerCase(),
         password: password,
         attributes: {
           email: email,
