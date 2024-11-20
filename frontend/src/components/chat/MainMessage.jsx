@@ -1,10 +1,26 @@
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Markdown from "react-markdown";
+import { Copy, Volume2 } from "lucide-react";
+
 const MainMessage = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleSpeak = () => {
+    const msg = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(msg);
+  };
+
   return (
-    <div>
-      <div className="mt-4 mb-2 pl-4 pr-8 py-4 whitespace-pre-line bg-customMessage w-9/12 border border-customMain rounded-tr-lg rounded-br-lg rounded-bl-lg">
+    <div className="flex flex-col w-9/12">
+      <div className="mt-4 mb-2 pl-4 pr-8 py-4 whitespace-pre-line bg-customMessage border border-customMain rounded-tr-lg rounded-br-lg rounded-bl-lg">
         <Image
           className="mb-2"
           src="/logo.png"
@@ -12,7 +28,45 @@ const MainMessage = ({ text }) => {
           width={40}
           height={40}
         />
-        <Markdown className="text-md">{text}</Markdown>
+        <Markdown
+          className="text-md"
+          components={{
+            a: ({ href, children }) => (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                {children}
+              </a>
+            ),
+          }}
+        >
+          {text}
+        </Markdown>
+      </div>
+      <div className="flex space-x-4 mt-2 ml-2">
+        <button
+          onClick={handleCopy}
+          className="text-gray-600 hover:text-black transition-colors flex items-center"
+          aria-label="Copy message"
+        >
+          {copied ? (
+            <span className="text-xs text-black mr-1">Copied!</span>
+          ) : (
+            <Copy size={20} className="mr-1" />
+          )}
+          {!copied && <span className="text-xs">Copy</span>}
+        </button>
+        <button
+          onClick={handleSpeak}
+          className="text-gray-600 hover:text-black transition-colors flex items-center"
+          aria-label="Read message aloud"
+        >
+          <Volume2 size={20} className="mr-1" />
+          <span className="text-xs">Speak</span>
+        </button>
       </div>
     </div>
   );

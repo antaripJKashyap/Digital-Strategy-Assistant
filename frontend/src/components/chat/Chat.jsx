@@ -4,7 +4,12 @@ import MainMessage from "./MainMessage";
 import OptionMessage from "./OptionMessage";
 import UserMessage from "./UserMessage";
 import Footer from "../Footer";
-import { LuSendHorizonal, LuListRestart } from "react-icons/lu";
+import {
+  LuSendHorizonal,
+  LuListRestart,
+  LuMic,
+  LuMicOff,
+} from "react-icons/lu";
 import { getFingerprint } from "@thumbmarkjs/thumbmarkjs";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -23,6 +28,8 @@ const Chat = ({ setPage }) => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback, setFeedback] = useState({ rating: "", description: [] });
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -339,6 +346,56 @@ const Chat = ({ setPage }) => {
     return null;
   };
 
+  const startSpeechRecognition = () => {
+    // Check if speech recognition is supported
+    if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = "en-US";
+
+      recognitionRef.current.onstart = () => {
+        setIsListening(true);
+        console.log(
+          "Voice recognition started. Try speaking into the microphone."
+        );
+      };
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        console.log(transcript)
+        setMessageInput(
+          (prevInput) => prevInput + (prevInput ? " " : "") + transcript
+        );
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        setIsListening(false);
+        toast.error("Speech recognition failed. Please try again.");
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current.start();
+    } else {
+      toast.error("Speech recognition not supported in this browser.");
+    }
+  };
+
+  const stopSpeechRecognition = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
   return (
     <div>
       <div className="w-full h-screen flex flex-col">
@@ -361,27 +418,45 @@ const Chat = ({ setPage }) => {
         </div>
         <div className="flex flex-col">
           <div className="border-t border-b border-black w-full flex items-center justify-between px-8">
-            <button onClick={handleSessionReset}>
-              <LuListRestart size={20} />
-            </button>
-            <textarea
-              ref={textareaRef}
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none"
-              placeholder="Type a message..."
-              maxLength={2096}
-              style={{ minHeight: "40px" }}
-              rows={1}
-              onInput={(e) => {
-                e.target.style.height = "auto";
-                e.target.style.height = `${Math.max(
-                  e.target.scrollHeight,
-                  48
-                )}px`;
-              }}
-            />
+            <div className="flex items-center space-x-2">
+              <button onClick={handleSessionReset}>
+                <LuListRestart size={20} />
+              </button>
+              {/* Speech Recognition Button */}
+              <button
+                onClick={
+                  isListening ? stopSpeechRecognition : startSpeechRecognition
+                }
+                className={`${isListening ? "text-red-500" : "text-black"}`}
+              >
+                {isListening ? <LuMicOff size={20} /> : <LuMic size={20} />}
+              </button>
+            </div>
+            <div className="flex-grow mx-4 flex items-center">
+              <textarea
+                ref={textareaRef}
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none flex items-center justify-center"
+                placeholder="Type a message..."
+                maxLength={2096}
+                style={{
+                  minHeight: "40px",
+                  height: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                rows={1}
+                onInput={(e) => {
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.max(
+                    e.target.scrollHeight,
+                    48
+                  )}px`;
+                }}
+              />
+            </div>
             <button
               onClick={() =>
                 !isLoading && messageInput.trim() && sendMessage(messageInput)
