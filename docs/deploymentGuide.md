@@ -13,8 +13,7 @@
     - [Step 3: CDK Deployment](#step-3-cdk-deployment)
   - [Post-Deployment](#post-deployment)
     - [Step 1: Build AWS Amplify App](#step-1-build-aws-amplify-app)
-    - [Step 2: Change Redirects](#step-2-change-redirects)
-    - [Step 3: Visit Web App](#step-3-visit-web-app)
+    - [Step 2: Visit Web App](#step-2-visit-web-app)
   - [Cleanup](#cleanup)
     - [Taking down the deployed stack](#taking-down-the-deployed-stack)
 
@@ -124,7 +123,7 @@ cdk bootstrap aws://<YOUR_AWS_ACCOUNT_ID>/<YOUR_ACCOUNT_REGION> --profile <your-
 **Deploy CDK stack**
 You may run the following command to deploy the stacks all at once. Again, replace `<your-profile-name>` with the appropriate AWS profile used earlier.
 ```
-cdk deploy --all --parameters AmplifyStack:githubRepoName=Digital-Learning-Strategy --profile <your-profile-name>
+cdk deploy --all --parameters AmplifyStack:githubRepoName=Digital-Learning-Strategy --context prefix=Digital-Learning-Strategy-production --profile <your-profile-name>
 ```
 If you have trouble running the above command, try removing all the \ and run it in one line.
 

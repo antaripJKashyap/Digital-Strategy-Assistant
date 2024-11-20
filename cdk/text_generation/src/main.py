@@ -230,23 +230,9 @@ def handler(event, context):
 
     query_params = event.get("queryStringParameters", {})
 
-    # category_id = query_params.get("category_id", "")
+    
     session_id = query_params.get("session_id", "")
     user_info = query_params.get("user_info", "")
-    # session_name = query_params.get("session_name")
-
-    # if not category_id:
-    #     logger.error("Missing required parameter: category_id")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Missing required parameter: category_id')
-    #     }
 
     if not session_id:
         logger.error("Missing required parameter: session_id")
