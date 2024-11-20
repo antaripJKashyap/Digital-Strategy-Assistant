@@ -48,7 +48,7 @@ const SignIn = ({
 
     try {
       await signIn({
-        username: email,
+        username: email.toLowerCase(),
         password: password,
       });
       const { tokens } = await fetchAuthSession();

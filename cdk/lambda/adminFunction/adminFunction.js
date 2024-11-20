@@ -396,15 +396,40 @@ exports.handler = async (event) => {
 
           try {
             const sessions = await sqlConnectionTableCreator`
-                SELECT DISTINCT ON (uel.session_id)
-                      uel.session_id,
-                      uel.timestamp AS last_message_time
-                FROM user_engagement_log uel
-                WHERE uel.user_role = ${userRole} 
-                  AND uel.engagement_type = 'message creation'
-                  AND uel.session_id IS NOT NULL
-                ORDER BY uel.session_id, uel.timestamp DESC;
-              `;
+       WITH ranked_messages AS (
+          SELECT 
+            session_id,
+            engagement_details,
+            timestamp,
+            ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp) as msg_order,
+            ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp DESC) as reverse_order
+          FROM user_engagement_log
+          WHERE 
+            session_id IS NOT NULL
+            AND engagement_type = 'message creation'
+        ),
+        second_messages AS (
+          SELECT 
+            session_id,
+            engagement_details as second_message_details
+          FROM ranked_messages
+          WHERE msg_order = 2
+        ),
+        latest_messages AS (
+          SELECT 
+            session_id,
+            timestamp as last_message_time
+          FROM ranked_messages
+          WHERE reverse_order = 1
+        )
+        SELECT 
+          lm.session_id,
+          lm.last_message_time,
+          sm.second_message_details
+        FROM latest_messages lm
+        LEFT JOIN second_messages sm ON lm.session_id = sm.session_id
+        ORDER BY lm.last_message_time DESC;
+      `;
 
             response.body = JSON.stringify(sessions);
             response.statusCode = 200; // OK
