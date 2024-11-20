@@ -4,6 +4,7 @@ import {
   History,
   PenSquare,
   FileText,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -32,6 +33,11 @@ const menuItems = [
     id: "files",
     label: "Files",
     icon: FileText,
+  },
+  {
+    id: "feedback",
+    label: "Feedback",
+    icon: MessageCircle,
   },
 ];
 

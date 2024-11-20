@@ -245,6 +245,7 @@ export default function History() {
       <Session
         session={selectedSession}
         onBack={() => setSelectedSession(null)}
+        from={"History"}
       />
     );
   }
