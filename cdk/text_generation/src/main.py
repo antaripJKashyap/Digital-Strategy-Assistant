@@ -355,6 +355,7 @@ def handler(event, context):
         log_user_engagement(
             session_id=session_id,
             engagement_type="message creation",
+            engagement_details=question,
             user_info=user_info,
             user_role=user_role
         )
