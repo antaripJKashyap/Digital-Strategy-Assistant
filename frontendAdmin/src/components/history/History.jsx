@@ -93,7 +93,7 @@ const RoleView = ({ role, sessions, onSessionClick }) => {
                 </div>
                 {session.second_message_details && (
                   <div className="flex items-center space-x-2">
-                    <span className="text-gray-500">Engagement Details:</span>
+                    <span className="text-gray-500">Initial Question:</span>
                     <span className="text-sm">
                       {session.second_message_details}
                     </span>
