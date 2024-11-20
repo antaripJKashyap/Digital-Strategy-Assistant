@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import Markdown from "react-markdown";
-import { Copy, Volume2 } from "lucide-react";
+import { Copy, Volume2, StopCircle } from "lucide-react";
 
 const MainMessage = ({ text }) => {
   const [copied, setCopied] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speechSynthesisRef = useRef(null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(text).then(() => {
@@ -14,7 +16,22 @@ const MainMessage = ({ text }) => {
   };
 
   const handleSpeak = () => {
+    // If already speaking, stop
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
     const msg = new SpeechSynthesisUtterance(text);
+    
+    // Add event listeners to track speaking state
+    msg.onstart = () => setIsSpeaking(true);
+    msg.onend = () => setIsSpeaking(false);
+    
+    // Store reference to allow potential manual cancellation
+    speechSynthesisRef.current = msg;
+    
     window.speechSynthesis.speak(msg);
   };
 
@@ -62,10 +79,19 @@ const MainMessage = ({ text }) => {
         <button
           onClick={handleSpeak}
           className="text-gray-600 hover:text-black transition-colors flex items-center"
-          aria-label="Read message aloud"
+          aria-label={isSpeaking ? "Stop speaking" : "Read message aloud"}
         >
-          <Volume2 size={20} className="mr-1" />
-          <span className="text-xs">Speak</span>
+          {isSpeaking ? (
+            <>
+              <StopCircle size={20} className="mr-1" />
+              <span className="text-xs">Stop</span>
+            </>
+          ) : (
+            <>
+              <Volume2 size={20} className="mr-1" />
+              <span className="text-xs">Speak</span>
+            </>
+          )}
         </button>
       </div>
     </div>

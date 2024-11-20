@@ -5,7 +5,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 import { ArrowLeft } from "lucide-react";
 import LoadingScreen from "../Loading/LoadingScreen";
 
-export default function Session({ session, onBack }) {
+export default function Session({ session, onBack, from }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -120,7 +120,7 @@ export default function Session({ session, onBack }) {
         onClick={onBack}
         className="mb-4 bg-adminMain hover:bg-adminHover"
       >
-        <ArrowLeft className="mr-2 h-4 w-4" /> Back to History
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back to {from}
       </Button>
       <h2 className="text-2xl font-bold mb-4">Session Details</h2>
       <p className="mb-2">

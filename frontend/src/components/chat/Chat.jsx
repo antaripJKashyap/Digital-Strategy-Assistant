@@ -346,56 +346,6 @@ const Chat = ({ setPage }) => {
     return null;
   };
 
-  const startSpeechRecognition = () => {
-    // Check if speech recognition is supported
-    if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
-
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = "en-US";
-
-      recognitionRef.current.onstart = () => {
-        setIsListening(true);
-        console.log(
-          "Voice recognition started. Try speaking into the microphone."
-        );
-      };
-
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log(transcript)
-        setMessageInput(
-          (prevInput) => prevInput + (prevInput ? " " : "") + transcript
-        );
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        setIsListening(false);
-        toast.error("Speech recognition failed. Please try again.");
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current.start();
-    } else {
-      toast.error("Speech recognition not supported in this browser.");
-    }
-  };
-
-  const stopSpeechRecognition = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    }
-  };
-
   return (
     <div>
       <div className="w-full h-screen flex flex-col">
@@ -421,15 +371,6 @@ const Chat = ({ setPage }) => {
             <div className="flex items-center space-x-2">
               <button onClick={handleSessionReset}>
                 <LuListRestart size={20} />
-              </button>
-              {/* Speech Recognition Button */}
-              <button
-                onClick={
-                  isListening ? stopSpeechRecognition : startSpeechRecognition
-                }
-                className={`${isListening ? "text-red-500" : "text-black"}`}
-              >
-                {isListening ? <LuMicOff size={20} /> : <LuMic size={20} />}
               </button>
             </div>
             <div className="flex-grow mx-4 flex items-center">

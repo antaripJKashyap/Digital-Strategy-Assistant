@@ -1353,7 +1353,89 @@ paths:
           passthroughBehavior: "when_no_match"
           httpMethod: "POST"
           type: "aws_proxy"
-      
+  /admin/feedback_by_role:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Admin
+      summary: Get feedback grouped by user roles
+      description: Retrieves feedback grouped by user roles (admin, public, educator) with statistics and details.
+      operationId: admin_feedback_by_role_GET
+      responses:
+        "200":
+          description: Feedback retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    user_role:
+                      type: string
+                      description: The user role (e.g., admin, public, educator).
+                    feedback_count:
+                      type: integer
+                      description: The total number of feedbacks for the role.
+                    average_rating:
+                      type: number
+                      format: float
+                      description: The average rating for the feedback in this role.
+                    feedback_details:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          feedback_id:
+                            type: string
+                            description: Unique identifier of the feedback.
+                          session_id:
+                            type: string
+                            description: Session ID associated with the feedback.
+                          feedback_rating:
+                            type: integer
+                            description: Rating provided in the feedback.
+                          feedback_description:
+                            type: string
+                            description: Description of the feedback.
+                          feedback_time:
+                            type: string
+                            format: date-time
+                            description: Timestamp of when the feedback was created.
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+   
 components:
   securitySchemes:
     adminAuthorizer:
