@@ -62,7 +62,11 @@ const PasswordReset = ({ email, loading, setLoading, setAuthState }) => {
 
     try {
       setLoading(true);
-      await confirmResetPassword({username:email, confirmationCode:confirmationCode, newPassword:newPassword});
+      await confirmResetPassword({
+        username: email.toLowerCase(),
+        confirmationCode: confirmationCode,
+        newPassword: newPassword,
+      });
       toast.success("Password reset successful!", {
         position: "top-center",
         autoClose: 3000,

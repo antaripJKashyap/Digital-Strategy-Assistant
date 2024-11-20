@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   signIn,
   signUp,
+  signOut,
   confirmSignIn,
   confirmSignUp,
   resendSignUpCode,
@@ -47,10 +48,30 @@ const SignIn = ({
 
     try {
       await signIn({
-        username: email,
+        username: email.toLowerCase(),
         password: password,
       });
-      window.location.reload();
+      const { tokens } = await fetchAuthSession();
+      const userGroup = tokens?.accessToken?.payload["cognito:groups"] || [];
+      if (!userGroup.includes("admin")) {
+        toast.error(
+          `Error: You do not have administrative access. Please contact your system administrator to request admin privileges.`,
+          {
+            position: "top-center",
+            autoClose: 3000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          }
+        );
+        await signOut();
+      }
+      else {
+        window.location.reload();
+      }
     } catch (error) {
       console.error("Sign in error:", error);
       toast.error(`Error: ${error}`, {
@@ -63,6 +84,7 @@ const SignIn = ({
         progress: undefined,
         theme: "colored",
       });
+      await signOut();
     }
   };
 

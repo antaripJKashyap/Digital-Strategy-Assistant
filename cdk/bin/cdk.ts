@@ -1,20 +1,29 @@
 #!/usr/bin/env node
-import 'source-map-support/register';
-import * as cdk from 'aws-cdk-lib';
-import { AmplifyStack } from '../lib/amplify-stack';
-import { ApiGatewayStack } from '../lib/api-gateway-stack';
-import { DatabaseStack } from '../lib/database-stack';
-import { VpcStack } from '../lib/vpc-stack';
-import { DBFlowStack } from '../lib/dbFlow-stack';
+import "source-map-support/register";
+import * as cdk from "aws-cdk-lib";
+import { Tags } from "aws-cdk-lib";
+import { AmplifyStack } from "../lib/amplify-stack";
+import { ApiGatewayStack } from "../lib/api-gateway-stack";
+import { DatabaseStack } from "../lib/database-stack";
+import { VpcStack } from "../lib/vpc-stack";
+import { DBFlowStack } from "../lib/dbFlow-stack";
 const app = new cdk.App();
 
-const env = { 
-  account: process.env.CDK_DEFAULT_ACCOUNT, 
-  region: process.env.CDK_DEFAULT_REGION 
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION,
 };
 
-const vpcStack = new VpcStack(app, 'VpcStack', { env });
-const dbStack = new DatabaseStack(app, 'Database', vpcStack, { env });
-const apiStack = new ApiGatewayStack(app, 'Api', dbStack, vpcStack,  { env });
-const dbFlowStack = new DBFlowStack(app, 'DBFlow', vpcStack, dbStack, apiStack, { env });
-const amplifyStack = new AmplifyStack(app, 'Amplify',apiStack, { env });
+const vpcStack = new VpcStack(app, "VpcStack", { env });
+const dbStack = new DatabaseStack(app, "Database", vpcStack, { env });
+const apiStack = new ApiGatewayStack(app, "Api", dbStack, vpcStack, { env });
+const dbFlowStack = new DBFlowStack(
+  app,
+  "DBFlow",
+  vpcStack,
+  dbStack,
+  apiStack,
+  { env }
+);
+const amplifyStack = new AmplifyStack(app, "Amplify", apiStack, { env });
+Tags.of(app).add("app", "Digital-Learning-Strategy");

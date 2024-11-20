@@ -23,7 +23,7 @@ const SignupConfirmation = ({ email, setAuthState, loading, setLoading }) => {
     e.preventDefault();
     try {
       await confirmSignUp({
-        username: email,
+        username: email.toLowerCase(),
         confirmationCode: confirmationCode,
       });
       toast.success(`Signup successful`, {
@@ -55,7 +55,7 @@ const SignupConfirmation = ({ email, setAuthState, loading, setLoading }) => {
   const resendConfirmationCode = async () => {
     try {
       setLoading(true);
-      await resendSignUpCode({ username: email });
+      await resendSignUpCode({ username: email.toLowerCase() });
       setLoading(false);
     } catch (error) {
       toast.error(`Error: ${error}`, {
