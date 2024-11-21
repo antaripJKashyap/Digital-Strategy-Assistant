@@ -51,6 +51,9 @@ Clicking on a session from the history page will open the conversation history f
 Clicking the "Files" button on the sidebar will allow the administrator to view all the files in every category as well as their descriptions. These are the files that the assistant will use to retrieve information. The files can be downloaded by pressing the download icon in each file.
 ![image](./images/files.png)
 
+Clicking the "Feedback" button on the sidebar will allow the administrator to view all the feedbacks in every user role as well as their descriptions.
+![image](./images/feedback_admin.png)
+
 
 ## Public View
 Upon opening the public view of the app, users are greeted with a home page. Clicking on "About" or "T&C" will open a modal which either describes the DLS assistant or shows the terms and conditions of using the assistant.
