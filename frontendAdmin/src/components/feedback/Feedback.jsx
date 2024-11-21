@@ -1,22 +1,22 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  GraduationCap, 
-  ShieldCheck, 
-  ChevronDown, 
-  ChevronUp 
-} from 'lucide-react';
-import { 
-  Collapsible, 
-  CollapsibleContent, 
-  CollapsibleTrigger 
+import React, { useState, useEffect } from "react";
+import {
+  Users,
+  GraduationCap,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import LoadingScreen from "../Loading/LoadingScreen";
 import { fetchAuthSession } from "aws-amplify/auth";
-import Session from '../history/Session';
+import Session from "../history/Session";
 
 const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -61,7 +61,7 @@ const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
               {getRoleLabel(role)} Feedback
             </h2>
             <span className="ml-2 text-gray-500">
-              (Avg Rating: {Number(feedbackData.average_rating).toFixed(1)}, 
+              (Avg Rating: {Number(feedbackData.average_rating).toFixed(1)},
               Total: {feedbackData.feedback_count})
             </span>
           </div>
@@ -76,9 +76,9 @@ const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-2">
-        {feedbackData.feedback_details.map((feedback) => (
-          <Button 
-            key={feedback.feedback_id} 
+        {feedbackData.feedback_details.map((feedback, index) => (
+          <Button
+            key={feedback.feedback_id + index}
             className="w-full justify-start font-normal hover:bg-gray-100 p-0 h-auto"
             variant="ghost"
             onClick={() => onFeedbackClick(feedback.session_id)}
@@ -90,13 +90,13 @@ const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
                   <code className="bg-gray-50 px-2 py-1 rounded text-sm">
                     {feedback.session_id}
                   </code>
-                  <div 
+                  <div
                     className={`ml-2 px-2 py-1 rounded text-xs font-semibold ${
-                      feedback.feedback_rating >= 4 
-                        ? 'bg-green-100 text-green-800' 
-                        : feedback.feedback_rating >= 3 
-                        ? 'bg-yellow-100 text-yellow-800' 
-                        : 'bg-red-100 text-red-800'
+                      feedback.feedback_rating >= 4
+                        ? "bg-green-100 text-green-800"
+                        : feedback.feedback_rating >= 3
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-red-100 text-red-800"
                     }`}
                   >
                     Rating: {feedback.feedback_rating}/5
@@ -105,9 +105,9 @@ const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-500">Feedback:</span>
                   <span className="text-sm">
-                    {feedback.feedback_description && 
-                     feedback.feedback_description !== "null" 
-                      ? feedback.feedback_description 
+                    {feedback.feedback_description &&
+                    feedback.feedback_description !== "null"
+                      ? feedback.feedback_description
                       : "None"}
                   </span>
                 </div>
@@ -131,6 +131,27 @@ const Feedback = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
 
+  function sortFeedbackByTimestamp(data) {
+    return data.map((roleData) => {
+      // Create a new object to avoid mutating the original
+      const sortedData = { ...roleData };
+
+      // Sort feedback_details in descending order (recent first)
+      if (
+        sortedData.feedback_details &&
+        Array.isArray(sortedData.feedback_details)
+      ) {
+        sortedData.feedback_details = sortedData.feedback_details.sort(
+          (a, b) => {
+            return new Date(b.feedback_time) - new Date(a.feedback_time);
+          }
+        );
+      }
+
+      return sortedData;
+    });
+  }
+
   useEffect(() => {
     const fetchFeedbackData = async () => {
       try {
@@ -152,7 +173,9 @@ const Feedback = () => {
         }
 
         const data = await response.json();
-        setFeedbackData(data);
+        console.log(data);
+        const sortedData = sortFeedbackByTimestamp(data);
+        setFeedbackData(sortedData);
       } catch (error) {
         console.error("Error fetching feedback:", error);
       } finally {
@@ -169,11 +192,11 @@ const Feedback = () => {
       const session = roleData.feedback_details.find(
         (feedback) => feedback.session_id === sessionId
       );
-      
+
       if (session) {
         setSelectedSession({
           session_id: sessionId,
-          role: roleData.user_role
+          role: roleData.user_role,
         });
         break;
       }
@@ -186,9 +209,9 @@ const Feedback = () => {
 
   if (selectedSession) {
     return (
-      <Session 
-        session={selectedSession} 
-        onBack={() => setSelectedSession(null)} 
+      <Session
+        session={selectedSession}
+        onBack={() => setSelectedSession(null)}
         from={"Feedback"}
       />
     );
@@ -196,11 +219,11 @@ const Feedback = () => {
 
   return (
     <div className="w-full mx-auto space-y-4 p-4 overflow-y-auto mb-8">
-      {feedbackData.map((roleData) => (
-        <FeedbackView 
-          key={roleData.user_role} 
-          role={roleData.user_role} 
-          feedbackData={roleData} 
+      {feedbackData.map((roleData, index) => (
+        <FeedbackView
+          key={roleData.user_role + index}
+          role={roleData.user_role}
+          feedbackData={roleData}
           onFeedbackClick={handleSessionClick}
         />
       ))}
