@@ -120,9 +120,7 @@ def get_response(
     history_aware_retriever,
     table_name: str,
     session_id: str,
-    public_prompt: str,
-    educator_prompt: str,
-    admin_prompt: str
+    user_prompt: str
 ) -> dict:
     """
     Generates a response to a query using the LLM and a history-aware retriever for context.
@@ -145,10 +143,7 @@ def get_response(
         "You are an assistant for the Digital Learning Strategy. "
         "Do not repeat the user question in your response. "
         "Your job is to help different users understand the Digital Learning Strategy in greater detail. "
-        f"{public_prompt}"
-        f"{educator_prompt}"
-        f"{admin_prompt}"
-        "After selecting the appropriate prompt for the user"
+        f"{user_prompt}"
         "After the first question has been answered, provide a list of follow-up questions under 'options', and answer any related questions. The follow up questions should be related to the Digital Learning Strategy and the user's role."
         "Only the initial questions (first question in the chat) and follow-up questions (second question in the chat) are defined in the prompts. Once the user asks the second question and it is answered, generate 3 questions that the user might have based on the chat history. "
         "Don't ask the user to select an option for the follow-up questions. Just print the questions after (You might have the following questions:)"
