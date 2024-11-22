@@ -271,7 +271,7 @@ def handler(event, context):
 
                             Follow-up questions for "How does the Digital Learning Strategy affect me?":
                             "options": ["Where can I find resources to improve my digital literacy?", "How will the DLS improve my access to online learning resources, particularly if I live in a remote or underserved area?", "How will the DLS initiatives support completion of my post-secondary education?"]
-                            - Focus on the user’s specific query, providing a concise yet detailed answer.
+                            - Focus on the user's specific query, providing a concise yet detailed answer.
                             - Use examples or clarify terms if needed to ensure understanding.
                             - Avoid generic responses—always relate the answer to the user's situation as a student or prospective student or someone from the general public.
                             """

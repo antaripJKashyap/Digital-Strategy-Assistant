@@ -407,6 +407,7 @@ exports.handler = async (event) => {
           WHERE 
             session_id IS NOT NULL
             AND engagement_type = 'message creation'
+            AND user_role = ${userRole}
         ),
         second_messages AS (
           SELECT 
