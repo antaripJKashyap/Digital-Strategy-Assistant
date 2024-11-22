@@ -139,9 +139,6 @@ import {
       });
   
       amplifyApp.addBranch("main");
-      amplifyApp.addBranch("dev");
-
       amplifyAppAdmin.addBranch("main");
-      amplifyAppAdmin.addBranch("dev");
     }
   }

@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download } from "lucide-react";
+import { Download, FolderIcon } from "lucide-react";
 import { toast } from "react-toastify";
 import { fetchAuthSession } from "aws-amplify/auth";
 import LoadingScreen from "../Loading/LoadingScreen";
+
 const Files = () => {
   const [categories, setCategories] = useState([]);
   const [filesByCategory, setFilesByCategory] = useState({});
@@ -120,6 +121,22 @@ const Files = () => {
     return <LoadingScreen />;
   }
 
+  // If there are no categories
+  if (categories.length === 0) {
+    return (
+      <div className="w-full h-[50vh] flex flex-col items-center justify-center p-4 space-y-4">
+        <FolderIcon className="w-16 h-16 text-gray-300" />
+        <h2 className="text-xl font-semibold text-gray-600">
+          No Categories Found
+        </h2>
+        <p className="text-gray-500 text-center max-w-md">
+          There are currently no categories available. Categories will appear
+          here once they are created.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full mx-auto p-4 space-y-6">
       {categories.map((category) => (
@@ -129,7 +146,12 @@ const Files = () => {
               char.toUpperCase()
             )}
           </h2>
-          {filesByCategory[category.category_id] &&
+          {!filesByCategory[category.category_id] ||
+          filesByCategory[category.category_id].length === 0 ? (
+            <div className="p-4 border rounded-lg mb-2 text-center text-gray-500">
+              No files available in this category
+            </div>
+          ) : (
             filesByCategory[category.category_id].map((file, index) => {
               const fileName = file.fileName || file.name;
               return (
@@ -165,7 +187,8 @@ const Files = () => {
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
         </div>
       ))}
     </div>

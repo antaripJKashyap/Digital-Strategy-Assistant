@@ -25,7 +25,7 @@ export class DatabaseStack extends Stack {
         /**
          * Create the RDS service-linked role if it doesn't exist
          */
-        new iam.CfnServiceLinkedRole(this, 'RDSServiceLinkedRoleAWS', {
+        new iam.CfnServiceLinkedRole(this, 'DSARDSServiceLinkedRole', {
             awsServiceName: 'rds.amazonaws.com',
         });
         

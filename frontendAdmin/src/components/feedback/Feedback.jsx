@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
+  MessageSquare,
 } from "lucide-react";
 import {
   Collapsible,
@@ -17,6 +18,51 @@ import { Button } from "@/components/ui/button";
 import LoadingScreen from "../Loading/LoadingScreen";
 import { fetchAuthSession } from "aws-amplify/auth";
 import Session from "../history/Session";
+
+const EmptyFeedbackView = ({ role }) => {
+  const getRoleIcon = (role) => {
+    switch (role) {
+      case "public":
+        return <Users className="mr-2" />;
+      case "educator":
+        return <GraduationCap className="mr-2" />;
+      case "admin":
+        return <ShieldCheck className="mr-2" />;
+      default:
+        return null;
+    }
+  };
+
+  const getRoleLabel = (role) => {
+    switch (role) {
+      case "public":
+        return "Student/General Public";
+      case "educator":
+        return "Educator/Educational Designer";
+      case "admin":
+        return "Post-Secondary Institution Admin/Leader";
+      default:
+        return role;
+    }
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center space-x-4 px-4 py-3 bg-gray-50 rounded-t-lg">
+        <div className="flex items-center">
+          {getRoleIcon(role)}
+          <h2 className="text-lg font-semibold capitalize">
+            {getRoleLabel(role)} Feedback
+          </h2>
+          <span className="ml-2 text-gray-500">(Avg Rating: 0, Total: 0)</span>
+        </div>
+      </div>
+      <div className="p-8 text-center border-b border-x rounded-b-lg bg-white">
+        <p className="text-gray-500">No feedback available for this role yet</p>
+      </div>
+    </div>
+  );
+};
 
 const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
   const [isOpen, setIsOpen] = useState(true);
@@ -50,6 +96,13 @@ const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
+
+  if (
+    !feedbackData.feedback_details ||
+    feedbackData.feedback_details.length === 0
+  ) {
+    return <EmptyFeedbackView role={role} />;
+  }
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
@@ -133,21 +186,15 @@ const Feedback = () => {
 
   function sortFeedbackByTimestamp(data) {
     return data.map((roleData) => {
-      // Create a new object to avoid mutating the original
       const sortedData = { ...roleData };
-
-      // Sort feedback_details in descending order (recent first)
       if (
         sortedData.feedback_details &&
         Array.isArray(sortedData.feedback_details)
       ) {
         sortedData.feedback_details = sortedData.feedback_details.sort(
-          (a, b) => {
-            return new Date(b.feedback_time) - new Date(a.feedback_time);
-          }
+          (a, b) => new Date(b.feedback_time) - new Date(a.feedback_time)
         );
       }
-
       return sortedData;
     });
   }
@@ -173,7 +220,6 @@ const Feedback = () => {
         }
 
         const data = await response.json();
-        console.log(data);
         const sortedData = sortFeedbackByTimestamp(data);
         setFeedbackData(sortedData);
       } catch (error) {
@@ -187,7 +233,6 @@ const Feedback = () => {
   }, []);
 
   const handleSessionClick = (sessionId) => {
-    // Find the session object with the matching session_id
     for (const roleData of feedbackData) {
       const session = roleData.feedback_details.find(
         (feedback) => feedback.session_id === sessionId
@@ -214,6 +259,21 @@ const Feedback = () => {
         onBack={() => setSelectedSession(null)}
         from={"Feedback"}
       />
+    );
+  }
+
+  if (!feedbackData || feedbackData.length === 0) {
+    return (
+      <div className="w-full h-[50vh] flex flex-col items-center justify-center p-4 space-y-4">
+        <MessageSquare className="w-16 h-16 text-gray-300" />
+        <h2 className="text-xl font-semibold text-gray-600">
+          No Feedback Available
+        </h2>
+        <p className="text-gray-500 text-center max-w-md">
+          There is currently no feedback from any user roles. Feedback will
+          appear here once users start providing it.
+        </p>
+      </div>
     );
   }
 

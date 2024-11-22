@@ -10,8 +10,30 @@ import {
 } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
-export default function PreviousPrompts({ previousPrompts }) {
+
+export default function PreviousPrompts({ previousPrompts = [] }) {
   const [currentPage, setCurrentPage] = useState(0);
+
+  // If there are no prompts, show empty state
+  if (!previousPrompts || previousPrompts.length === 0) {
+    return (
+      <div className="w-full sm:max-w-xl md:max-w-full mx-auto px-4 py-1">
+        <Card className="border-0 shadow-none">
+          <CardHeader>
+            <CardTitle className="text-base sm:text-md font-semibold text-center">
+              Previous Prompts
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="py-1 sm:py-2">
+            <p className="text-center text-gray-500 text-sm">
+              No previous prompts yet
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full sm:max-w-xl md:max-w-full mx-auto px-4 py-1">
       <Card className="border-0 shadow-none">
@@ -64,10 +86,10 @@ export default function PreviousPrompts({ previousPrompts }) {
           {/* Prompt Content */}
           <div className="text-center">
             <p className="text-gray-700 mb-1 text-xs sm:text-sm">
-              {previousPrompts[currentPage].prompt}
+              {previousPrompts[currentPage]?.prompt || ""}
             </p>
             <p className="text-[10px] sm:text-xs text-gray-500">
-              {previousPrompts[currentPage].time_created}
+              {previousPrompts[currentPage]?.time_created || ""}
             </p>
           </div>
         </CardContent>
