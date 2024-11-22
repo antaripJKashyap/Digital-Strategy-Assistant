@@ -43,4 +43,4 @@ const amplifyStack = new AmplifyStack(app, "Amplify", apiStack, {
   env,
   stackName: AmplifyStackName,
 });
-Tags.of(app).add("app", "Digital-Learning-Strategy");
+Tags.of(app).add("app", "Digital-Strategy-Assistant");

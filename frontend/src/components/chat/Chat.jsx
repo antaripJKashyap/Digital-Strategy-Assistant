@@ -70,7 +70,7 @@ const Chat = ({ setPage }) => {
         {
           Type: "ai",
           Content:
-            "Thank you! Your feedback will help improve the DLS Assistant. You may continue asking questions or start a new session.",
+            "Thank you! Your feedback will help improve the Digital Strategy Assistant. You may continue asking questions or start a new session.",
         },
       ]);
       setShowFeedback(false);
@@ -332,7 +332,7 @@ const Chat = ({ setPage }) => {
         excluding specific AI messages */}
           {index >= 4 &&
             !message.Content.includes(
-              "Thank you! Your feedback will help improve the DLS Assistant."
+              "Thank you! Your feedback will help improve the Digital Strategy Assistant."
             ) && (
               <OptionMessage
                 key={`${index}-done`}

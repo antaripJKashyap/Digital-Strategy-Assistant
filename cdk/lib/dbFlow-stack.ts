@@ -34,7 +34,7 @@ export class DBFlowStack extends Stack {
               "secretsmanager:PutSecretValue"
             ],
             resources: [
-              `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DLS/*`,
+              `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DSA/*`,
             ],
           })
         );
@@ -68,8 +68,8 @@ export class DBFlowStack extends Stack {
           iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess")
         );
         // Create an initilizer for the RDS instance, only invoke during deployment
-        const initializerLambda = new triggers.TriggerFunction(this, "dls-triggerLambda", {
-            functionName: "dls-initializerFunction",
+        const initializerLambda = new triggers.TriggerFunction(this, "DSA-triggerLambda", {
+            functionName: "DSA-initializerFunction",
             runtime: lambda.Runtime.PYTHON_3_9,
             handler: "initializer.handler",
             timeout: Duration.seconds(300),

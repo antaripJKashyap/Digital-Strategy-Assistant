@@ -157,8 +157,8 @@
        * Using verification code
        * Inspiration from http://buraktas.com/create-cognito-user-pool-aws-cdk/
        */
-      const userPoolName = "dlsUserPool";
-      this.userPool = new cognito.UserPool(this, "dls-pool", {
+      const userPoolName = "DSAUserPool";
+      this.userPool = new cognito.UserPool(this, "DSA-pool", {
         userPoolName: userPoolName,
         signInAliases: {
           email: true,
@@ -170,7 +170,7 @@
         userVerification: {
           emailSubject: "You need to verify your email",
           emailBody:
-            "Thanks for signing up to DLS Assistant. \n Your verification code is {####}",
+            "Thanks for signing up to the DSA. \n Your verification code is {####}",
           emailStyle: cognito.VerificationEmailStyle.CODE,
         },
         passwordPolicy: {
@@ -185,7 +185,7 @@
       });
 
       // Create app client
-      this.appClient = this.userPool.addClient("dls-pool", {
+      this.appClient = this.userPool.addClient("DSA-pool", {
         userPoolClientName: userPoolName,
         authFlows: {
           userPassword: true,
@@ -196,7 +196,7 @@
 
       this.identityPool = new cognito.CfnIdentityPool(this, "dls-identity-pool", {
         allowUnauthenticatedIdentities: true,
-        identityPoolName: "dlsIdentityPool",
+        identityPoolName: "DSAIdentityPool",
         cognitoIdentityProviders: [
           {
             clientId: this.appClient.userPoolClientId,
@@ -205,7 +205,7 @@
         ],
       });
 
-      const secretsName = "DLS_Cognito_Secrets";
+      const secretsName = "DSA_Cognito_Secrets";
 
       this.secret = new secretsmanager.Secret(this, secretsName, {
         secretName: secretsName,
@@ -250,7 +250,7 @@
       this.api = new apigateway.SpecRestApi(this, "APIGateway", {
         apiDefinition: apigateway.AssetApiDefinition.fromInline(data),
         endpointTypes: [apigateway.EndpointType.REGIONAL],
-        restApiName: "dlsAPI",
+        restApiName: "DSAAPI",
         deploy: true,
         cloudWatchRole: true,
         deployOptions: {
@@ -490,7 +490,7 @@
             "secretsmanager:GetSecretValue",
           ],
           resources: [
-            `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DLS/*`,
+            `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DSA/*`,
           ],
         })
       );
@@ -584,7 +584,7 @@
             "secretsmanager:PutSecretValue",
           ],
           resources: [
-            `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DLS/*`,
+            `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DSA/*`,
           ],
         })
       );
@@ -682,7 +682,7 @@
         this,
         "BedrockLLMParameter",
         {
-          parameterName: "/DLS/BedrockLLMId",
+          parameterName: "/DSA/BedrockLLMId",
           description: "Parameter containing the Bedrock LLM ID",
           stringValue: "meta.llama3-70b-instruct-v1:0",
         }
@@ -691,7 +691,7 @@
         this,
         "EmbeddingModelParameter",
         {
-          parameterName: "/DLS/EmbeddingModelId",
+          parameterName: "/DSA/EmbeddingModelId",
           description: "Parameter containing the Embedding Model ID",
           stringValue: "amazon.titan-embed-text-v2:0",
         }
@@ -701,7 +701,7 @@
         this,
         "TableNameParameter",
         {
-          parameterName: "/DLS/TableName",
+          parameterName: "/DSA/TableName",
           description: "Parameter containing the DynamoDB table name",
           stringValue: "DynamoDB-Conversation-Table",
         }

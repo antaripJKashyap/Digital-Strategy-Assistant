@@ -29,7 +29,7 @@ const Auth = () => {
               className="relative z-10"
             />
           </div>
-          <div className="text-3xl font-bold mt-4">DLS Administrator</div>
+          <div className="text-3xl font-bold mt-4">DSA Administrator</div>
         </div>
         <div className="bg-white w-full md:w-1/2 p-8 flex items-center justify-center">
           {authState === "signin" && (
