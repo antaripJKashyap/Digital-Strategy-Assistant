@@ -131,13 +131,7 @@ const Chat = ({ setPage }) => {
           },
           body: JSON.stringify({
             message_content: content,
-            user_role: isOption
-              ? content.toLowerCase().includes("student")
-                ? "public"
-                : content.toLowerCase().includes("educator")
-                ? "educator"
-                : "admin"
-              : userRole,
+            user_role: getUserRole([...currentMessages, userMessage]),
           }),
         }
       );
