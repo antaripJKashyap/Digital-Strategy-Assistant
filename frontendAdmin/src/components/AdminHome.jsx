@@ -15,6 +15,7 @@ import Edit_Category from "./categories/Edit_Category.jsx";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import LoadingScreen from "./Loading/LoadingScreen.jsx";
+import Feedback from "./feedback/Feedback.jsx";
 const AdminHome = () => {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
@@ -49,7 +50,13 @@ const AdminHome = () => {
         case "analytics":
           return <Analytics />;
         case "categories":
-          return <Categories setSelectedPage={setSelectedPage} setNextCategoryNumber={setNextCategoryNumber} setSelectedCategory={setSelectedCategory}/>;
+          return (
+            <Categories
+              setSelectedPage={setSelectedPage}
+              setNextCategoryNumber={setNextCategoryNumber}
+              setSelectedCategory={setSelectedCategory}
+            />
+          );
         case "prompt":
           return <Prompt />;
         case "history":
@@ -57,9 +64,25 @@ const AdminHome = () => {
         case "files":
           return <Files />;
         case "category_creation":
-          return <Category_creation setSelectedPage={setSelectedPage} nextCategoryNumber={nextCategoryNumber} setNextCategoryNumber={setNextCategoryNumber}/>;
+          return (
+            <Category_creation
+              setSelectedPage={setSelectedPage}
+              nextCategoryNumber={nextCategoryNumber}
+              setNextCategoryNumber={setNextCategoryNumber}
+            />
+          );
         case "edit_category":
-          return <Edit_Category selectedCategory={selectedCategory} setSelectedPage={setSelectedPage} />;
+          return (
+            <Edit_Category
+              selectedCategory={selectedCategory}
+              setSelectedPage={setSelectedPage}
+            />
+          );
+        case "feedback":
+          return (
+            <Feedback
+            />
+          );
         default:
           return <Analytics />;
       }
@@ -70,8 +93,6 @@ const AdminHome = () => {
   if (loading) {
     return <LoadingScreen />;
   }
-
-
 
   if (userGroup && userGroup.includes("admin")) {
     return (

@@ -396,15 +396,41 @@ exports.handler = async (event) => {
 
           try {
             const sessions = await sqlConnectionTableCreator`
-                SELECT DISTINCT ON (uel.session_id)
-                      uel.session_id,
-                      uel.timestamp AS last_message_time
-                FROM user_engagement_log uel
-                WHERE uel.user_role = ${userRole} 
-                  AND uel.engagement_type = 'message creation'
-                  AND uel.session_id IS NOT NULL
-                ORDER BY uel.session_id, uel.timestamp DESC;
-              `;
+       WITH ranked_messages AS (
+          SELECT 
+            session_id,
+            engagement_details,
+            timestamp,
+            ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp) as msg_order,
+            ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp DESC) as reverse_order
+          FROM user_engagement_log
+          WHERE 
+            session_id IS NOT NULL
+            AND engagement_type = 'message creation'
+            AND user_role = ${userRole}
+        ),
+        second_messages AS (
+          SELECT 
+            session_id,
+            engagement_details as second_message_details
+          FROM ranked_messages
+          WHERE msg_order = 2
+        ),
+        latest_messages AS (
+          SELECT 
+            session_id,
+            timestamp as last_message_time
+          FROM ranked_messages
+          WHERE reverse_order = 1
+        )
+        SELECT 
+          lm.session_id,
+          lm.last_message_time,
+          sm.second_message_details
+        FROM latest_messages lm
+        LEFT JOIN second_messages sm ON lm.session_id = sm.session_id
+        ORDER BY lm.last_message_time DESC;
+      `;
 
             response.body = JSON.stringify(sessions);
             response.statusCode = 200; // OK
@@ -627,7 +653,47 @@ exports.handler = async (event) => {
           response.body = JSON.stringify({ error: "Internal server error" });
         }
         break;
+      case "GET /admin/feedback_by_role":
+        try {
+          const feedbackData = await sqlConnectionTableCreator`
+              WITH feedback_with_roles AS (
+                SELECT 
+                  f.feedback_id,
+                  f.session_id,
+                  f.feedback_rating,
+                  f.feedback_description,
+                  f.timestamp AS feedback_time,
+                  uel.user_role
+                FROM feedback f
+                INNER JOIN user_engagement_log uel
+                ON f.session_id = uel.session_id
+                WHERE uel.user_role IN ('admin', 'public', 'educator')
+              )
+              SELECT 
+                user_role,
+                COUNT(feedback_id) AS feedback_count,
+                AVG(feedback_rating) AS average_rating,
+                JSON_AGG(
+                  JSON_BUILD_OBJECT(
+                    'feedback_id', feedback_id,
+                    'session_id', session_id,
+                    'feedback_rating', feedback_rating,
+                    'feedback_description', feedback_description,
+                    'feedback_time', feedback_time
+                  )
+                ) AS feedback_details
+              FROM feedback_with_roles
+              GROUP BY user_role;
+              `;
 
+          response.body = JSON.stringify(feedbackData);
+          response.statusCode = 200;
+        } catch (err) {
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }

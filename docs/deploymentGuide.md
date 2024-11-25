@@ -52,7 +52,7 @@ Finally, enable the relevant models, click next and on the next page click submi
 The relevant models are now enabled in Bedrock.
 ## Deployment
 ### Step 1: Fork & Clone The Repository
-First, you need to fork the repository. To create a fork, navigate to the [main branch](https://github.com/UBC-CIC/Digital-Learning-Strategy) of this repository. Then, in the top-right corner, click `Fork`.
+First, you need to fork the repository. To create a fork, navigate to the [main branch](https://github.com/UBC-CIC/Digital-Strategy-Assistant) of this repository. Then, in the top-right corner, click `Fork`.
 
 ![](./images/fork.jpeg)
 
@@ -63,11 +63,11 @@ Now let's clone the GitHub repository onto your machine. To do this:
 2. For an Apple computer, open Terminal. If on a Windows machine, open Command Prompt or Windows Terminal. Enter into the folder you made using the command `cd path/to/folder`. To find the path to a folder on a Mac, right click on the folder and press `Get Info`, then select the whole text found under `Where:` and copy with ⌘C. On Windows (not WSL), enter into the folder on File Explorer and click on the path box (located to the left of the search bar), then copy the whole text that shows up.
 3. Clone the GitHub repository by entering the following command. Be sure to replace `<YOUR-GITHUB-USERNAME>` with your own username.
 ```
-git clone https://github.com/<YOUR-GITHUB-USERNAME>/Digital-Learning-Strategy.git
+git clone https://github.com/<YOUR-GITHUB-USERNAME>/Digital-Strategy-Assistant.git
 ```
 The code should now be in the folder you created. Navigate into the root folder containing the entire codebase by running the command:
 ```
-cd Digital-Learning-Strategy
+cd Digital-Strategy-Assistant
 ```
 
 ### Step 2: Upload Secrets
@@ -83,7 +83,7 @@ Moreover, you will need to upload your github username to Amazon SSM Parameter S
 
 ```
 aws ssm put-parameter \
-    --name "dls-owner-name" \
+    --name "DSA-owner-name" \
     --value "<YOUR-GITHUB-USERNAME>" \
     --type String \
     --profile <YOUR-PROFILE-NAME>
@@ -93,7 +93,7 @@ You would have to supply a custom database username when deploying the solution 
 
 ```
 aws secretsmanager create-secret \
-    --name DLSSecrets \
+    --name DSASecrets \
     --secret-string '{\"DB_Username\":\"<YOUR-DB-USERNAME>\"}'\
     --profile <your-profile-name>
 ```
@@ -102,8 +102,8 @@ For example,
 
 ```
 aws secretsmanager create-secret \
-    --name DLSSecrets \
-    --secret-string '{\"DB_Username\":\"DLSSecrets\"}'\
+    --name DSASecrets \
+    --secret-string '{\"DB_Username\":\"DSASecrets\"}'\
     --profile <your-profile-name>
 ```
 ### Step 3: CDK Deployment
@@ -123,7 +123,7 @@ cdk bootstrap aws://<YOUR_AWS_ACCOUNT_ID>/<YOUR_ACCOUNT_REGION> --profile <your-
 **Deploy CDK stack**
 You may run the following command to deploy the stacks all at once. Again, replace `<your-profile-name>` with the appropriate AWS profile used earlier.
 ```
-cdk deploy --all --parameters AmplifyStack:githubRepoName=Digital-Learning-Strategy --context prefix=Digital-Learning-Strategy-production --profile <your-profile-name>
+cdk deploy --all --parameters DigitalStrategyAssistantAmplifyStack:githubRepoName=Digital-Strategy-Assistant --context VpcStackName=DigitalStrategyAssistantVpcStack --context DatabaseStackName=DigitalStrategyAssistantDatabaseStack --context ApiStackName=DigitalStrategyAssistantApiStack --context DbFlowStackName=DigitalStrategyAssistantDBFlowStack --context AmplifyStackName=DigitalStrategyAssistantAmplifyStack --context prefix="Digital-Strategy-Assistant-production" --profile <your-profile-name>
 ```
 If you have trouble running the above command, try removing all the \ and run it in one line.
 
@@ -131,11 +131,11 @@ If you have trouble running the above command, try removing all the \ and run it
 ### Step 1: Build AWS Amplify App
 
 1. Log in to AWS console, and navigate to **AWS Amplify**. You can do so by typing `Amplify` in the search bar at the top.
-2. From `All apps`, click `dls-amplify`.
+2. From `All apps`, click `DSA-amplify`.
 3. Then click `main` under `branches`
 4. Click `run job` and wait for the build to complete.
 5. You now have access to the `Amplify App ID` and the public domain name to use the web app.
-6. From `All apps`, click `dls-amplify-admin` and repeat steps 3-5.
+6. From `All apps`, click `DSA-amplify-admin` and repeat steps 3-5.
 
 ### Step 2: Visit Web App
 You can now navigate to the web app URL to see your application in action.

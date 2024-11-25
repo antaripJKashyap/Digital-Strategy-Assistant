@@ -72,11 +72,11 @@ import {
   
       const username = cdk.aws_ssm.StringParameter.valueForStringParameter(
         this,
-        "dls-owner-name"
+        "DSA-owner-name"
       );
   
       const amplifyApp = new App(this, "amplifyApp", {
-        appName: "dls-amplify",
+        appName: "DSA-amplify",
         platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
           owner: username,
@@ -108,7 +108,7 @@ import {
       });
 
       const amplifyAppAdmin = new App(this, "amplifyAppAdmin", {
-        appName: "dls-amplify-admin",
+        appName: "DSA-amplify-admin",
         platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
           owner: username,
@@ -139,9 +139,6 @@ import {
       });
   
       amplifyApp.addBranch("main");
-      amplifyApp.addBranch("dev");
-
       amplifyAppAdmin.addBranch("main");
-      amplifyAppAdmin.addBranch("dev");
     }
   }

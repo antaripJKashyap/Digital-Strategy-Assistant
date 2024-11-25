@@ -4,7 +4,12 @@ import MainMessage from "./MainMessage";
 import OptionMessage from "./OptionMessage";
 import UserMessage from "./UserMessage";
 import Footer from "../Footer";
-import { LuSendHorizonal, LuListRestart } from "react-icons/lu";
+import {
+  LuSendHorizonal,
+  LuListRestart,
+  LuMic,
+  LuMicOff,
+} from "react-icons/lu";
 import { getFingerprint } from "@thumbmarkjs/thumbmarkjs";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -23,6 +28,8 @@ const Chat = ({ setPage }) => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback, setFeedback] = useState({ rating: "", description: [] });
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -63,7 +70,7 @@ const Chat = ({ setPage }) => {
         {
           Type: "ai",
           Content:
-            "Thank you! Your feedback will help improve the DLS Assistant. You may continue asking questions or start a new session.",
+            "Thank you! Your feedback will help improve the Digital Strategy Assistant. You may continue asking questions or start a new session.",
         },
       ]);
       setShowFeedback(false);
@@ -124,13 +131,7 @@ const Chat = ({ setPage }) => {
           },
           body: JSON.stringify({
             message_content: content,
-            user_role: isOption
-              ? content.toLowerCase().includes("student")
-                ? "public"
-                : content.toLowerCase().includes("educator")
-                ? "educator"
-                : "admin"
-              : userRole,
+            user_role: getUserRole([...currentMessages, userMessage]),
           }),
         }
       );
@@ -325,7 +326,7 @@ const Chat = ({ setPage }) => {
         excluding specific AI messages */}
           {index >= 4 &&
             !message.Content.includes(
-              "Thank you! Your feedback will help improve the DLS Assistant."
+              "Thank you! Your feedback will help improve the Digital Strategy Assistant."
             ) && (
               <OptionMessage
                 key={`${index}-done`}
@@ -361,27 +362,36 @@ const Chat = ({ setPage }) => {
         </div>
         <div className="flex flex-col">
           <div className="border-t border-b border-black w-full flex items-center justify-between px-8">
-            <button onClick={handleSessionReset}>
-              <LuListRestart size={20} />
-            </button>
-            <textarea
-              ref={textareaRef}
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none"
-              placeholder="Type a message..."
-              maxLength={2096}
-              style={{ minHeight: "40px" }}
-              rows={1}
-              onInput={(e) => {
-                e.target.style.height = "auto";
-                e.target.style.height = `${Math.max(
-                  e.target.scrollHeight,
-                  48
-                )}px`;
-              }}
-            />
+            <div className="flex items-center space-x-2">
+              <button onClick={handleSessionReset}>
+                <LuListRestart size={20} />
+              </button>
+            </div>
+            <div className="flex-grow mx-4 flex items-center">
+              <textarea
+                ref={textareaRef}
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none flex items-center justify-center"
+                placeholder="Type a message..."
+                maxLength={2096}
+                style={{
+                  minHeight: "40px",
+                  height: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+                rows={1}
+                onInput={(e) => {
+                  e.target.style.height = "auto";
+                  e.target.style.height = `${Math.max(
+                    e.target.scrollHeight,
+                    48
+                  )}px`;
+                }}
+              />
+            </div>
             <button
               onClick={() =>
                 !isLoading && messageInput.trim() && sendMessage(messageInput)

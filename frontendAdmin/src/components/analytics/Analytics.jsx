@@ -45,10 +45,10 @@ export default function AnalyticsDashboard() {
           setUniqueUsersPerMonth(data.unique_users_per_month);
           setMessagesPerRolePerMonth(data.messages_per_role_per_month);
         } else {
-          console.error("Failed to fetch analytics:", response.statusText);
+          toast.error("Failed to fetch analytics:");
         }
       } catch (error) {
-        console.error("Error fetching analytics:", error);
+        console.error("Error fetching analytics:");
       } finally {
         setLoading(false); 
       }

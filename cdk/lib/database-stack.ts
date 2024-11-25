@@ -25,23 +25,23 @@ export class DatabaseStack extends Stack {
         /**
          * Create the RDS service-linked role if it doesn't exist
          */
-        new iam.CfnServiceLinkedRole(this, 'RDSServiceLinkedRoleAWS', {
+        new iam.CfnServiceLinkedRole(this, 'DSARDSServiceLinkedRole', {
             awsServiceName: 'rds.amazonaws.com',
         });
         
         /**
          * 
          * Retrive a secrete from Secret Manager
-         * aws secretsmanager create-secret --name DLSSecrets --secret-string '{\"DB_Username\":\"DB-USERNAME\"}' --profile <your-profile-name>
+         * aws secretsmanager create-secret --name DSASecrets --secret-string '{\"DB_Username\":\"DB-USERNAME\"}' --profile <your-profile-name>
          */
-        const secret = secretmanager.Secret.fromSecretNameV2(this, "ImportedSecrets", "DLSSecrets");
+        const secret = secretmanager.Secret.fromSecretNameV2(this, "ImportedSecrets", "DSASecrets");
         /**
          * 
          * Create Empty Secret Manager
          * Secrets will be populate at initalization of data
          */
-        this.secretPathAdminName = "DLS/credentials/DbCredential"; // Name in the Secret Manager to store DB credentials        
-        const secretPathUserName = "DLS/userCredentials/DbCredential";
+        this.secretPathAdminName = "DSA/credentials/DbCredential"; // Name in the Secret Manager to store DB credentials        
+        const secretPathUserName = "DSA/userCredentials/DbCredential";
         this.secretPathUser = new secretsmanager.Secret(this, secretPathUserName, {
             secretName: secretPathUserName,
             description: "Secrets for clients to connect to RDS",
@@ -52,7 +52,7 @@ export class DatabaseStack extends Stack {
             }
         })
 
-        const secretPathTableCreator = "DLS/userCredentials/rdsTableCreator";
+        const secretPathTableCreator = "DSA/userCredentials/rdsTableCreator";
         this.secretPathTableCreator= new secretsmanager.Secret(this, secretPathTableCreator, {
             secretName: secretPathTableCreator,
             description: "Secrets for TableCreator to connect to RDS",
@@ -76,7 +76,7 @@ export class DatabaseStack extends Stack {
          * 
          * Create an RDS with Postgres database in an isolated subnet
          */
-        this.dbInstance = new rds.DatabaseInstance(this, "DLS", {
+        this.dbInstance = new rds.DatabaseInstance(this, "DSA", {
             vpc: vpcStack.vpc,
             vpcSubnets: {
                 subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
@@ -99,7 +99,7 @@ export class DatabaseStack extends Stack {
             backupRetention: Duration.days(7),
             deleteAutomatedBackups: true,
             deletionProtection: true,/// To be changed
-            databaseName: "dls",
+            databaseName: "DSA",
             publiclyAccessible: false,
             cloudwatchLogsRetention: logs.RetentionDays.INFINITE,
             storageEncrypted: true, // storage encryption at rest

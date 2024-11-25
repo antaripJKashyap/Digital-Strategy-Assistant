@@ -13,8 +13,8 @@ const geistMono = localFont({
 });
 
 export const metadata = {
-  title: "Digital Learning Strategy",
-  description: "AI Assistant for the Digital Learning Strategy",
+  title: "Digital Strategy Assistant",
+  description: "AI Assistant for the Digital Strategy Assistant",
 };
 
 export default function RootLayout({ children }) {

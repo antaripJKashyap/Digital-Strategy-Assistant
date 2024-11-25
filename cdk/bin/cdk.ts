@@ -14,16 +14,33 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION,
 };
 
-const vpcStack = new VpcStack(app, "VpcStack", { env });
-const dbStack = new DatabaseStack(app, "Database", vpcStack, { env });
-const apiStack = new ApiGatewayStack(app, "Api", dbStack, vpcStack, { env });
+const VpcStackName = app.node.tryGetContext("VpcStackName");
+const DatabaseStackName = app.node.tryGetContext("DatabaseStackName");
+const ApiStackName = app.node.tryGetContext("ApiStackName");
+const DbFlowStackName = app.node.tryGetContext("DbFlowStackName");
+const AmplifyStackName = app.node.tryGetContext("AmplifyStackName");
+const vpcStack = new VpcStack(app, "VpcStack", {
+  env,
+  stackName: VpcStackName,
+});
+const dbStack = new DatabaseStack(app, "Database", vpcStack, {
+  env,
+  stackName: DatabaseStackName,
+});
+const apiStack = new ApiGatewayStack(app, "Api", dbStack, vpcStack, {
+  env,
+  stackName: ApiStackName,
+});
 const dbFlowStack = new DBFlowStack(
   app,
   "DBFlow",
   vpcStack,
   dbStack,
   apiStack,
-  { env }
+  { env, stackName: DbFlowStackName }
 );
-const amplifyStack = new AmplifyStack(app, "Amplify", apiStack, { env });
-Tags.of(app).add("app", "Digital-Learning-Strategy");
+const amplifyStack = new AmplifyStack(app, "Amplify", apiStack, {
+  env,
+  stackName: AmplifyStackName,
+});
+Tags.of(app).add("app", "Digital-Strategy-Assistant");

@@ -34,6 +34,19 @@ const RoleView = ({ role, sessions, onSessionClick }) => {
     }
   };
 
+  const getRoleLabel = (role) => {
+    switch (role) {
+      case "public":
+        return "Student/General Public";
+      case "educator":
+        return "Educator/Educational Designer";
+      case "admin":
+        return "Post-Secondary Institution Admin/Leader";
+      default:
+        return role;
+    }
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString();
   };
@@ -44,7 +57,7 @@ const RoleView = ({ role, sessions, onSessionClick }) => {
         <div className="flex items-center justify-between space-x-4 px-4 py-3 bg-gray-50 rounded-t-lg">
           <h2 className="text-lg font-semibold capitalize flex items-center">
             {getRoleIcon(role)}
-            {role} View
+            {getRoleLabel(role)} View
           </h2>
           <Button variant="ghost" size="sm" className="w-9 p-0">
             {isOpen ? (
@@ -78,6 +91,14 @@ const RoleView = ({ role, sessions, onSessionClick }) => {
                     {formatDate(session.last_message_time)}
                   </span>
                 </div>
+                {session.second_message_details && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500">Initial Question:</span>
+                    <span className="text-sm">
+                      {session.second_message_details}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </Button>
@@ -120,6 +141,7 @@ export default function History() {
         }
 
         const data = await response.json();
+        console.log(data);
         data.sort(
           (a, b) =>
             new Date(b.last_message_time) - new Date(a.last_message_time)
@@ -223,6 +245,7 @@ export default function History() {
       <Session
         session={selectedSession}
         onBack={() => setSelectedSession(null)}
+        from={"History"}
       />
     );
   }

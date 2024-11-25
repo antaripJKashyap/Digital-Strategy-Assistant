@@ -31,7 +31,7 @@ const PublicHome = ({ setPage }) => {
           {/* Welcome Text */}
           <div className="text-center space-y-2">
             <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-700 font-medium">
-              <span>Hi there! I am the DLS Assistant</span>
+              <span>Hi there! I am the Digital Strategy Assistant</span>
             </div>
             <div className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700">
               <span>I can help you</span>
@@ -47,7 +47,7 @@ const PublicHome = ({ setPage }) => {
                 icon: (
                   <PiHeadCircuitLight className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                 ),
-                text: "Understand the Digital Learning Strategy",
+                text: "Understand the Digital Strategy Assistant",
               },
               {
                 icon: (

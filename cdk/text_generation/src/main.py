@@ -27,7 +27,6 @@ def get_secret(secret_name, expect_json=True):
         if expect_json:
             return json.loads(response)
         else:
-            print(response)
             return response
     except json.JSONDecodeError as e:
         logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
@@ -132,11 +131,11 @@ embeddings = BedrockEmbeddings(
 
 create_dynamodb_history_table(TABLE_NAME)
 
-def get_system_prompts():
+def get_prompt_for_role(user_role):
     connection = None
     cur = None
     try:
-        logger.info(f"Fetching system prompt for all users.")
+        logger.info(f"Fetching system prompt for role: {user_role}.")
         db_secret = get_secret(DB_SECRET_NAME)
 
         connection_params = {
@@ -153,68 +152,34 @@ def get_system_prompts():
         cur = connection.cursor()
         logger.info("Connected to RDS instance!")
 
-        cur.execute("""
-            SELECT public, time_created
-            FROM prompts
-            WHERE public IS NOT NULL
-            ORDER BY time_created DESC NULLS LAST
-            LIMIT 1;
-        """)
-        
-        result = cur.fetchone()
-        logger.info(f"Query result: {result}")
-        if result:
-            public_prompt, time_created = result
-            logger.info("Public Prompts fetched successfully.")
-            print(public_prompt)
-        else:
-            logger.warning("No prompts found in the prompts table.")
-            public_prompt = None
+        # Validate the role
+        valid_roles = ["public", "educator", "admin"]
+        if user_role not in valid_roles:
+            logger.error(f"Invalid user_role: {user_role}")
+            return None
 
-        cur.execute("""
-            SELECT educator, time_created
+        # Query to fetch the most recent prompt for the specified role
+        query = f"""
+            SELECT {user_role}
             FROM prompts
-            WHERE educator IS NOT NULL
+            WHERE {user_role} IS NOT NULL
             ORDER BY time_created DESC NULLS LAST
             LIMIT 1;
-        """)
-        
+        """
+        cur.execute(query)
         result = cur.fetchone()
-        logger.info(f"Query result: {result}")
-        if result:
-            educator_prompt, time_created = result
-            logger.info("Educator Prompts fetched successfully.")
-            print(educator_prompt)
-        else:
-            logger.warning("No prompts found in the prompts table.")
-            educator_prompt = None
-        
-        cur.execute("""
-            SELECT admin, time_created
-            FROM prompts
-            WHERE admin IS NOT NULL
-            ORDER BY time_created DESC NULLS LAST
-            LIMIT 1;
-        """)
-        
-        result = cur.fetchone()
-        logger.info(f"Query result: {result}")
-        if result:
-            admin_prompt, time_created = result
-            logger.info("Educator Prompts fetched successfully.")
-            print(admin_prompt)
-        else:
-            logger.warning("No prompts found in the prompts table.")
-            admin_prompt = None
+        logger.info(f"Query result for role {user_role}: {result}")
 
-        return {
-            'public_prompt': public_prompt,
-            'educator_prompt': educator_prompt,
-            'admin_prompt': admin_prompt
-        }
+        if result:
+            prompt = str(result[0])
+            logger.info(f"{user_role.capitalize()} prompt fetched successfully.")
+            return prompt
+        else:
+            logger.warning(f"No prompts found for role: {user_role}.")
+            return None
 
     except Exception as e:
-        logger.error(f"Error fetching system prompts: {e}")
+        logger.error(f"Error fetching system prompt for role {user_role}: {e}")
         if connection:
             connection.rollback()
         return None
@@ -224,6 +189,7 @@ def get_system_prompts():
         if connection:
             connection.close()
         logger.info("Connection closed.")
+
 
 def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
@@ -247,58 +213,46 @@ def handler(event, context):
             'body': json.dumps('Missing required parameter: session_id')
         }
 
-    logger.info("Fetching prompts from the database.")
-    prompts = get_system_prompts()
-
-    if prompts:
-        public_prompt = prompts['public_prompt']
-        educator_prompt = prompts['educator_prompt']
-        admin_prompt = prompts['admin_prompt']
-
-        logger.info(f"Fetched prompts - Public: {public_prompt}, Educator: {educator_prompt}, Admin: {admin_prompt}")
-        # Use the prompts as needed
-    else:
-    # Handle the case where prompts are not available
-        logger.error("Failed to retrieve system prompts.")
-
-    if public_prompt is None:
-        logger.error(f"Error fetching public prompt for you!")
-        return {
-            'statusCode': 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('Error fetching public prompt')
-        }
-
-    if educator_prompt is None:
-        logger.error(f"Error fetching educator prompt for you!")
-        return {
-            'statusCode': 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('Error fetching educator prompt')
-        }
     
-    if admin_prompt is None:
-        logger.error(f"Error fetching admin prompt for you!")
-        return {
-            'statusCode': 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps('Error fetching admin prompt')
-        }
+
+    # if public_prompt is None:
+    #     logger.error(f"Error fetching public prompt for you!")
+    #     return {
+    #         'statusCode': 400,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Access-Control-Allow-Headers": "*",
+    #             "Access-Control-Allow-Origin": "*",
+    #             "Access-Control-Allow-Methods": "*",
+    #         },
+    #         'body': json.dumps('Error fetching public prompt')
+    #     }
+
+    # if educator_prompt is None:
+    #     logger.error(f"Error fetching educator prompt for you!")
+    #     return {
+    #         'statusCode': 400,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Access-Control-Allow-Headers": "*",
+    #             "Access-Control-Allow-Origin": "*",
+    #             "Access-Control-Allow-Methods": "*",
+    #         },
+    #         'body': json.dumps('Error fetching educator prompt')
+    #     }
+    
+    # if admin_prompt is None:
+    #     logger.error(f"Error fetching admin prompt for you!")
+    #     return {
+    #         'statusCode': 400,
+    #         "headers": {
+    #             "Content-Type": "application/json",
+    #             "Access-Control-Allow-Headers": "*",
+    #             "Access-Control-Allow-Origin": "*",
+    #             "Access-Control-Allow-Methods": "*",
+    #         },
+    #         'body': json.dumps('Error fetching admin prompt')
+    #     }
     
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
@@ -310,6 +264,22 @@ def handler(event, context):
         logger.info(f"User role received: {user_role}")
     else:
         logger.info("Awaiting user role selection.")
+
+    logger.info("Fetching prompts from the database.")
+    user_prompt = get_prompt_for_role(user_role)
+
+    if not user_prompt:
+        logger.error(f"Error fetching system prompt for user_role: {user_role}")
+        return {
+            'statusCode': 400,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps('Error fetching system prompt')
+        }
 
     if not question:
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
@@ -341,6 +311,7 @@ def handler(event, context):
         log_user_engagement(
             session_id=session_id,
             engagement_type="message creation",
+            engagement_details=question,
             user_info=user_info,
             user_role=user_role
         )
@@ -415,9 +386,7 @@ def handler(event, context):
             history_aware_retriever=history_aware_retriever,
             table_name=TABLE_NAME,
             session_id=session_id,
-            public_prompt=public_prompt,
-            educator_prompt=educator_prompt,
-            admin_prompt=admin_prompt
+            user_prompt=user_prompt
         )
     except Exception as e:
         logger.error(f"Error getting response: {e}")
