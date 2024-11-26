@@ -60,6 +60,49 @@ module.exports = {
 
 For example, to change the text on the home page of the frontend, modify `frontend/src/components/home/PublicHome.jsx`.
 
+After making the required changes in the fork created in the [Deployment Guide](./docs/deploymentGuide.md), the amplify deployment should automatically redeploy.
+
+## Modifying the LLM
+
+- **Change the model used in the application**:
+   - Find `bedrockLLMParameter` in api-gateway-stack.ts
+   - Change stringValue to the model ID of the model you would like to use. A list of thee available models and their IDs are listed [here](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
+   - The `system_prompt` in `cdk/text_generation/src/helpers/chat.py` and the prompts in the administrator view may require updates when switching models.
+   ```typescript
+   const bedrockLLMParameter = new ssm.StringParameter(
+        this,
+        "BedrockLLMParameter",
+        {
+          parameterName: "/DSA/BedrockLLMId",
+          description: "Parameter containing the Bedrock LLM ID",
+          stringValue: "meta.llama3-70b-instruct-v1:0",
+        }
+      );
+      ```
+## Limit sign ups to specific email domains
+
+- In `api-gateway-stack.ts`, define a lambda function and set it as the pre-signup trigger for the cognito user pool.
+- In the lambda function, add the following code and replace allowedDomains with the domains to be whitelisted.
+```javascript
+exports.handler = async (event) => {
+    try {
+        const allowedDomains = ["gmail.com","ubc.ca"]
+        const email = event.request.userAttributes.email;
+        const emailDomain = email.split('@')[1];
+
+        if (!allowedDomains.includes(emailDomain)) {
+            throw new Error(`Signup not allowed for email domain: ${emailDomain}`);
+        }
+
+        return event;
+
+    } catch (error) {
+        console.error(error);
+        throw new Error('Error validating email domain during pre-signup.');
+    }
+};
+```
+
 ## Additional Notes
 
 - **Frontend Styling**: Both `frontend` and `frontendAdmin` can use Tailwind classes to adjust styling.
