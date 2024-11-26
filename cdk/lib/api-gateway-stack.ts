@@ -25,6 +25,11 @@
   import * as bedrock from "aws-cdk-lib/aws-bedrock";
   import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
   import { SecretValue } from "aws-cdk-lib";
+  import { createCognitoResources } from "./api-gateway-helpers/cognito";
+  import { createS3Buckets } from "./api-gateway-helpers/s3";
+  import { createLayers } from "./api-gateway-helpers/layers";
+ 
+
 
   export class ApiGatewayStack extends cdk.Stack {
     private readonly api: apigateway.SpecRestApi;
@@ -52,89 +57,12 @@
       super(scope, id, props);
 
       this.layerList = {};
-      // Create the embedding storage bucket
-      const embeddingStorageBucket = new s3.Bucket(
-        this,
-        "EmbeddingStorageBucket",
-        {
-          blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-          cors: [
-            {
-              allowedHeaders: ["*"],
-              allowedMethods: [
-                s3.HttpMethods.GET,
-                s3.HttpMethods.PUT,
-                s3.HttpMethods.HEAD,
-                s3.HttpMethods.POST,
-                s3.HttpMethods.DELETE,
-              ],
-              allowedOrigins: ["*"],
-            },
-          ],
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
-          enforceSSL: true,
-          autoDeleteObjects: true,
-        }
-      );
+      const { embeddingStorageBucket, dataIngestionBucket } = createS3Buckets(this);
 
-      // Create the data ingestion bucket
-      const dataIngestionBucket = new s3.Bucket(this, "DataIngestionBucket", {
-        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-        cors: [
-          {
-            allowedHeaders: ["*"],
-            allowedMethods: [
-              s3.HttpMethods.GET,
-              s3.HttpMethods.PUT,
-              s3.HttpMethods.HEAD,
-              s3.HttpMethods.POST,
-              s3.HttpMethods.DELETE,
-            ],
-            allowedOrigins: ["*"],
-          },
-        ],
-        removalPolicy: cdk.RemovalPolicy.DESTROY,
-        enforceSSL: true,
-        autoDeleteObjects: true,
-      });
-
-      /**
-       *
-       * Create Integration Lambda layer for aws-jwt-verify
-       */
-      const jwt = new lambda.LayerVersion(this, "aws-jwt-verify", {
-        code: lambda.Code.fromAsset("./layers/aws-jwt-verify.zip"),
-        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
-        description: "Contains the aws-jwt-verify library for JS",
-      });
-
-
-      /**
-       *
-       * Create Integration Lambda layer for PSQL
-       */
-      const postgres = new lambda.LayerVersion(this, "postgres", {
-        code: lambda.Code.fromAsset("./layers/postgres.zip"),
-        compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
-        description: "Contains the postgres library for JS",
-      });
-
-      /**
-       *
-       * Create Lambda layer for Psycopg2
-       */
-      const psycopgLayer = new LayerVersion(this, "psycopgLambdaLayer", {
-        code: Code.fromAsset("./layers/psycopg2.zip"),
-        compatibleRuntimes: [Runtime.PYTHON_3_9],
-        description: "Lambda layer containing the psycopg2 Python library",
-      });
-
-
-      
-
-    
-
-      
+      const { jwt, postgres, psycopgLayer } = createLayers(this);
+      this.layerList["psycopg2"] = psycopgLayer;
+      this.layerList["postgres"] = postgres;
+      this.layerList["jwt"] = jwt;
 
       // powertoolsLayer does not follow the format of layerList
       const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
@@ -146,84 +74,15 @@
       this.layerList["psycopg2"] = psycopgLayer;
       this.layerList["postgres"] = postgres;
       this.layerList["jwt"] = jwt;
-      // this.layerList["data_ingestionLayer"] = data_ingestionLayer;
-      // this.layerList["text_generationLayer"] = text_generationLayer;
+      
+      const { userPool, appClient, identityPool, secret } = createCognitoResources(this);
+      this.userPool = userPool;
+      this.appClient = appClient;
+      this.identityPool = identityPool;
+      this.secret = secret;
 
-      // Create Cognito user pool
 
-      /**
-       *
-       * Create Cognito User Pool
-       * Using verification code
-       * Inspiration from http://buraktas.com/create-cognito-user-pool-aws-cdk/
-       */
-      const userPoolName = "DSAUserPool";
-      this.userPool = new cognito.UserPool(this, "DSA-pool", {
-        userPoolName: userPoolName,
-        signInAliases: {
-          email: true,
-        },
-        selfSignUpEnabled: true,
-        autoVerify: {
-          email: true,
-        },
-        userVerification: {
-          emailSubject: "You need to verify your email",
-          emailBody:
-            "Thanks for signing up to the DSA. \n Your verification code is {####}",
-          emailStyle: cognito.VerificationEmailStyle.CODE,
-        },
-        passwordPolicy: {
-          minLength: 8,
-          requireLowercase: true,
-          requireUppercase: true,
-          requireDigits: true,
-          requireSymbols: false,
-        },
-        accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-        removalPolicy: cdk.RemovalPolicy.DESTROY,
-      });
 
-      // Create app client
-      this.appClient = this.userPool.addClient("DSA-pool", {
-        userPoolClientName: userPoolName,
-        authFlows: {
-          userPassword: true,
-          custom: true,
-          userSrp: true,
-        },
-      });
-
-      this.identityPool = new cognito.CfnIdentityPool(this, "dls-identity-pool", {
-        allowUnauthenticatedIdentities: true,
-        identityPoolName: "DSAIdentityPool",
-        cognitoIdentityProviders: [
-          {
-            clientId: this.appClient.userPoolClientId,
-            providerName: this.userPool.userPoolProviderName,
-          },
-        ],
-      });
-
-      const secretsName = "DSA_Cognito_Secrets";
-
-      this.secret = new secretsmanager.Secret(this, secretsName, {
-        secretName: secretsName,
-        description: "Cognito Secrets for authentication",
-        secretObjectValue: {
-          VITE_COGNITO_USER_POOL_ID: cdk.SecretValue.unsafePlainText(
-            this.userPool.userPoolId
-          ),
-          VITE_COGNITO_USER_POOL_CLIENT_ID: cdk.SecretValue.unsafePlainText(
-            this.appClient.userPoolClientId
-          ),
-          VITE_AWS_REGION: cdk.SecretValue.unsafePlainText(this.region),
-          VITE_IDENTITY_POOL_ID: cdk.SecretValue.unsafePlainText(
-            this.identityPool.ref
-          ),
-        },
-        removalPolicy: cdk.RemovalPolicy.DESTROY,
-      });
 
       // Create roles and policies
       const createPolicyStatement = (actions: string[], resources: string[]) => {
