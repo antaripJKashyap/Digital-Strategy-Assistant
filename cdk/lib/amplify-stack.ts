@@ -75,7 +75,7 @@ import {
         "DSA-owner-name"
       );
   
-      const amplifyApp = new App(this, "amplifyApp", {
+      const amplifyApp = new App(this, `${id}-amplifyApp`, {
         appName: "DSA-amplify",
         platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
@@ -107,7 +107,7 @@ import {
         status: RedirectStatus.NOT_FOUND_REWRITE ,
       });
 
-      const amplifyAppAdmin = new App(this, "amplifyAppAdmin", {
+      const amplifyAppAdmin = new App(this, `${id}-amplifyAppAdmin`, {
         appName: "DSA-amplify-admin",
         platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
