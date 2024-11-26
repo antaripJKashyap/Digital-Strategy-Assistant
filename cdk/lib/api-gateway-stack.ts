@@ -58,9 +58,9 @@
       super(scope, id, props);
 
       this.layerList = {};
-      const { embeddingStorageBucket, dataIngestionBucket } = createS3Buckets(this);
+      const { embeddingStorageBucket, dataIngestionBucket } = createS3Buckets(this, id);
 
-      const { jwt, postgres, psycopgLayer } = createLayers(this);
+      const { jwt, postgres, psycopgLayer } = createLayers(this, id);
       this.layerList["psycopg2"] = psycopgLayer;
       this.layerList["postgres"] = postgres;
       this.layerList["jwt"] = jwt;
@@ -68,7 +68,7 @@
       // powertoolsLayer does not follow the format of layerList
       const powertoolsLayer = lambda.LayerVersion.fromLayerVersionArn(
         this,
-        "PowertoolsLayer",
+        `${id}-PowertoolsLayer`,
         `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:78`
       );
 
@@ -76,7 +76,8 @@
       this.layerList["postgres"] = postgres;
       this.layerList["jwt"] = jwt;
       
-      const { userPool, appClient, identityPool, secret } = createCognitoResources(this);
+      const { userPool, appClient, identityPool, secret } = createCognitoResources(this, id);
+  
       this.userPool = userPool;
       this.appClient = appClient;
       this.identityPool = identityPool;
@@ -105,10 +106,10 @@
       const data = Fn.transform("AWS::Include", { Location: asset.s3ObjectUrl });
 
       // Create the API Gateway REST API
-      this.api = new apigateway.SpecRestApi(this, "APIGateway", {
+      this.api = new apigateway.SpecRestApi(this, `${id}-APIGateway`, {
         apiDefinition: apigateway.AssetApiDefinition.fromInline(data),
         endpointTypes: [apigateway.EndpointType.REGIONAL],
-        restApiName: "DSAAPI",
+        restApiName: `${id}-API`,
         deploy: true,
         cloudWatchRole: true,
         deployOptions: {
@@ -128,66 +129,21 @@
       this.stageARN_APIGW = this.api.deploymentStage.stageArn;
       this.apiGW_basedURL = this.api.urlForPath();
 
-      // const adminRole = new iam.Role(this, "AdminRole", {
-      //   assumedBy: new iam.FederatedPrincipal(
-      //     "cognito-identity.amazonaws.com",
-      //     {
-      //       StringEquals: {
-      //         "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
-      //       },
-      //       "ForAnyValue:StringLike": {
-      //         "cognito-identity.amazonaws.com:amr": "authenticated",
-      //       },
-      //     },
-      //     "sts:AssumeRoleWithWebIdentity"
-      //   ),
-      // });
-
-      // adminRole.attachInlinePolicy(
-      //   new iam.Policy(this, "AdminPolicy", {
-      //     statements: [
-      //       createPolicyStatement(
-      //         ["execute-api:Invoke"],
-      //         [
-      //           `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin/*`,
-      //           `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor/*`,
-      //           `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user/*`,
-      //         ]
-      //       ),
-      //     ],
-      //   })
-      // );
-
       const { adminRole, unauthenticatedRole } = createRolesAndPolicies(
         this,
-        this.identityPool,
+        id,
+        this.identityPool.ref,
         this.api.restApiId,
         this.region,
         this.account
       );
-      const adminGroup = new cognito.CfnUserPoolGroup(this, "AdminGroup", {
+      const adminGroup = new cognito.CfnUserPoolGroup(this, `${id}-AdminGroup`, {
         groupName: "admin",
         userPoolId: this.userPool.userPoolId,
         roleArn: adminRole.roleArn,
       });
 
-      // Create unauthenticated role with no permissions
-      // const unauthenticatedRole = new iam.Role(this, "UnauthenticatedRole", {
-      //   assumedBy: new iam.FederatedPrincipal(
-      //     "cognito-identity.amazonaws.com",
-      //     {
-      //       StringEquals: {
-      //         "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
-      //       },
-      //       "ForAnyValue:StringLike": {
-      //         "cognito-identity.amazonaws.com:amr": "unauthenticated",
-      //       },
-      //     },
-      //     "sts:AssumeRoleWithWebIdentity"
-      //   ),
-      // });
-
-      const lambdaRole = new iam.Role(this, "postgresLambdaRole", {
+      const lambdaRole = new iam.Role(this, `${id}-postgresLambdaRole`, {
         roleName: "postgresLambdaRole",
         assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       });
@@ -238,7 +194,7 @@
       // Inline policy to allow AdminAddUserToGroup action
       const adminAddUserToGroupPolicyLambda = new iam.Policy(
         this,
-        "adminAddUserToGroupPolicyLambda",
+        `${id}-adminAddUserToGroupPolicyLambda`,
         {
           statements: [
             new iam.PolicyStatement({
@@ -261,7 +217,7 @@
       lambdaRole.attachInlinePolicy(adminAddUserToGroupPolicyLambda);
 
       // Attach roles to the identity pool
-      new cognito.CfnIdentityPoolRoleAttachment(this, "IdentityPoolRoles", {
+      new cognito.CfnIdentityPoolRoleAttachment(this, `${id}-IdentityPoolRoles`, {
         identityPoolId: this.identityPool.ref,
         roles: {
           authenticated: adminRole.roleArn,
@@ -269,7 +225,7 @@
         },
       });
 
-      const lambdaUserFunction = new lambda.Function(this, "userFunction", {
+      const lambdaUserFunction = new lambda.Function(this, `${id}-userFunction`, {
         runtime: lambda.Runtime.NODEJS_20_X,
         code: lambda.Code.fromAsset("lambda/lib"),
         handler: "userFunction.handler",
@@ -280,7 +236,7 @@
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           USER_POOL: this.userPool.userPoolId,
         },
-        functionName: "userFunction",
+        functionName: `${id}-userFunction`,
         memorySize: 512,
         layers: [postgres],
         role: lambdaRole,
@@ -297,7 +253,7 @@
         .defaultChild as lambda.CfnFunction;
       cfnLambda_user.overrideLogicalId("userFunction");
 
-      const lambdaAdminFunction = new lambda.Function(this, "adminFunction", {
+      const lambdaAdminFunction = new lambda.Function(this, `${id}-adminFunction`, {
         runtime: lambda.Runtime.NODEJS_20_X,
         code: lambda.Code.fromAsset("lambda/adminFunction"),
         handler: "adminFunction.handler",
@@ -307,7 +263,7 @@
           SM_DB_CREDENTIALS: db.secretPathTableCreator.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpointTableCreator,
         },
-        functionName: "adminFunction",
+        functionName: `${id}-adminFunction`,
         memorySize: 512,
         layers: [postgres],
         role: lambdaRole,
@@ -324,13 +280,13 @@
         .defaultChild as lambda.CfnFunction;
       cfnLambda_Admin.overrideLogicalId("adminFunction");
 
-      const coglambdaRole = new iam.Role(this, "cognitoLambdaRole", {
-        roleName: "cognitoLambdaRole",
+      const coglambdaRole = new iam.Role(this, `${id}-cognitoLambdaRole`, {
+        roleName: `${id}-cognitoLambdaRole`,
         assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       });
 
-      const logRole = new iam.Role(this, "logRole", {
-        roleName: "logRole",
+      const logRole = new iam.Role(this, `${id}-logRole`, {
+        roleName: `${id}-logRole`,
         assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
       });
 
@@ -418,7 +374,7 @@
       // Inline policy to allow AdminAddUserToGroup action
       const adminAddUserToGroupPolicy = new iam.Policy(
         this,
-        "AdminAddUserToGroupPolicy",
+        `${id}-AdminAddUserToGroupPolicy`,
         {
           statements: [
             new iam.PolicyStatement({
@@ -454,7 +410,7 @@
         })
       );
 
-      const AutoSignupLambda = new lambda.Function(this, "addAdminOnSignUp", {
+      const AutoSignupLambda = new lambda.Function(this, `${id}-addAdminOnSignUp`, {
         runtime: lambda.Runtime.NODEJS_20_X,
         code: lambda.Code.fromAsset("lambda/lib"),
         handler: "addAdminOnSignUp.handler",
@@ -464,7 +420,7 @@
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpointTableCreator,
         },
         vpc: vpcStack.vpc,
-        functionName: "addAdminOnSignUp",
+        functionName: `${id}-addAdminOnSignUp`,
         memorySize: 128,
         layers: [postgres],
         role: coglambdaRole,
@@ -477,14 +433,14 @@
         AutoSignupLambda
       );
 
-      new cdk.CfnOutput(this, "UserPoolIdOutput", {
+      new cdk.CfnOutput(this, `${id}-UserPoolIdOutput`, {
         value: this.userPool.userPoolId,
         description: "The ID of the Cognito User Pool",
       });
       
       const updateTimestampLambda = new lambda.Function(
         this,
-        "updateTimestampLambda",
+        `${id}-updateTimestampLambda`,
         {
           runtime: lambda.Runtime.NODEJS_20_X,
           code: lambda.Code.fromAsset("lambda/lib"),
@@ -515,7 +471,7 @@
       //  */
       const authorizationFunction = new lambda.Function(
         this,
-        "admin-authorization-api-gateway",
+        `${id}-admin-authorization-api-gateway`,
         {
           runtime: lambda.Runtime.NODEJS_20_X,
           code: lambda.Code.fromAsset("lambda/adminAuthorizerFunction"),
@@ -525,7 +481,7 @@
           environment: {
             SM_COGNITO_CREDENTIALS: this.secret.secretName,
           },
-          functionName: "adminLambdaAuthorizer",
+          functionName: `${id}-adminLambdaAuthorizer`,
           memorySize: 512,
           layers: [jwt],
           role: lambdaRole,
@@ -578,13 +534,13 @@
        */
       const textGenLambdaDockerFunc = new lambda.DockerImageFunction(
         this,
-        "TextGenLambdaDockerFunction",
+        `${id}-TextGenLambdaDockerFunction`,
         {
           code: lambda.DockerImageCode.fromImageAsset("./text_generation"),
           memorySize: 512,
           timeout: cdk.Duration.seconds(300),
           vpc: vpcStack.vpc, // Pass the VPC
-          functionName: "TextGenLambdaDockerFunction",
+          functionName: `${id}-TextGenLambdaDockerFunction`,
           environment: {
             SM_DB_CREDENTIALS: db.secretPathUser.secretName,
             RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
@@ -669,7 +625,7 @@
       // Create the Lambda function for generating presigned URLs
       const generatePreSignedURL = new lambda.Function(
         this,
-        "GeneratePreSignedURLFunc",
+        `${id}-GeneratePreSignedURLFunc`,
         {
           runtime: lambda.Runtime.PYTHON_3_9,
           code: lambda.Code.fromAsset("lambda/generatePreSignedURL"),
@@ -680,7 +636,7 @@
             BUCKET: dataIngestionBucket.bucketName,
             REGION: this.region,
           },
-          functionName: "GeneratePreSignedURLFunc",
+          functionName: `${id}-GeneratePreSignedURLFunc`,
           layers: [powertoolsLayer],
         }
       );
@@ -716,13 +672,13 @@
        */
       const dataIngestLambdaDockerFunction = new lambda.DockerImageFunction(
         this,
-        "DataIngestLambdaDockerFunctionReImaged",
+        `${id}-DataIngestLambdaDockerFunctionReImaged`,
         {
           code: lambda.DockerImageCode.fromImageAsset("./data_ingestion"),
           memorySize: 512,
           timeout: cdk.Duration.seconds(300),
           vpc: vpcStack.vpc, // Pass the VPC
-          functionName: "DataIngestLambdaDockerFunctionReImaged",
+          functionName: `${id}-DataIngestLambdaDockerFunctionReImaged`,
           environment: {
             SM_DB_CREDENTIALS: db.secretPathAdminName,
             RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
@@ -815,7 +771,7 @@
        */
       const getDocumentsFunction = new lambda.Function(
         this,
-        "GetDocumentsFunction",
+        `${id}-GetDocumentsFunction`,
         {
           runtime: lambda.Runtime.PYTHON_3_9,
           code: lambda.Code.fromAsset("lambda/getDocumentsFunction"),
@@ -829,7 +785,7 @@
             BUCKET: dataIngestionBucket.bucketName,
             REGION: this.region,
           },
-          functionName: "GetDocumentsFunction",
+          functionName: `${id}-GetDocumentsFunction`,
           layers: [psycopgLayer, powertoolsLayer],
           role: coglambdaRole,
         }
@@ -868,7 +824,7 @@
        *
        * Create Lambda function to delete certain file
        */
-      const deleteDocument = new lambda.Function(this, "DeleteDocumentFunc", {
+      const deleteDocument = new lambda.Function(this, `${id}-DeleteDocumentFunc`, {
         runtime: lambda.Runtime.PYTHON_3_9,
         code: lambda.Code.fromAsset("lambda/deleteDocument"),
         handler: "deleteDocument.lambda_handler",
@@ -881,7 +837,7 @@
           BUCKET: dataIngestionBucket.bucketName,
           REGION: this.region,
         },
-        functionName: "DeleteDocumentFunc",
+        functionName: `${id}-DeleteDocumentFunc`,
         layers: [psycopgLayer, powertoolsLayer],
       });
 
@@ -917,7 +873,7 @@
       /**
        * Create Lambda function to get messages for a session
        */
-      const getMessagesFunction = new lambda.Function(this, "GetMessagesFunction", {
+      const getMessagesFunction = new lambda.Function(this, `${id}-GetMessagesFunction`, {
         runtime: lambda.Runtime.PYTHON_3_9,
         code: lambda.Code.fromAsset("lambda/getMessages"), // Update the path to match your folder structure
         handler: "getMessagesFunction.lambda_handler",
@@ -928,7 +884,7 @@
           TABLE_NAME: 'DynamoDB-Conversation-Table', // Use the correct DynamoDB table name
           REGION: this.region,
         },
-        functionName: "GetMessagesFunction",
+        functionName: `${id}-GetMessagesFunction`,
         layers: [psycopgLayer, powertoolsLayer], // Add layers if needed
         role: coglambdaRole, // Ensure the role has the necessary permissions for DynamoDB
       });
@@ -988,19 +944,14 @@
         action: "lambda:InvokeFunction",
         sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/get_messages`,
       });
-      
-
-
-
-
-
+    
       /**
        *
        * Create Lambda function to delete an entire module directory
        */
       const deleteCategoryFunction = new lambda.Function(
         this,
-        "DeleteCategoryFunc",
+        `${id}-DeleteCategoryFunc`,
         {
           runtime: lambda.Runtime.PYTHON_3_9,
           code: lambda.Code.fromAsset("lambda/deleteCategory"),
@@ -1014,7 +965,7 @@
             BUCKET: dataIngestionBucket.bucketName,
             REGION: this.region,
           },
-          functionName: "DeleteCategoryFunc",
+          functionName: `${id}-DeleteCategoryFunc`,
           layers: [psycopgLayer, powertoolsLayer],
         }
       );

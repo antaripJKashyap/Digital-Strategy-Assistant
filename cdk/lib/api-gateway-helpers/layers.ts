@@ -10,12 +10,12 @@ import {
   import { Construct } from "constructs";
 
 
-  export const createLayers = (scope: Construct) => {
+  export const createLayers = (scope: Construct, id: string) => {
     /**
        *
        * Create Integration Lambda layer for aws-jwt-verify
        */
-    const jwt = new lambda.LayerVersion(scope, "aws-jwt-verify", {
+    const jwt = new lambda.LayerVersion(scope, `${id}-aws-jwt-verify`, {
         code: lambda.Code.fromAsset("./layers/aws-jwt-verify.zip"),
         compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
         description: "Contains the aws-jwt-verify library for JS",
@@ -26,7 +26,7 @@ import {
        *
        * Create Integration Lambda layer for PSQL
        */
-      const postgres = new lambda.LayerVersion(scope, "postgres", {
+      const postgres = new lambda.LayerVersion(scope, `${id}-postgres`, {
         code: lambda.Code.fromAsset("./layers/postgres.zip"),
         compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
         description: "Contains the postgres library for JS",
@@ -36,7 +36,7 @@ import {
        *
        * Create Lambda layer for Psycopg2
        */
-      const psycopgLayer = new LayerVersion(scope, "psycopgLambdaLayer", {
+      const psycopgLayer = new LayerVersion(scope, `${id}-psycopgLambdaLayer`, {
         code: Code.fromAsset("./layers/psycopg2.zip"),
         compatibleRuntimes: [Runtime.PYTHON_3_9],
         description: "Lambda layer containing the psycopg2 Python library",

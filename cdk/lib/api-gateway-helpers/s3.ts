@@ -2,8 +2,8 @@ import * as s3 from "aws-cdk-lib/aws-s3";
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
-export const createS3Buckets = (scope: Construct) => {
-  const embeddingStorageBucket = new s3.Bucket(scope, "EmbeddingStorageBucket", {
+export const createS3Buckets = (scope: Construct, id: string) => {
+  const embeddingStorageBucket = new s3.Bucket(scope, `${id}-EmbeddingStorageBucket`, {
     blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     cors: [
       {
@@ -23,7 +23,7 @@ export const createS3Buckets = (scope: Construct) => {
     autoDeleteObjects: true,
   });
 
-  const dataIngestionBucket = new s3.Bucket(scope, "DataIngestionBucket", {
+  const dataIngestionBucket = new s3.Bucket(scope, `${id}-DataIngestionBucket`, {
     blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     cors: [
       {

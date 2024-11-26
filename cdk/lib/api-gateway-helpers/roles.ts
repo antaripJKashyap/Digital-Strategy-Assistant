@@ -4,7 +4,8 @@ import { CfnIdentityPool } from "aws-cdk-lib/aws-cognito";
 
 export const createRolesAndPolicies = (
   scope: Construct,
-  identityPool: CfnIdentityPool,
+  id: string,
+  identityPool: any,
   apiRestApiId: string,
   region: string,
   account: string
@@ -17,7 +18,7 @@ export const createRolesAndPolicies = (
     });
   };
 
-  const adminRole = new iam.Role(scope, "AdminRole", {
+  const adminRole = new iam.Role(scope,`${id}-AdminRole`, {
     assumedBy: new iam.FederatedPrincipal(
       "cognito-identity.amazonaws.com",
       {
@@ -33,7 +34,7 @@ export const createRolesAndPolicies = (
   });
 
   adminRole.attachInlinePolicy(
-    new iam.Policy(scope, "AdminPolicy", {
+    new iam.Policy(scope, `${id}-AdminPolicy`, {
       statements: [
         createPolicyStatement(
           ["execute-api:Invoke"],
@@ -47,7 +48,7 @@ export const createRolesAndPolicies = (
     })
   );
 
-  const unauthenticatedRole = new iam.Role(scope, "UnauthenticatedRole", {
+  const unauthenticatedRole = new iam.Role(scope, `${id}-UnauthenticatedRole`, {
     assumedBy: new iam.FederatedPrincipal(
       "cognito-identity.amazonaws.com",
       {
