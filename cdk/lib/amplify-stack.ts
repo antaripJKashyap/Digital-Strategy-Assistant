@@ -76,7 +76,7 @@ import {
       );
   
       const amplifyApp = new App(this, `${id}-amplifyApp`, {
-        appName: "DSA-amplify",
+        appName: `${id}-public`,
         platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
           owner: username,
@@ -108,7 +108,7 @@ import {
       });
 
       const amplifyAppAdmin = new App(this, `${id}-amplifyAppAdmin`, {
-        appName: "DSA-amplify-admin",
+        appName: `${id}-admin`,
         platform: Platform.WEB_COMPUTE,
         sourceCodeProvider: new GitHubSourceCodeProvider({
           owner: username,

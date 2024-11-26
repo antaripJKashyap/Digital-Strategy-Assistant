@@ -31,10 +31,10 @@ export class DBFlowStack extends Stack {
             actions: [
               // Secrets Manager
               "secretsmanager:GetSecretValue",
-              "secretsmanager:PutSecretValue"
+              "secretsmanager:PutSecretValue",
             ],
             resources: [
-              `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DSA/*`,
+              `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
             ],
           })
         );

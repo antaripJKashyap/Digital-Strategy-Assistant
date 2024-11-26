@@ -52,7 +52,7 @@ export const createCognitoResources = (scope: Construct, id: string) => {
         ],
     });
 
-    const secretsName = "DSA_Cognito_Secrets";
+    const secretsName = `${id}-DSA_Cognito_Secrets`;
     const secret = new secretsmanager.Secret(scope, secretsName, {
         secretName: secretsName,
         description: "Cognito Secrets for authentication",
