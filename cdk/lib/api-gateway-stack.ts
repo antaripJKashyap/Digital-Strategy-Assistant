@@ -28,6 +28,7 @@
   import { createCognitoResources } from "./api-gateway-helpers/cognito";
   import { createS3Buckets } from "./api-gateway-helpers/s3";
   import { createLayers } from "./api-gateway-helpers/layers";
+  import { createRolesAndPolicies } from "./api-gateway-helpers/roles";
  
 
 
@@ -94,10 +95,8 @@
       };
 
       /**
-       *
        * Load OpenAPI file into API Gateway using REST API
        */
-
       // Read OpenAPI file and load file to S3
       const asset = new Asset(this, "SampleAsset", {
         path: "OpenAPI_Swagger_Definition.yaml",
@@ -129,36 +128,43 @@
       this.stageARN_APIGW = this.api.deploymentStage.stageArn;
       this.apiGW_basedURL = this.api.urlForPath();
 
-      const adminRole = new iam.Role(this, "AdminRole", {
-        assumedBy: new iam.FederatedPrincipal(
-          "cognito-identity.amazonaws.com",
-          {
-            StringEquals: {
-              "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
-            },
-            "ForAnyValue:StringLike": {
-              "cognito-identity.amazonaws.com:amr": "authenticated",
-            },
-          },
-          "sts:AssumeRoleWithWebIdentity"
-        ),
-      });
+      // const adminRole = new iam.Role(this, "AdminRole", {
+      //   assumedBy: new iam.FederatedPrincipal(
+      //     "cognito-identity.amazonaws.com",
+      //     {
+      //       StringEquals: {
+      //         "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
+      //       },
+      //       "ForAnyValue:StringLike": {
+      //         "cognito-identity.amazonaws.com:amr": "authenticated",
+      //       },
+      //     },
+      //     "sts:AssumeRoleWithWebIdentity"
+      //   ),
+      // });
 
-      adminRole.attachInlinePolicy(
-        new iam.Policy(this, "AdminPolicy", {
-          statements: [
-            createPolicyStatement(
-              ["execute-api:Invoke"],
-              [
-                `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin/*`,
-                `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor/*`,
-                `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user/*`,
-              ]
-            ),
-          ],
-        })
+      // adminRole.attachInlinePolicy(
+      //   new iam.Policy(this, "AdminPolicy", {
+      //     statements: [
+      //       createPolicyStatement(
+      //         ["execute-api:Invoke"],
+      //         [
+      //           `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin/*`,
+      //           `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/instructor/*`,
+      //           `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user/*`,
+      //         ]
+      //       ),
+      //     ],
+      //   })
+      // );
+
+      const { adminRole, unauthenticatedRole } = createRolesAndPolicies(
+        this,
+        this.identityPool,
+        this.api.restApiId,
+        this.region,
+        this.account
       );
-
       const adminGroup = new cognito.CfnUserPoolGroup(this, "AdminGroup", {
         groupName: "admin",
         userPoolId: this.userPool.userPoolId,
@@ -166,20 +172,20 @@
       });
 
       // Create unauthenticated role with no permissions
-      const unauthenticatedRole = new iam.Role(this, "UnauthenticatedRole", {
-        assumedBy: new iam.FederatedPrincipal(
-          "cognito-identity.amazonaws.com",
-          {
-            StringEquals: {
-              "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
-            },
-            "ForAnyValue:StringLike": {
-              "cognito-identity.amazonaws.com:amr": "unauthenticated",
-            },
-          },
-          "sts:AssumeRoleWithWebIdentity"
-        ),
-      });
+      // const unauthenticatedRole = new iam.Role(this, "UnauthenticatedRole", {
+      //   assumedBy: new iam.FederatedPrincipal(
+      //     "cognito-identity.amazonaws.com",
+      //     {
+      //       StringEquals: {
+      //         "cognito-identity.amazonaws.com:aud": this.identityPool.ref,
+      //       },
+      //       "ForAnyValue:StringLike": {
+      //         "cognito-identity.amazonaws.com:amr": "unauthenticated",
+      //       },
+      //     },
+      //     "sts:AssumeRoleWithWebIdentity"
+      //   ),
+      // });
 
       const lambdaRole = new iam.Role(this, "postgresLambdaRole", {
         roleName: "postgresLambdaRole",
