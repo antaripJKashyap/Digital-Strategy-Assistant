@@ -11,7 +11,7 @@ export class VpcStack extends Stack {
     const natGatewayProvider = ec2.NatProvider.gateway();
 
     // VPC for application
-    this.vpc = new ec2.Vpc(this, "DSA-Vpc", {
+    this.vpc = new ec2.Vpc(this, `${id}-Vpc`, {
       //cidr: "10.0.0.0/16",
       ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/16'),
       natGatewayProvider: natGatewayProvider,
@@ -33,7 +33,7 @@ export class VpcStack extends Stack {
       ]
     });
 
-    this.vpc.addFlowLog("DSA-vpcFlowLog");
+    this.vpc.addFlowLog(`${id}-vpcFlowLog`);
 
     // Get default security group for VPC
     const defaultSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(
@@ -43,13 +43,13 @@ export class VpcStack extends Stack {
     );
 
     // Add secrets manager endpoint to VPC
-    this.vpc.addInterfaceEndpoint("Secrets Manager Endpoint", {
+    this.vpc.addInterfaceEndpoint(`${id}-Secrets Manager Endpoint`, {
       service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
 
     // Add RDS endpoint to VPC
-    this.vpc.addInterfaceEndpoint("RDS Endpoint", {
+    this.vpc.addInterfaceEndpoint(`${id}-RDS Endpoint`, {
       service: ec2.InterfaceVpcEndpointAwsService.RDS,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
