@@ -135,8 +135,7 @@ paths:
         "500":
           description: Internal Server Error
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TextGenLambdaDockerFunction.Arn}/invocations"
+        uri: textGenLambdaDockerFunc
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -189,8 +188,7 @@ paths:
         "500":
           description: Internal Server Error
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+        uri: userFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -267,8 +265,7 @@ paths:
         "500":
           description: Internal Server Error
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+        uri: userFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -352,8 +349,7 @@ paths:
         "500":
           description: Internal Server Error
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
+        uri: getMessagesFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -428,8 +424,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GeneratePreSignedURLFunc.Arn}/invocations"
+        uri: generatePreSignedURL
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -496,8 +491,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteDocumentFunc.Arn}/invocations"
+        uri: deleteDocument
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -552,8 +546,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteCategoryFunc.Arn}/invocations"
+        uri: deleteCategoryFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -601,8 +594,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -692,8 +684,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -762,8 +753,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -828,8 +818,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -884,8 +873,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetDocumentsFunction.Arn}/invocations"
+        uri: getDocumentsFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -933,8 +921,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -989,8 +976,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1045,8 +1031,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetMessagesFunction.Arn}/invocations"
+        uri: getMessagesFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1109,8 +1094,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1153,8 +1137,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1218,8 +1201,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1297,8 +1279,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1348,8 +1329,7 @@ paths:
         security:
           - adminAuthorizer: []
         x-amazon-apigateway-integration:
-          uri:
-            Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+          uri: adminFunction
           passthroughBehavior: "when_no_match"
           httpMethod: "POST"
           type: "aws_proxy"
@@ -1430,8 +1410,7 @@ paths:
       security:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
-        uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        uri: adminFunction
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1445,8 +1424,7 @@ components:
       x-amazon-apigateway-authtype: "custom"
       x-amazon-apigateway-authorizer:
         type: token
-        authorizerUri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminLambdaAuthorizer.Arn}/invocations"
+        authorizerUri: adminAuthorizer
         identitySource: method.request.header.Authorization
   responses:
     Success:
