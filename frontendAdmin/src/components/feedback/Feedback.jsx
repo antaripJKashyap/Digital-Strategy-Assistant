@@ -94,7 +94,17 @@ const FeedbackView = ({ role, feedbackData, onFeedbackClick }) => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
+    const utcDate = new Date(dateString + "Z");
+
+    return utcDate.toLocaleString(undefined, {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
   };
 
   if (
@@ -184,13 +194,22 @@ const Feedback = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
 
+  // Define role order explicitly
+  const ROLE_ORDER = ['public', 'educator', 'admin'];
+
   function sortFeedbackByTimestamp(data) {
-    return data.map((roleData) => {
+    // First, sort the data by the predefined role order
+    const sortedByRole = data.sort((a, b) => 
+      ROLE_ORDER.indexOf(a.user_role) - ROLE_ORDER.indexOf(b.user_role)
+    );
+
+    return sortedByRole.map((roleData) => {
       const sortedData = { ...roleData };
       if (
         sortedData.feedback_details &&
         Array.isArray(sortedData.feedback_details)
       ) {
+        // Sort feedback details by timestamp (most recent first)
         sortedData.feedback_details = sortedData.feedback_details.sort(
           (a, b) => new Date(b.feedback_time) - new Date(a.feedback_time)
         );
@@ -198,7 +217,6 @@ const Feedback = () => {
       return sortedData;
     });
   }
-
   useEffect(() => {
     const fetchFeedbackData = async () => {
       try {

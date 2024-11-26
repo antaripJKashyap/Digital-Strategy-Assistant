@@ -657,7 +657,7 @@ exports.handler = async (event) => {
         try {
           const feedbackData = await sqlConnectionTableCreator`
               WITH feedback_with_roles AS (
-                SELECT 
+                SELECT DISTINCT
                   f.feedback_id,
                   f.session_id,
                   f.feedback_rating,
