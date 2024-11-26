@@ -194,9 +194,6 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
 
-    const cfnLambda_user = lambdaUserFunction.node
-      .defaultChild as lambda.CfnFunction;
-    cfnLambda_user.overrideLogicalId("userFunction");
 
     const lambdaAdminFunction = new lambda.Function(
       this,
@@ -218,9 +215,6 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    const cfnLambda_Admin = lambdaAdminFunction.node
-      .defaultChild as lambda.CfnFunction;
-    cfnLambda_Admin.overrideLogicalId("adminFunction");
 
     const coglambdaRole = new iam.Role(this, `${id}-cognitoLambdaRole`, {
       roleName: `${id}-cognitoLambdaRole`,
@@ -439,10 +433,11 @@ export class ApiGatewayStack extends cdk.Stack {
       new iam.ServicePrincipal("apigateway.amazonaws.com")
     );
 
-    // Change Logical ID to match the one decleared in YAML file of Open API
-    const apiGW_authorizationFunction = authorizationFunction.node
-      .defaultChild as lambda.CfnFunction;
-    apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
+    // Define the GitHub repository name as a parameter
+    const bedrockLLMID = new cdk.CfnParameter(this, "bedrockLLMID", {
+      type: "String",
+      description: "The name of the GitHub repository",
+    }).valueAsString;
 
     // Create parameters for Bedrock LLM ID, Embedding Model ID, and Table Name in Parameter Store
     const bedrockLLMParameter = new ssm.StringParameter(
@@ -451,7 +446,7 @@ export class ApiGatewayStack extends cdk.Stack {
       {
         parameterName: "/DSA/BedrockLLMId",
         description: "Parameter containing the Bedrock LLM ID",
-        stringValue: "meta.llama3-70b-instruct-v1:0",
+        stringValue: bedrockLLMID,
       }
     );
     const embeddingModelParameter = new ssm.StringParameter(
@@ -498,10 +493,6 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnTextGenDockerFunc = textGenLambdaDockerFunc.node
-      .defaultChild as lambda.CfnFunction;
-    cfnTextGenDockerFunc.overrideLogicalId("TextGenLambdaDockerFunction");
 
     // Custom policy statement for Bedrock access
     const bedrockPolicyStatement = new iam.PolicyStatement({
@@ -579,12 +570,6 @@ export class ApiGatewayStack extends cdk.Stack {
         layers: [powertoolsLayer],
       }
     );
-
-    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnGeneratePreSignedURL = generatePreSignedURL.node
-      .defaultChild as lambda.CfnFunction;
-    cfnGeneratePreSignedURL.overrideLogicalId("GeneratePreSignedURLFunc");
-
     // Grant the Lambda function the necessary permissions
     dataIngestionBucket.grantReadWrite(generatePreSignedURL);
     generatePreSignedURL.addToRolePolicy(
@@ -620,13 +605,6 @@ export class ApiGatewayStack extends cdk.Stack {
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
         },
       }
-    );
-
-    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnDataIngestLambdaDockerFunction = dataIngestLambdaDockerFunction
-      .node.defaultChild as lambda.CfnFunction;
-    cfnDataIngestLambdaDockerFunction.overrideLogicalId(
-      "DataIngestLambdaDockerFunctionReImaged"
     );
 
     dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
@@ -723,11 +701,6 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnGetDocumentsFunction = getDocumentsFunction.node
-      .defaultChild as lambda.CfnFunction;
-    cfnGetDocumentsFunction.overrideLogicalId("GetDocumentsFunction");
-
     // Grant the Lambda function read-only permissions to the S3 bucket
     dataIngestionBucket.grantRead(getDocumentsFunction);
 
@@ -769,11 +742,6 @@ export class ApiGatewayStack extends cdk.Stack {
         layers: [psycopgLayer, powertoolsLayer],
       }
     );
-
-    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfndeleteDocument = deleteDocument.node
-      .defaultChild as lambda.CfnFunction;
-    cfndeleteDocument.overrideLogicalId("DeleteDocumentFunc");
 
     // Grant the Lambda function the necessary permissions
     dataIngestionBucket.grantDelete(deleteDocument);
@@ -838,10 +806,6 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    // Override the Logical ID if needed
-    const cfnGetMessagesFunction = getMessagesFunction.node
-      .defaultChild as lambda.CfnFunction;
-    cfnGetMessagesFunction.overrideLogicalId("GetMessagesFunction");
 
     getMessagesFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -883,11 +847,6 @@ export class ApiGatewayStack extends cdk.Stack {
         layers: [psycopgLayer, powertoolsLayer],
       }
     );
-
-    //Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnDeleteCategoryFunction = deleteCategoryFunction.node
-      .defaultChild as lambda.CfnFunction;
-    cfnDeleteCategoryFunction.overrideLogicalId("DeleteCategoryFunc");
 
     //Grant the Lambda function the necessary permissions
     dataIngestionBucket.grantRead(deleteCategoryFunction);
