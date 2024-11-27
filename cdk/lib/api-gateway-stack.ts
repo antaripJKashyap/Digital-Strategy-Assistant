@@ -29,7 +29,6 @@ import { createCognitoResources } from "./api-gateway-helpers/cognito";
 import { createS3Buckets } from "./api-gateway-helpers/s3";
 import { createLayers } from "./api-gateway-helpers/layers";
 import { createRolesAndPolicies } from "./api-gateway-helpers/roles";
-import { OpenApiGatewayToLambda } from "@aws-solutions-constructs/aws-openapigateway-lambda";
 
 export class ApiGatewayStack extends cdk.Stack {
   private readonly api: apigateway.SpecRestApi;
@@ -101,6 +100,46 @@ export class ApiGatewayStack extends cdk.Stack {
     // Read OpenAPI file and load file to S3
     const asset = new Asset(this, "SampleAsset", {
       path: "OpenAPI_Swagger_Definition.yaml",
+    });
+
+    const data = Fn.transform("AWS::Include", { Location: asset.s3ObjectUrl });
+
+    // Create the API Gateway REST API
+    this.api = new apigateway.SpecRestApi(this, `${id}-APIGateway`, {
+      apiDefinition: apigateway.AssetApiDefinition.fromInline(data),
+      endpointTypes: [apigateway.EndpointType.REGIONAL],
+      restApiName: `${id}-API`,
+      deploy: true,
+      cloudWatchRole: true,
+      deployOptions: {
+        metricsEnabled: true,
+        loggingLevel: apigateway.MethodLoggingLevel.ERROR,
+        dataTraceEnabled: true,
+        stageName: "prod",
+        methodOptions: {
+          "/*/*": {
+            throttlingRateLimit: 100,
+            throttlingBurstLimit: 200,
+          },
+        },
+      },
+    });
+
+    this.stageARN_APIGW = this.api.deploymentStage.stageArn;
+    this.apiGW_basedURL = this.api.urlForPath();
+
+    const { adminRole, unauthenticatedRole } = createRolesAndPolicies(
+      this,
+      id,
+      this.identityPool.ref,
+      this.api.restApiId,
+      this.region,
+      this.account
+    );
+    const adminGroup = new cognito.CfnUserPoolGroup(this, `${id}-AdminGroup`, {
+      groupName: "admin",
+      userPoolId: this.userPool.userPoolId,
+      roleArn: adminRole.roleArn,
     });
 
     const lambdaRole = new iam.Role(this, `${id}-postgresLambdaRole`, {
@@ -176,6 +215,15 @@ export class ApiGatewayStack extends cdk.Stack {
     // Attach the inline policy to the role
     lambdaRole.attachInlinePolicy(adminAddUserToGroupPolicyLambda);
 
+    // Attach roles to the identity pool
+    new cognito.CfnIdentityPoolRoleAttachment(this, `${id}-IdentityPoolRoles`, {
+      identityPoolId: this.identityPool.ref,
+      roles: {
+        authenticated: adminRole.roleArn,
+        unauthenticated: unauthenticatedRole.roleArn,
+      },
+    });
+
     const lambdaUserFunction = new lambda.Function(this, `${id}-userFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset("lambda/lib"),
@@ -193,7 +241,16 @@ export class ApiGatewayStack extends cdk.Stack {
       role: lambdaRole,
     });
 
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    lambdaUserFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
+    });
 
+    const cfnLambda_user = lambdaUserFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnLambda_user.overrideLogicalId("userFunction");
 
     const lambdaAdminFunction = new lambda.Function(
       this,
@@ -215,6 +272,16 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    lambdaAdminFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+
+    const cfnLambda_Admin = lambdaAdminFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnLambda_Admin.overrideLogicalId("adminFunction");
 
     const coglambdaRole = new iam.Role(this, `${id}-cognitoLambdaRole`, {
       roleName: `${id}-cognitoLambdaRole`,
@@ -433,7 +500,11 @@ export class ApiGatewayStack extends cdk.Stack {
       new iam.ServicePrincipal("apigateway.amazonaws.com")
     );
 
-    // Define the GitHub repository name as a parameter
+    // Change Logical ID to match the one decleared in YAML file of Open API
+    const apiGW_authorizationFunction = authorizationFunction.node
+      .defaultChild as lambda.CfnFunction;
+    apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
+
     const bedrockLLMID = new cdk.CfnParameter(this, "bedrockLLMID", {
       type: "String",
       description: "The name of the GitHub repository",
@@ -473,15 +544,15 @@ export class ApiGatewayStack extends cdk.Stack {
      *
      * Create Lambda with container image for text generation workflow in RAG pipeline
      */
-    const textGenLambdaDockerFunc = new lambda.DockerImageFunction(
+    const textGenFunc = new lambda.DockerImageFunction(
       this,
-      `${id}-TextGen`,
+      `${id}-TextGenFunction`,
       {
         code: lambda.DockerImageCode.fromImageAsset("./text_generation"),
         memorySize: 512,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc, // Pass the VPC
-        functionName: `${id}-TextGen`,
+        functionName: `${id}-TextGenFunction`,
         environment: {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
@@ -493,6 +564,17 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnTextGenDockerFunc = textGenFunc.node
+      .defaultChild as lambda.CfnFunction;
+    cfnTextGenDockerFunc.overrideLogicalId("TextGenLambdaDockerFunction");
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    textGenFunc.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
+    });
 
     // Custom policy statement for Bedrock access
     const bedrockPolicyStatement = new iam.PolicyStatement({
@@ -509,10 +591,10 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     // Attach the custom Bedrock policy to Lambda function
-    textGenLambdaDockerFunc.addToRolePolicy(bedrockPolicyStatement);
+    textGenFunc.addToRolePolicy(bedrockPolicyStatement);
 
     // Grant access to Secret Manager
-    textGenLambdaDockerFunc.addToRolePolicy(
+    textGenFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -526,7 +608,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Grant access to DynamoDB actions
-    textGenLambdaDockerFunc.addToRolePolicy(
+    textGenFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -540,7 +622,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
     // Grant access to SSM Parameter Store for specific parameters
-    textGenLambdaDockerFunc.addToRolePolicy(
+    textGenFunc.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["ssm:GetParameter"],
@@ -570,6 +652,12 @@ export class ApiGatewayStack extends cdk.Stack {
         layers: [powertoolsLayer],
       }
     );
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnGeneratePreSignedURL = generatePreSignedURL.node
+      .defaultChild as lambda.CfnFunction;
+    cfnGeneratePreSignedURL.overrideLogicalId("GeneratePreSignedURLFunc");
+
     // Grant the Lambda function the necessary permissions
     dataIngestionBucket.grantReadWrite(generatePreSignedURL);
     generatePreSignedURL.addToRolePolicy(
@@ -582,12 +670,19 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    generatePreSignedURL.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+
     /**
      *
      * Create Lambda with container image for data ingestion workflow in RAG pipeline
      * This function will be triggered when a file in uploaded or deleted fro, the S3 Bucket
      */
-    const dataIngestLambdaDockerFunction = new lambda.DockerImageFunction(
+    const dataIngestFunction = new lambda.DockerImageFunction(
       this,
       `${id}-DataIngestFunction`,
       {
@@ -607,9 +702,16 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
-    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnDataIngestLambdaDockerFunction = dataIngestFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnDataIngestLambdaDockerFunction.overrideLogicalId(
+      "DataIngestLambdaDockerFunctionReImaged"
+    );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestionBucket.grantRead(dataIngestFunction);
+
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -617,7 +719,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -625,7 +727,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -640,9 +742,9 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(bedrockPolicyStatement);
+    dataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
 
-    dataIngestLambdaDockerFunction.addEventSource(
+    dataIngestFunction.addEventSource(
       new lambdaEventSources.S3EventSource(dataIngestionBucket, {
         events: [
           s3.EventType.OBJECT_CREATED,
@@ -653,7 +755,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Grant access to Secret Manager
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -667,7 +769,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     // Grant access to SSM Parameter Store for specific parameters
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["ssm:GetParameter"],
@@ -701,6 +803,11 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnGetDocumentsFunction = getDocumentsFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnGetDocumentsFunction.overrideLogicalId("GetDocumentsFunction");
+
     // Grant the Lambda function read-only permissions to the S3 bucket
     dataIngestionBucket.grantRead(getDocumentsFunction);
 
@@ -717,6 +824,13 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    getDocumentsFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
 
     /**
      *
@@ -743,6 +857,11 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfndeleteDocument = deleteDocument.node
+      .defaultChild as lambda.CfnFunction;
+    cfndeleteDocument.overrideLogicalId("DeleteDocumentFunc");
+
     // Grant the Lambda function the necessary permissions
     dataIngestionBucket.grantDelete(deleteDocument);
 
@@ -759,6 +878,13 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    deleteDocument.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
 
     /**
      * Create Lambda function to get messages for a session
@@ -806,6 +932,10 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    // Override the Logical ID if needed
+    const cfnGetMessagesFunction = getMessagesFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnGetMessagesFunction.overrideLogicalId("GetMessagesFunction");
 
     getMessagesFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -822,6 +952,28 @@ export class ApiGatewayStack extends cdk.Stack {
         requestTemplates: { "application/json": '{ "statusCode": "200" }' },
       }
     );
+
+    const getMessagesResource = this.api.root.addResource(
+      "conversation_messages"
+    );
+    getMessagesResource.addMethod("GET", getMessagesIntegration, {
+      requestParameters: {
+        "method.request.querystring.session_id": true,
+      },
+      authorizationType: apigateway.AuthorizationType.IAM, // Adjust if you use a different auth mechanism
+    });
+
+    getMessagesFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/conversation_messages`,
+    });
+
+    getMessagesFunction.addPermission("AllowApiGatewayInvokeUser", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/get_messages`,
+    });
 
     /**
      *
@@ -848,6 +1000,11 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    //Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnDeleteCategoryFunction = deleteCategoryFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnDeleteCategoryFunction.overrideLogicalId("DeleteCategoryFunc");
+
     //Grant the Lambda function the necessary permissions
     dataIngestionBucket.grantRead(deleteCategoryFunction);
     dataIngestionBucket.grantDelete(deleteCategoryFunction);
@@ -865,16 +1022,16 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestionBucket.grantRead(dataIngestLambdaDockerFunction);
+    dataIngestionBucket.grantRead(dataIngestFunction);
     // Add ListBucket permission explicitly
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
         resources: [dataIngestionBucket.bucketArn], // Access to the specific bucket
       })
     );
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
@@ -884,7 +1041,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-    dataIngestLambdaDockerFunction.addToRolePolicy(
+    dataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
@@ -899,170 +1056,11 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
-  
-    new OpenApiGatewayToLambda(this, "OpenApiGatewayToLambda", {
-      apiDefinitionAsset: asset,
-      apiIntegrations: [
-        {
-          id: "userFunction",
-          existingLambdaObj: lambdaUserFunction
-        },
-        {
-          id: "adminFunction",
-          existingLambdaObj: lambdaAdminFunction
-        },
-        {
-          id: "adminAuthorizer",
-          existingLambdaObj: authorizationFunction
-        },
-        {
-          id: "textGenLambdaDockerFunc",
-          existingLambdaObj: textGenLambdaDockerFunc
-        },
-        {
-          id: "generatePreSignedURL",
-          existingLambdaObj: generatePreSignedURL
-        },
-        {
-          id: "dataIngestLambdaDockerFunction",
-          existingLambdaObj: dataIngestLambdaDockerFunction
-        },
-        {
-          id: "getDocumentsFunction",
-          existingLambdaObj: getDocumentsFunction
-        },
-        {
-          id: "deleteDocument",
-          existingLambdaObj: deleteDocument
-        },
-        {
-          id: "getMessagesFunction",
-          existingLambdaObj: getMessagesFunction
-        },
-        {
-          id: "deleteCategoryFunction",
-          existingLambdaObj: deleteCategoryFunction
-        },
-      ],
-    });
-
-    const data = Fn.transform("AWS::Include", { Location: asset.s3ObjectUrl });
-    // Create the API Gateway REST API
-    this.api = new apigateway.SpecRestApi(this, `${id}-APIGateway`, {
-      apiDefinition: apigateway.AssetApiDefinition.fromInline(data),
-      endpointTypes: [apigateway.EndpointType.REGIONAL],
-      restApiName: `${id}-API`,
-      deploy: true,
-      cloudWatchRole: true,
-      deployOptions: {
-        metricsEnabled: true,
-        loggingLevel: apigateway.MethodLoggingLevel.ERROR,
-        dataTraceEnabled: true,
-        stageName: "prod",
-        methodOptions: {
-          "/*/*": {
-            throttlingRateLimit: 100,
-            throttlingBurstLimit: 200,
-          },
-        },
-      },
-    });
-
-    
-    this.stageARN_APIGW = this.api.deploymentStage.stageArn;
-    this.apiGW_basedURL = this.api.urlForPath();
-    const { adminRole, unauthenticatedRole } = createRolesAndPolicies(
-      this,
-      id,
-      this.identityPool.ref,
-      this.api.restApiId,
-      this.region,
-      this.account
-    );
-    const adminGroup = new cognito.CfnUserPoolGroup(this, `${id}-AdminGroup`, {
-      groupName: "admin",
-      userPoolId: this.userPool.userPoolId,
-      roleArn: adminRole.roleArn,
-    });
-
-    // Attach roles to the identity pool
-    new cognito.CfnIdentityPoolRoleAttachment(this, `${id}-IdentityPoolRoles`, {
-      identityPoolId: this.identityPool.ref,
-      roles: {
-        authenticated: adminRole.roleArn,
-        unauthenticated: unauthenticatedRole.roleArn,
-      },
-    });
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    lambdaUserFunction.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
-    });
-
     //Add the permission to the Lambda function's policy to allow API Gateway access
     deleteCategoryFunction.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
-    });
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    lambdaAdminFunction.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
-    });
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    textGenLambdaDockerFunc.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
-    });
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    generatePreSignedURL.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
-    });
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    getDocumentsFunction.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
-    });
-
-    // Add the permission to the Lambda function's policy to allow API Gateway access
-    deleteDocument.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
-    });
-
-    const getMessagesResource = this.api.root.addResource(
-      "conversation_messages"
-    );
-    getMessagesResource.addMethod("GET", getMessagesIntegration, {
-      requestParameters: {
-        "method.request.querystring.session_id": true,
-      },
-      authorizationType: apigateway.AuthorizationType.IAM, // Adjust if you use a different auth mechanism
-    });
-
-    getMessagesFunction.addPermission("AllowApiGatewayInvoke", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/conversation_messages`,
-    });
-
-    getMessagesFunction.addPermission("AllowApiGatewayInvokeUser", {
-      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
-      action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/get_messages`,
     });
   }
 }
