@@ -66,9 +66,10 @@ After making the required changes in the fork created in the [Deployment Guide](
 
 - **Change the model used in the application**:
    - Find `bedrockLLMParameter` in AWS Parameter Store.
-   - Change stringValue to the model ID of the model you would like to use. A list of thee available models and their IDs are listed [here](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
+   - Change stringValue to the model ID of the model you would like to use. A list of the available models and their IDs are listed [here](https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html)
    - The `system_prompt` in `cdk/text_generation/src/helpers/chat.py` and the prompts in the administrator view may require updates when switching models.
    - Ensure the model is enabled in the bedrock console.
+   - run the cdk deploy command in the deployment guide again
 ## Limit sign ups to specific email domains
 
 - In `api-gateway-stack.ts`, define a lambda function and set it as the pre-signup trigger for the cognito user pool.
