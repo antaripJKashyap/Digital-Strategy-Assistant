@@ -170,12 +170,14 @@ cdk deploy --all --parameters DigitalStrategyAssistant-Amplify:githubRepoName=Di
 ### Step 1: Build AWS Amplify App
 
 1. Log in to AWS console, and navigate to **AWS Amplify**. You can do so by typing `Amplify` in the search bar at the top.
-2. From `All apps`, click `DSA-amplify`.
+2. From `All apps`, click `DigitalStrategyAssistant-Amplify-admin`.
 3. Then click `main` under `branches`
 4. Click `run job` and wait for the build to complete.
 5. You now have access to the `Amplify App ID` and the public domain name to use the web app.
-6. From `All apps`, click `DSA-amplify-admin` and repeat steps 3-5.
-
+6. From `All apps`, click `DigitalStrategyAssistant-Amplify-public` and repeat steps 3-5.
+![](./images/DSA-Amplify-admin.png)
+![](./images/DSA-Amplify-admin-run-job.png)
+![](./images/DSA-Amplify-no-deploy.png)
 ### Step 2: Visit Web App
 You can now navigate to the web app URL to see your application in action.
 
