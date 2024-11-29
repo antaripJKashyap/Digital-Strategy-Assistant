@@ -99,30 +99,6 @@ After making the required changes in the fork created in the [Deployment Guide](
   - redeploy the application by using the cdk deploy command in the deployment guide.
   - The `system_prompt` in `cdk/text_generation/src/helpers/chat.py` and the prompts in the administrator view may require updates when switching models.
 
-## Limit sign ups to specific email domains
-
-- In `api-gateway-stack.ts`, define a lambda function and set it as the pre-signup trigger for the cognito user pool.
-- In the lambda function, add the following code and replace allowedDomains with the domains to be whitelisted.
-
-```javascript
-exports.handler = async (event) => {
-  try {
-    const allowedDomains = ["gmail.com", "ubc.ca"];
-    const email = event.request.userAttributes.email;
-    const emailDomain = email.split("@")[1];
-
-    if (!allowedDomains.includes(emailDomain)) {
-      throw new Error(`Signup not allowed for email domain: ${emailDomain}`);
-    }
-
-    return event;
-  } catch (error) {
-    console.error(error);
-    throw new Error("Error validating email domain during pre-signup.");
-  }
-};
-```
-
 ## Additional Notes
 
 - **Frontend Styling**: Both `frontend` and `frontendAdmin` can use Tailwind classes to adjust styling.
