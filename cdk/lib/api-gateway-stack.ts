@@ -45,8 +45,7 @@ export class ApiGatewayStack extends cdk.Stack {
   public getIdentityPoolId = () => this.identityPool.ref;
   public addLayer = (name: string, layer: LayerVersion) =>
     (this.layerList[name] = layer);
-  public getLayers = () => this.layerList;
-  constructor(
+  public getLayers = () => this.layerList;  constructor(
     scope: Construct,
     id: string,
     db: DatabaseStack,
@@ -54,7 +53,6 @@ export class ApiGatewayStack extends cdk.Stack {
     props?: cdk.StackProps
   ) {
     super(scope, id, props);
-
     this.layerList = {};
     const { embeddingStorageBucket, dataIngestionBucket } = createS3Buckets(
       this,
@@ -143,7 +141,7 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     const lambdaRole = new iam.Role(this, `${id}-postgresLambdaRole`, {
-      roleName: "postgresLambdaRole",
+      roleName: `${id}-postgresLambdaRole`,
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
 
@@ -314,7 +312,7 @@ export class ApiGatewayStack extends cdk.Stack {
           "secretsmanager:GetSecretValue",
         ],
         resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DSA/*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
         ],
       })
     );
@@ -408,7 +406,7 @@ export class ApiGatewayStack extends cdk.Stack {
           "secretsmanager:PutSecretValue",
         ],
         resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:DSA/*`,
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
         ],
       })
     );
@@ -458,7 +456,7 @@ export class ApiGatewayStack extends cdk.Stack {
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpointTableCreator,
         },
         vpc: vpcStack.vpc,
-        functionName: "updateLastSignIn",
+        functionName: `${id}-updateLastSignIn`,
         memorySize: 128,
         layers: [postgres],
         role: coglambdaRole,
@@ -470,6 +468,25 @@ export class ApiGatewayStack extends cdk.Stack {
     this.userPool.addTrigger(
       cognito.UserPoolOperation.POST_AUTHENTICATION,
       updateTimestampLambda
+    );
+
+    const preSignupLambda = new lambda.Function(this, "preSignupLambda", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      code: lambda.Code.fromAsset("lambda/lib"),
+      handler: "preSignup.handler",
+      timeout: Duration.seconds(300),
+      environment: {
+        ALLOWED_EMAIL_DOMAINS: "/DSA/AllowedEmailDomains",
+      },
+      vpc: vpcStack.vpc,
+      functionName: `${id}-preSignupLambda`,
+      memorySize: 128,
+      role: coglambdaRole,
+    });
+
+    this.userPool.addTrigger(
+      cognito.UserPoolOperation.PRE_SIGN_UP,
+      preSignupLambda
     );
 
     // **
@@ -515,7 +532,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "BedrockLLMParameter",
       {
-        parameterName: "/DSA/BedrockLLMId",
+        parameterName: `/${id}/DSA/BedrockLLMId`,
         description: "Parameter containing the Bedrock LLM ID",
         stringValue: bedrockLLMID,
       }
@@ -524,7 +541,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "EmbeddingModelParameter",
       {
-        parameterName: "/DSA/EmbeddingModelId",
+        parameterName: `/${id}/DSA/EmbeddingModelId`,
         description: "Parameter containing the Embedding Model ID",
         stringValue: "amazon.titan-embed-text-v2:0",
       }
@@ -534,7 +551,7 @@ export class ApiGatewayStack extends cdk.Stack {
       this,
       "TableNameParameter",
       {
-        parameterName: "/DSA/TableName",
+        parameterName: `/${id}/DSA/TableName`,
         description: "Parameter containing the DynamoDB table name",
         stringValue: "DynamoDB-Conversation-Table",
       }
@@ -974,6 +991,11 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/get_messages`,
     });
+
+
+
+
+
 
     /**
      *

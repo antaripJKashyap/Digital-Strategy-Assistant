@@ -12,158 +12,171 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { VpcStack } from './vpc-stack';
 
 export class DatabaseStack extends Stack {
-    public readonly dbInstance: rds.DatabaseInstance;
-    public readonly secretPathAdminName: string;
-    public readonly secretPathUser: secretsmanager.Secret;
-    public readonly secretPathTableCreator: secretsmanager.Secret;
-    public readonly rdsProxyEndpoint: string; 
-    public readonly rdsProxyEndpointTableCreator: string; 
-    constructor(scope: Construct, id: string, vpcStack: VpcStack, props?: StackProps){
-        super(scope, id, props);
+  public readonly dbInstance: rds.DatabaseInstance;
+  public readonly secretPathAdminName: string;
+  public readonly secretPathUser: secretsmanager.Secret;
+  public readonly secretPathTableCreator: secretsmanager.Secret;
+  public readonly rdsProxyEndpoint: string;
+  public readonly rdsProxyEndpointTableCreator: string;
+  public readonly databaseID: string;
 
+  constructor(
+    scope: Construct,
+    id: string,
+    vpcStack: VpcStack,
+    props?: StackProps
+  ) {
+    super(scope, id, props);
 
-        /**
-         * Create the RDS service-linked role if it doesn't exist
-         */
-        new iam.CfnServiceLinkedRole(this, `${id}-RDSServiceLinkedRole`, {
-            awsServiceName: 'rds.amazonaws.com',
-        });
-        
-        /**
-         * 
-         * Retrive a secrete from Secret Manager
-         * aws secretsmanager create-secret --name DSASecrets --secret-string '{\"DB_Username\":\"DB-USERNAME\"}' --profile <your-profile-name>
-         */
-        const secret = secretmanager.Secret.fromSecretNameV2(this, "ImportedSecrets", "DSASecrets");
-        /**
-         * 
-         * Create Empty Secret Manager
-         * Secrets will be populate at initalization of data
-         */
-        this.secretPathAdminName = "DSA/credentials/DbCredential"; // Name in the Secret Manager to store DB credentials        
-        const secretPathUserName = "DSA/userCredentials/DbCredential";
-        this.secretPathUser = new secretsmanager.Secret(this, secretPathUserName, {
-            secretName: secretPathUserName,
-            description: "Secrets for clients to connect to RDS",
-            removalPolicy: RemovalPolicy.DESTROY,
-            secretObjectValue: {
-                username: SecretValue.unsafePlainText("applicationUsername"),   // this will change later at runtime
-                password: SecretValue.unsafePlainText("applicationPassword")    // in the initializer
-            }
-        })
+    this.databaseID = id;
+    /**
+     *
+     * Retrive a secrete from Secret Manager
+     * aws secretsmanager create-secret --name DSASecrets --secret-string '{\"DB_Username\":\"DB-USERNAME\"}' --profile <your-profile-name>
+     */
+    const secret = secretmanager.Secret.fromSecretNameV2(
+      this,
+      "ImportedSecrets",
+      "DSASecrets"
+    );
+    /**
+     *
+     * Create Empty Secret Manager
+     * Secrets will be populate at initalization of data
+     */
+    this.secretPathAdminName = `${id}-DSA/credentials/DbCredential`; // Name in the Secret Manager to store DB credentials
+    const secretPathUserName = `${id}-DSA/userCredentials/DbCredential`;
+    this.secretPathUser = new secretsmanager.Secret(this, secretPathUserName, {
+      secretName: secretPathUserName,
+      description: "Secrets for clients to connect to RDS",
+      removalPolicy: RemovalPolicy.DESTROY,
+      secretObjectValue: {
+        username: SecretValue.unsafePlainText("applicationUsername"), // this will change later at runtime
+        password: SecretValue.unsafePlainText("applicationPassword"), // in the initializer
+      },
+    });
 
-        const secretPathTableCreator = "DSA/userCredentials/rdsTableCreator";
-        this.secretPathTableCreator= new secretsmanager.Secret(this, secretPathTableCreator, {
-            secretName: secretPathTableCreator,
-            description: "Secrets for TableCreator to connect to RDS",
-            removalPolicy: RemovalPolicy.DESTROY,
-            secretObjectValue: {
-                username: SecretValue.unsafePlainText("applicationUsername"),   // this will change later at runtime
-                password: SecretValue.unsafePlainText("applicationPassword")    // in the initializer
-            }
-        })
-        const parameterGroup = new rds.ParameterGroup(this, `${id}-rdsParameterGroup`, {
-            engine: rds.DatabaseInstanceEngine.postgres({
-              version: rds.PostgresEngineVersion.VER_16_3,
-            }),
-            description: "Empty parameter group", // Might need to change this later
-            parameters: {
-              'rds.force_ssl': '0'
-            }
-          });
+    const secretPathTableCreator = `${id}-DSA/userCredentials/rdsTableCreator`;
+    this.secretPathTableCreator = new secretsmanager.Secret(
+      this,
+      secretPathTableCreator,
+      {
+        secretName: secretPathTableCreator,
+        description: "Secrets for TableCreator to connect to RDS",
+        removalPolicy: RemovalPolicy.DESTROY,
+        secretObjectValue: {
+          username: SecretValue.unsafePlainText("applicationUsername"), // this will change later at runtime
+          password: SecretValue.unsafePlainText("applicationPassword"), // in the initializer
+        },
+      }
+    );
+    const parameterGroup = new rds.ParameterGroup(this, `rdsParameterGroup`, {
+      engine: rds.DatabaseInstanceEngine.postgres({
+        version: rds.PostgresEngineVersion.VER_16_3,
+      }),
+      description: "Empty parameter group", // Might need to change this later
+      parameters: {
+        "rds.force_ssl": "0",
+      },
+    });
 
-        /**
-         * 
-         * Create an RDS with Postgres database in an isolated subnet
-         */
-        this.dbInstance = new rds.DatabaseInstance(this, `${id}-database`, {
-            vpc: vpcStack.vpc,
-            vpcSubnets: {
-                subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-            },
-            engine: rds.DatabaseInstanceEngine.postgres({
-                version: rds.PostgresEngineVersion.VER_16_3,
-            }),
-            instanceType: ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3,
-                ec2.InstanceSize.MICRO
-            ),
-            credentials: rds.Credentials.fromUsername(secret.secretValueFromJson("DB_Username").unsafeUnwrap(), {
-                secretName: this.secretPathAdminName,
-            }),
-            multiAz: true,
-            allocatedStorage: 100,
-            maxAllocatedStorage: 115,
-            allowMajorVersionUpgrade: false,
-            autoMinorVersionUpgrade: true,
-            backupRetention: Duration.days(7),
-            deleteAutomatedBackups: true,
-            deletionProtection: true,/// To be changed
-            databaseName: "DSA",
-            publiclyAccessible: false,
-            cloudwatchLogsRetention: logs.RetentionDays.INFINITE,
-            storageEncrypted: true, // storage encryption at rest
-            monitoringInterval: Duration.seconds(60), // enhanced monitoring interval
-            parameterGroup: parameterGroup
-        });
+    /**
+     *
+     * Create an RDS with Postgres database in an isolated subnet
+     */
+    this.dbInstance = new rds.DatabaseInstance(this, `database`, {
+      vpc: vpcStack.vpc,
+      vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+      },
+      engine: rds.DatabaseInstanceEngine.postgres({
+        version: rds.PostgresEngineVersion.VER_16_3,
+      }),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.BURSTABLE3,
+        ec2.InstanceSize.MICRO
+      ),
+      credentials: rds.Credentials.fromUsername(
+        secret.secretValueFromJson("DB_Username").unsafeUnwrap(),
+        {
+          secretName: this.secretPathAdminName,
+        }
+      ),
+      multiAz: true,
+      allocatedStorage: 100,
+      maxAllocatedStorage: 115,
+      allowMajorVersionUpgrade: false,
+      autoMinorVersionUpgrade: true,
+      backupRetention: Duration.days(7),
+      deleteAutomatedBackups: true,
+      deletionProtection: true, /// To be changed
+      databaseName: "DSA",
+      publiclyAccessible: false,
+      cloudwatchLogsRetention: logs.RetentionDays.INFINITE,
+      storageEncrypted: true, // storage encryption at rest
+      monitoringInterval: Duration.seconds(60), // enhanced monitoring interval
+      parameterGroup: parameterGroup,
+    });
 
-        this.dbInstance.connections.securityGroups.forEach(function (securityGroup) {
-            // 10.0.0.0/16 match the cidr range in vpc stack
-            securityGroup.addIngressRule(
-              ec2.Peer.ipv4("10.0.0.0/16"),
-              ec2.Port.tcp(5432),
-              "Postgres Ingress"
-            );
-        });
-         
+    this.dbInstance.connections.securityGroups.forEach(function (
+      securityGroup
+    ) {
+      // 10.0.0.0/16 match the cidr range in vpc stack
+      securityGroup.addIngressRule(
+        ec2.Peer.ipv4("10.0.0.0/16"),
+        ec2.Port.tcp(5432),
+        "Postgres Ingress"
+      );
+    });
 
-        const rdsProxyRole = new iam.Role(this, `${id}-DBProxyRoleRDS`, {
-            assumedBy: new iam.ServicePrincipal('rds.amazonaws.com')
-        });
+    const rdsProxyRole = new iam.Role(this, `DBProxyRoleRDS`, {
+      assumedBy: new iam.ServicePrincipal("rds.amazonaws.com"),
+    });
 
-        rdsProxyRole.addToPolicy(new iam.PolicyStatement({
-            resources: ['*'],
-            actions: [
-              'rds-db:connect',
-            ],
-          }));
+    rdsProxyRole.addToPolicy(
+      new iam.PolicyStatement({
+        resources: ["*"],
+        actions: ["rds-db:connect"],
+      })
+    );
 
-          // /**
-        //  * 
-        //  * Create an RDS proxy that sit between lambda and RDS
-        //  */
-        const rdsProxy = this.dbInstance.addProxy(id+'-proxy', {
-            secrets: [this.secretPathUser!],
-            vpc: vpcStack.vpc,
-            role: rdsProxyRole,
-            securityGroups: this.dbInstance.connections.securityGroups,
-            requireTLS: false,
-        });
-        const rdsProxyTableCreator = this.dbInstance.addProxy(id+'+proxy', {
-            secrets: [this.secretPathTableCreator!],
-            vpc: vpcStack.vpc,
-            role: rdsProxyRole,
-            securityGroups: this.dbInstance.connections.securityGroups,
-            requireTLS: false,
-        });
-        
-        // Workaround for bug where TargetGroupName is not set but required
-        let targetGroup = rdsProxy.node.children.find((child:any) => {
-            return child instanceof rds.CfnDBProxyTargetGroup
-        }) as rds.CfnDBProxyTargetGroup
+    // /**
+    //  *
+    //  * Create an RDS proxy that sit between lambda and RDS
+    //  */
+    const rdsProxy = this.dbInstance.addProxy(id + "-proxy", {
+      secrets: [this.secretPathUser!],
+      vpc: vpcStack.vpc,
+      role: rdsProxyRole,
+      securityGroups: this.dbInstance.connections.securityGroups,
+      requireTLS: false,
+    });
+    const rdsProxyTableCreator = this.dbInstance.addProxy(id + "+proxy", {
+      secrets: [this.secretPathTableCreator!],
+      vpc: vpcStack.vpc,
+      role: rdsProxyRole,
+      securityGroups: this.dbInstance.connections.securityGroups,
+      requireTLS: false,
+    });
 
-        targetGroup.addPropertyOverride('TargetGroupName', 'default');   
+    // Workaround for bug where TargetGroupName is not set but required
+    let targetGroup = rdsProxy.node.children.find((child: any) => {
+      return child instanceof rds.CfnDBProxyTargetGroup;
+    }) as rds.CfnDBProxyTargetGroup;
 
-        let targetGroupTableCreator = rdsProxyTableCreator.node.children.find((child:any) => {
-            return child instanceof rds.CfnDBProxyTargetGroup
-        }) as rds.CfnDBProxyTargetGroup
+    targetGroup.addPropertyOverride("TargetGroupName", "default");
 
-        targetGroup.addPropertyOverride('TargetGroupName', 'default');  
-        targetGroupTableCreator.addPropertyOverride('TargetGroupName', 'default');   
- 
-        this.dbInstance.grantConnect(rdsProxyRole);      
-        this.rdsProxyEndpoint = rdsProxy.endpoint;
-        this.rdsProxyEndpointTableCreator = rdsProxyTableCreator.endpoint;
+    let targetGroupTableCreator = rdsProxyTableCreator.node.children.find(
+      (child: any) => {
+        return child instanceof rds.CfnDBProxyTargetGroup;
+      }
+    ) as rds.CfnDBProxyTargetGroup;
 
-    }
+    targetGroup.addPropertyOverride("TargetGroupName", "default");
+    targetGroupTableCreator.addPropertyOverride("TargetGroupName", "default");
+
+    this.dbInstance.grantConnect(rdsProxyRole);
+    this.rdsProxyEndpoint = rdsProxy.endpoint;
+    this.rdsProxyEndpointTableCreator = rdsProxyTableCreator.endpoint;
+  }
 }
