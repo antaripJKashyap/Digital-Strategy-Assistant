@@ -470,6 +470,13 @@ export class ApiGatewayStack extends cdk.Stack {
       updateTimestampLambda
     );
 
+    coglambdaRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["ssm:GetParameter"],
+        resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter/*`],
+      })
+    );
+
     const preSignupLambda = new lambda.Function(this, "preSignupLambda", {
       runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset("lambda/lib"),
@@ -604,6 +611,9 @@ export class ApiGatewayStack extends cdk.Stack {
         "arn:aws:bedrock:" +
           this.region +
           "::foundation-model/amazon.titan-embed-text-v2:0",
+        "arn:aws:bedrock:" +
+          this.region +
+          `::foundation-model/${bedrockLLMID}`,
       ],
     });
 
