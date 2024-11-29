@@ -93,8 +93,8 @@ export class DatabaseStack extends Stack {
         version: rds.PostgresEngineVersion.VER_16_3,
       }),
       instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.BURSTABLE3,
-        ec2.InstanceSize.MICRO
+        ec2.InstanceClass.BURSTABLE4_GRAVITON,
+        ec2.InstanceSize.MEDIUM
       ),
       credentials: rds.Credentials.fromUsername(
         secret.secretValueFromJson("DB_Username").unsafeUnwrap(),
@@ -113,6 +113,7 @@ export class DatabaseStack extends Stack {
       databaseName: "DSA",
       publiclyAccessible: false,
       cloudwatchLogsRetention: logs.RetentionDays.INFINITE,
+      cloudwatchLogsExports: ["postgresql", "upgrade"],
       storageEncrypted: true, // storage encryption at rest
       monitoringInterval: Duration.seconds(60), // enhanced monitoring interval
       parameterGroup: parameterGroup,
