@@ -96,6 +96,12 @@ aws secretsmanager create-secret \
     --name DSASecrets \
     --secret-string '{\"DB_Username\":\"<YOUR-DB-USERNAME>\"}'\
     --profile <your-profile-name>
+  
+Note: If you using an Apple Computer, use the following command instead:
+aws secretsmanager create-secret \
+    --name DSASecrets \
+    --secret-string "{\"DB_Username\":\"<YOUR-DB-USERNAME>\"}"\
+    --profile <your-profile-name>
 ```
 
 For example,
