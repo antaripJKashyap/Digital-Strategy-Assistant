@@ -529,11 +529,6 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     apiGW_authorizationFunction.overrideLogicalId("adminLambdaAuthorizer");
 
-    const bedrockLLMID = new cdk.CfnParameter(this, "bedrockLLMID", {
-      type: "String",
-      description: "The name of the GitHub repository",
-    }).valueAsString;
-
     // Create parameters for Bedrock LLM ID, Embedding Model ID, and Table Name in Parameter Store
     const bedrockLLMParameter = new ssm.StringParameter(
       this,
@@ -541,7 +536,7 @@ export class ApiGatewayStack extends cdk.Stack {
       {
         parameterName: `/${id}/DSA/BedrockLLMId`,
         description: "Parameter containing the Bedrock LLM ID",
-        stringValue: bedrockLLMID,
+        stringValue: "meta.llama3-70b-instruct-v1:0",
       }
     );
     const embeddingModelParameter = new ssm.StringParameter(
@@ -611,9 +606,6 @@ export class ApiGatewayStack extends cdk.Stack {
         "arn:aws:bedrock:" +
           this.region +
           "::foundation-model/amazon.titan-embed-text-v2:0",
-        "arn:aws:bedrock:" +
-          this.region +
-          `::foundation-model/${bedrockLLMID}`,
       ],
     });
 
