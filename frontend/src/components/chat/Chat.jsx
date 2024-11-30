@@ -137,7 +137,9 @@ const Chat = ({ setPage }) => {
       );
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(
+          errorResponse.message || `HTTP error! status: ${response.status}`
+        );
       }
 
       const data = await response.json();
@@ -151,8 +153,8 @@ const Chat = ({ setPage }) => {
         },
       ]);
     } catch (error) {
-      console.error("Error sending message:", error);
-      toast.error(`${error}`);
+      console.error("Error sending message:", error.message);
+      toast.error(error.message);
     } finally {
       setIsLoading(false);
     }
