@@ -152,7 +152,7 @@ const Chat = ({ setPage }) => {
       ]);
     } catch (error) {
       console.error("Error sending message:", error);
-      toast.error("Failed to send message. Please try again.");
+      toast.error(`${error}`);
     } finally {
       setIsLoading(false);
     }
