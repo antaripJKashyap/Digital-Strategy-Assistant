@@ -137,9 +137,9 @@ const Chat = ({ setPage }) => {
       );
 
       if (!response.ok) {
-        throw new Error(
-          errorResponse.message || `HTTP error! status: ${response.status}`
-        );
+        const error =await response.json();
+        console.log("response", error);
+        throw new Error(error || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
