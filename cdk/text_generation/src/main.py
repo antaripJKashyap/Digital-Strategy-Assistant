@@ -190,6 +190,65 @@ def get_prompt_for_role(user_role):
             connection.close()
         logger.info("Connection closed.")
 
+def check_embeddings():
+    connection = None
+    cur = None
+    try:
+        logger.info("Checking embeddings table.")
+        db_secret = get_secret(DB_SECRET_NAME)
+
+        connection_params = {
+            'dbname': db_secret["dbname"],
+            'user': db_secret["username"],
+            'password': db_secret["password"],
+            'host': db_secret["host"],
+            'port': db_secret["port"]
+        }
+
+        connection_string = " ".join(
+            [f"{key}={value}" for key, value in connection_params.items()]
+        )
+
+        connection = psycopg2.connect(connection_string)
+        cur = connection.cursor()
+
+        # Check if table exists
+        cur.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'langchain_pg_embedding'
+            );
+        """)
+        table_exists = cur.fetchone()[0]
+
+        if not table_exists:
+            logger.warning("Table 'langchain_pg_embedding' does not exist.")
+            return False
+
+        # Check if table has rows
+        cur.execute("SELECT COUNT(*) FROM langchain_pg_embedding;")
+        row_count = cur.fetchone()[0]
+
+        if row_count == 0:
+            logger.warning("Table 'langchain_pg_embedding' exists but has no rows.")
+            return False
+
+        logger.info(f"Table 'langchain_pg_embedding' exists and has {row_count} rows.")
+        return True
+
+    except Exception as e:
+        logger.error(f"Error checking embeddings table: {e}")
+        if connection:
+            connection.rollback()
+        return False
+    finally:
+        if cur:
+            cur.close()
+        if connection:
+            connection.close()
+        logger.info("Connection closed.")
+
+
 
 def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
@@ -356,15 +415,29 @@ def handler(event, context):
             },
             'body': json.dumps('Error retrieving vectorstore config')
         }
-    
+    if not check_embeddings():
+        return {
+            'statusCode': 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps(
+                "Error: The Administrator has not uploaded Digital Strategy documents, please contact the Administrator."
+            )
+        }
     try:
         logger.info("Creating history-aware retriever.")
-
+        
         history_aware_retriever = get_vectorstore_retriever(
             llm=llm,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
+
+
     except Exception as e:
         logger.error(f"Error creating history-aware retriever: {e}")
         return {
