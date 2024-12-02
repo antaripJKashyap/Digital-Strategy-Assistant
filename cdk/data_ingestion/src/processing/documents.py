@@ -104,14 +104,12 @@ def add_document(
     Returns:
     List[Document]: A list of all document chunks for this document that were added to the vectorstore.
     """
-    print("check embedding 99999")
     output_filenames = store_doc_texts(
         bucket=bucket,
         category_id=category_id,
         document_name=document_name,
         output_bucket=output_bucket
     )
-    print("check embedding 100")
     this_doc_chunks = store_doc_chunks(
         bucket=output_bucket,
         documentnames=output_filenames,
@@ -187,9 +185,7 @@ def process_documents(
     """
     print("start processing document")
     paginator = s3.get_paginator('list_objects_v2')
-    print("checking paginator 001")
     page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category_id}/")
-    print("checking paginator  002")
     all_doc_chunks = []
     
     try:
