@@ -140,5 +140,7 @@ import {
   
       amplifyApp.addBranch("main");
       amplifyAppAdmin.addBranch("main");
+      amplifyApp.addBranch("phase2");
+      amplifyAppAdmin.addBranch("phase2");
     }
   }
