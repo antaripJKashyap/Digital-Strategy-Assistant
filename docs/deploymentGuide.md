@@ -111,6 +111,8 @@ aws secretsmanager create-secret \
     --name DSASecrets \
     --secret-string '{\"DB_Username\":\"DSASecrets\"}'\
     --profile <your-profile-name>
+Note: No special characters are allowed in the secret value.
+
 ```
 
 
