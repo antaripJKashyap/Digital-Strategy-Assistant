@@ -6,6 +6,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as ssm from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
+import * as wafv2 from "aws-cdk-lib/aws-wafv2";
 import {
   Architecture,
   Code,
@@ -45,7 +46,8 @@ export class ApiGatewayStack extends cdk.Stack {
   public getIdentityPoolId = () => this.identityPool.ref;
   public addLayer = (name: string, layer: LayerVersion) =>
     (this.layerList[name] = layer);
-  public getLayers = () => this.layerList;  constructor(
+  public getLayers = () => this.layerList;
+  constructor(
     scope: Construct,
     id: string,
     db: DatabaseStack,
@@ -54,10 +56,8 @@ export class ApiGatewayStack extends cdk.Stack {
   ) {
     super(scope, id, props);
     this.layerList = {};
-    const { embeddingStorageBucket, dataIngestionBucket } = createS3Buckets(
-      this,
-      id
-    );
+    const { embeddingStorageBucket, dataIngestionBucket, comparisonBucket } =
+      createS3Buckets(this, id);
 
     const { jwt, postgres, psycopgLayer } = createLayers(this, id);
     this.layerList["psycopg2"] = psycopgLayer;
@@ -652,6 +652,150 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
+    // Create the Lambda function for generating presigned URLs for comparison bucket
+    const comparisonGeneratePreSignedURL = new lambda.Function(
+      this,
+      `${id}-ComparisonPreSignedURLFunc`,
+      {
+        runtime: lambda.Runtime.PYTHON_3_9,
+        code: lambda.Code.fromAsset("lambda/comparisonPreSignedURL"),
+        handler: "comparisonPreSignedURL.lambda_handler",
+        timeout: Duration.seconds(300),
+        memorySize: 128,
+        environment: {
+          BUCKET: comparisonBucket.bucketName,
+          REGION: this.region,
+        },
+        functionName: `${id}-ComparisonPreSignedURLFunc`,
+        layers: [powertoolsLayer],
+      }
+    );
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnComparisonPreSignedURL = comparisonGeneratePreSignedURL.node
+      .defaultChild as lambda.CfnFunction;
+    cfnComparisonPreSignedURL.overrideLogicalId("ComparisonPreSignedURLFunc");
+
+    // Grant the Lambda function the necessary permissions
+    dataIngestionBucket.grantReadWrite(comparisonGeneratePreSignedURL);
+    comparisonGeneratePreSignedURL.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:PutObject", "s3:GetObject"],
+        resources: [
+          comparisonBucket.bucketArn,
+          `${comparisonBucket.bucketArn}/*`,
+        ],
+      })
+    );
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    comparisonGeneratePreSignedURL.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+
+    /**
+     *
+     * Create Lambda with container image for data ingestion workflow in RAG pipeline
+     * This function will be triggered when a file in uploaded or deleted fro, the S3 Bucket
+     */
+    const comparisonDataIngestFunction = new lambda.DockerImageFunction(
+      this,
+      `${id}-ComparisonDataIngestFunction`,
+      {
+        code: lambda.DockerImageCode.fromImageAsset(
+          "./comparison_data_ingestion"
+        ),
+        memorySize: 512,
+        timeout: cdk.Duration.seconds(300),
+        vpc: vpcStack.vpc, // Pass the VPC
+        functionName: `${id}-ComparisonDataIngestFunction`,
+        environment: {
+          SM_DB_CREDENTIALS: db.comparisonSecretPathAdminName,
+          RDS_PROXY_ENDPOINT: db.comparisonRDSProxyEndpoint,
+          BUCKET: comparisonBucket.bucketName,
+          REGION: this.region,
+          EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
+          EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+        },
+      }
+    );
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnComparisonLambdaDockerFunction = comparisonDataIngestFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnComparisonLambdaDockerFunction.overrideLogicalId(
+      "ComparisonDataIngestFunction"
+    );
+
+    comparisonBucket.grantRead(comparisonDataIngestFunction);
+
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [comparisonBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [embeddingStorageBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
+        resources: [
+          `arn:aws:s3:::${embeddingStorageBucket.bucketName}/*`, // Grant access to all objects within this bucket
+        ],
+      })
+    );
+
+    comparisonDataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
+
+    comparisonDataIngestFunction.addEventSource(
+      new lambdaEventSources.S3EventSource(comparisonBucket, {
+        events: [
+          s3.EventType.OBJECT_CREATED,
+          s3.EventType.OBJECT_REMOVED,
+          s3.EventType.OBJECT_RESTORE_COMPLETED,
+        ],
+      })
+    );
+
+    // Grant access to Secret Manager
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          //Secrets Manager
+          "secretsmanager:GetSecretValue",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
+      })
+    );
+
+    // Grant access to SSM Parameter Store for specific parameters
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["ssm:GetParameter"],
+        resources: [embeddingModelParameter.parameterArn],
+      })
+    );
 
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
@@ -994,11 +1138,6 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/get_messages`,
     });
 
-
-
-
-
-
     /**
      *
      * Create Lambda function to delete an entire module directory
@@ -1086,5 +1225,61 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
+
+    // Waf Firewall
+    const waf = new wafv2.CfnWebACL(this, `${id}-waf`, {
+      description: "waf for DSA",
+      scope: "REGIONAL",
+      defaultAction: { allow: {} },
+      visibilityConfig: {
+        sampledRequestsEnabled: true,
+        cloudWatchMetricsEnabled: true,
+        metricName: "digitalstrategyassistant-firewall",
+      },
+      rules: [
+        {
+          name: "AWS-AWSManagedRulesCommonRuleSet",
+          priority: 1,
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: "AWS",
+              name: "AWSManagedRulesCommonRuleSet",
+            },
+          },
+          overrideAction: { none: {} },
+          visibilityConfig: {
+            sampledRequestsEnabled: true,
+            cloudWatchMetricsEnabled: true,
+            metricName: "AWS-AWSManagedRulesCommonRuleSet",
+          },
+        },
+        {
+          name: "LimitRequests1000",
+          priority: 2,
+          action: {
+            block: {},
+          },
+          statement: {
+            rateBasedStatement: {
+              limit: 1000,
+              aggregateKeyType: "IP",
+            },
+          },
+          visibilityConfig: {
+            sampledRequestsEnabled: true,
+            cloudWatchMetricsEnabled: true,
+            metricName: "LimitRequests1000",
+          },
+        },
+      ],
+    });
+    const wafAssociation = new wafv2.CfnWebACLAssociation(
+      this,
+      `${id}-waf-association`,
+      {
+        resourceArn: `arn:aws:apigateway:${this.region}::/restapis/${this.api.restApiId}/stages/${this.api.deploymentStage.stageName}`,
+        webAclArn: waf.attrArn,
+      }
+    );
   }
 }
