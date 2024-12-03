@@ -710,7 +710,7 @@ export class ApiGatewayStack extends cdk.Stack {
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-ComparisonDataIngestFunction`,
         environment: {
-          SM_DB_CREDENTIALS: db.secretPathAdminName,
+          SM_DB_CREDENTIALS: db.comparisonSecretPathAdminName,
           RDS_PROXY_ENDPOINT: db.comparisonRDSProxyEndpoint,
           BUCKET: comparisonBucket.bucketName,
           REGION: this.region,

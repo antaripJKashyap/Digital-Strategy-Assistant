@@ -15,6 +15,7 @@ export class DatabaseStack extends Stack {
   public readonly dbInstance: rds.DatabaseInstance;
   public readonly comparisonDbInstance: rds.DatabaseInstance;
   public readonly secretPathAdminName: string;
+  public readonly comparisonSecretPathAdminName: string;
   public readonly secretPathUser: secretsmanager.Secret;
   public readonly secretPathTableCreator: secretsmanager.Secret;
   public readonly rdsProxyEndpoint: string;
@@ -122,40 +123,44 @@ export class DatabaseStack extends Stack {
       parameterGroup: parameterGroup,
     });
 
-    this.comparisonDbInstance = new rds.DatabaseInstance(this, `comparison-database`, {
-      vpc: vpcStack.vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-      },
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_16_3,
-      }),
-      instanceType: ec2.InstanceType.of(
-        ec2.InstanceClass.BURSTABLE4_GRAVITON,
-        ec2.InstanceSize.MEDIUM
-      ),
-      credentials: rds.Credentials.fromUsername(
-        secret.secretValueFromJson("DB_Username").unsafeUnwrap(),
-        {
-          secretName: this.secretPathAdminName,
-        }
-      ),
-      multiAz: true,
-      allocatedStorage: 100,
-      maxAllocatedStorage: 115,
-      allowMajorVersionUpgrade: false,
-      autoMinorVersionUpgrade: true,
-      backupRetention: Duration.days(7),
-      deleteAutomatedBackups: true,
-      deletionProtection: true,
-      databaseName: "DSA",
-      publiclyAccessible: false,
-      cloudwatchLogsRetention: logs.RetentionDays.INFINITE,
-      cloudwatchLogsExports: ["postgresql", "upgrade"],
-      storageEncrypted: true,
-      monitoringInterval: Duration.seconds(60),
-      parameterGroup: parameterGroup,
-    });
+    this.comparisonDbInstance = new rds.DatabaseInstance(
+      this,
+      `comparison-database`,
+      {
+        vpc: vpcStack.vpc,
+        vpcSubnets: {
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+        },
+        engine: rds.DatabaseInstanceEngine.postgres({
+          version: rds.PostgresEngineVersion.VER_16_3,
+        }),
+        instanceType: ec2.InstanceType.of(
+          ec2.InstanceClass.BURSTABLE4_GRAVITON,
+          ec2.InstanceSize.MEDIUM
+        ),
+        credentials: rds.Credentials.fromUsername(
+          secret.secretValueFromJson("DB_Username").unsafeUnwrap(),
+          {
+            secretName: this.comparisonSecretPathAdminName,
+          }
+        ),
+        multiAz: true,
+        allocatedStorage: 100,
+        maxAllocatedStorage: 115,
+        allowMajorVersionUpgrade: false,
+        autoMinorVersionUpgrade: true,
+        backupRetention: Duration.days(7),
+        deleteAutomatedBackups: true,
+        deletionProtection: true,
+        databaseName: "DSA",
+        publiclyAccessible: false,
+        cloudwatchLogsRetention: logs.RetentionDays.INFINITE,
+        cloudwatchLogsExports: ["postgresql", "upgrade"],
+        storageEncrypted: true,
+        monitoringInterval: Duration.seconds(60),
+        parameterGroup: parameterGroup,
+      }
+    );
 
     this.dbInstance.connections.securityGroups.forEach(function (
       securityGroup
@@ -235,7 +240,7 @@ export class DatabaseStack extends Stack {
         secrets: [this.secretPathUser!],
         vpc: vpcStack.vpc,
         role: rdsProxyRole,
-        securityGroups: this.dbInstance.connections.securityGroups,
+        securityGroups: this.comparisonDbInstance.connections.securityGroups,
         requireTLS: false,
       }
     );
@@ -245,7 +250,7 @@ export class DatabaseStack extends Stack {
         secrets: [this.secretPathTableCreator!],
         vpc: vpcStack.vpc,
         role: rdsProxyRole,
-        securityGroups: this.dbInstance.connections.securityGroups,
+        securityGroups: this.comparisonDbInstance.connections.securityGroups,
         requireTLS: false,
       }
     );
