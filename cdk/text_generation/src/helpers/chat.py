@@ -285,7 +285,6 @@ def generate_response_evaluation(
     obj = s3.get_object(Bucket=s3_bucket, Key=guidelines_file)
     guidelines_data = json.loads(obj['Body'].read().decode('utf-8'))
     
-    # Create a system prompt (no references to history)
     system_prompt = (
         ""
         "system"
