@@ -8,6 +8,8 @@ from langchain_core.documents import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.indexes import SQLRecordManager, index
 
+from transformers import pipeline
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,7 +19,10 @@ s3 = boto3.client('s3')
 # BUCKET_NAME = "DSA-data-ingestion-bucket"
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 
-print('EMBEDDING_BUCKET_NAME',EMBEDDING_BUCKET_NAME)
+print('EMBEDDING_BUCKET_NAME', EMBEDDING_BUCKET_NAME)
+
+# Initialize the offensive content classifier
+offensive_classifier = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-offensive")
 
 def extract_txt(
     bucket: str,
@@ -56,8 +61,8 @@ def store_doc_texts(
     
     Args:
     bucket (str): The name of the S3 bucket containing the document.
-    category (str): The category ID folder in the S3 bucket.
-    filename (str): The name of the document file.
+    category_id (str): The category ID folder in the S3 bucket.
+    document_name (str): The name of the document file.
     output_bucket (str): The name of the S3 bucket for storing the extracted text.
     
     Returns:
@@ -128,9 +133,11 @@ def store_doc_chunks(
     """
     Store chunks of documents in the vectorstore.
     
+    Before embedding them, check if any chunk is offensive. If yes, raise an error and stop the pipeline.
+    
     Args:
     bucket (str): The name of the S3 bucket containing the text files.
-    filenames (List[str]): A list of keys for the text files in the bucket.
+    documentnames (List[str]): A list of keys for the text files in the bucket.
     vectorstore (PGVector): The vectorstore instance.
     embeddings (BedrockEmbeddings): The embeddings instance.
     
@@ -141,7 +148,7 @@ def store_doc_chunks(
     this_doc_chunks = []
 
     for documentname in documentnames:
-        this_uuid = str(uuid.uuid4()) # Generating one UUID for all chunks of from a specific page in the document
+        this_uuid = str(uuid.uuid4()) # One UUID for all chunks from a specific page
         output_buffer = BytesIO()
         s3.download_fileobj(bucket, documentname, output_buffer)
         output_buffer.seek(0)
@@ -149,18 +156,28 @@ def store_doc_chunks(
         doc_chunks = text_splitter.create_documents([doc_texts])
         
         head, _, _ = documentname.partition("_page")
-        true_filename = head # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
+        true_filename = head
         
         doc_chunks = [x for x in doc_chunks if x.page_content]
-        
+
+        # Check each doc_chunk for offensive content
+        for doc_chunk in doc_chunks:
+            predictions = offensive_classifier(doc_chunk.page_content)
+            label = predictions[0]['label']
+            score = predictions[0]['score']
+            if label == "offensive":  # If flagged as offensive, raise an error
+                s3.delete_object(Bucket=bucket, Key=documentname)
+                raise ValueError(f"Offensive content detected in chunk: {doc_chunk.page_content[:50]}... (label={label}, score={score})")
+
+        # If none are offensive, then proceed
         for doc_chunk in doc_chunks:
             if doc_chunk:
                 doc_chunk.metadata["source"] = f"s3://{bucket}/{true_filename}"
                 doc_chunk.metadata["doc_id"] = this_uuid
             else:
                 logger.warning(f"Empty chunk for {documentname}")
-        
-        s3.delete_object(Bucket=bucket,Key=documentname)
+
+        s3.delete_object(Bucket=bucket, Key=documentname)
         print(f"Deleting {documentname} from {bucket}")
         this_doc_chunks.extend(doc_chunks)
        
@@ -178,7 +195,7 @@ def process_documents(
     
     Args:
     bucket (str): The name of the S3 bucket containing the text documents.
-    course (str): The course ID folder in the S3 bucket.
+    category_id (str): The category ID folder in the S3 bucket.
     vectorstore (PGVector): The vectorstore instance.
     embeddings (BedrockEmbeddings): The embeddings instance.
     record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
@@ -192,10 +209,12 @@ def process_documents(
         for page in page_iterator:
             print("checking paginator  003")
             if "Contents" not in page:
-                continue  # Skip pages without any content (e.g., if the bucket is empty)
+                continue  # Skip pages without any content (e.g. if the bucket is empty)
             for document in page['Contents']:
-                
                 documentname = document['Key']
+                # Skip directories (common in S3 listings)
+                if documentname.endswith('/'):
+                    continue
                 this_doc_chunks = add_document(
                     bucket=bucket,
                     category_id=category_id,
@@ -221,7 +240,7 @@ def process_documents(
         logger.info(f"Indexing updates: \n {idx}")
     else:
         idx = index(
-            [],
+            [], 
             record_manager, 
             vectorstore, 
             cleanup="full",
