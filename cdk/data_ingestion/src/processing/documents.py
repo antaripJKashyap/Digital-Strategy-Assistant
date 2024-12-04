@@ -34,10 +34,6 @@ dls_header_list = [
     "Glossary"
 ]
 
-import json
-import pymupdf
-from typing import List
-
 def extract_guidelines_all(
     pdf_path: str, 
     header_list: List[str]
