@@ -258,6 +258,7 @@ def handler(event, context):
     
     session_id = query_params.get("session_id", "")
     user_info = query_params.get("user_info", "")
+    comparison_doc = query_params.get("comparison_doc", "")
 
     if not session_id:
         logger.error("Missing required parameter: session_id")
@@ -317,12 +318,18 @@ def handler(event, context):
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
     user_role = body.get("user_role", "")
+    comparison_doc = body.get("comparison_doc", "")
     
     # Check if user_role is provided after the initial greeting
     if user_role:
         logger.info(f"User role received: {user_role}")
     else:
         logger.info("Awaiting user role selection.")
+
+    if comparison_doc:
+        logger.info(f"Comparison document received: {comparison_doc}")
+        
+    
 
     logger.info("Fetching prompts from the database.")
     user_prompt = get_prompt_for_role(user_role)
