@@ -668,6 +668,7 @@ export class ApiGatewayStack extends cdk.Stack {
         },
         functionName: `${id}-ComparisonPreSignedURLFunc`,
         layers: [powertoolsLayer],
+        role: lambdaRole,
       }
     );
 
@@ -677,7 +678,7 @@ export class ApiGatewayStack extends cdk.Stack {
     cfnComparisonPreSignedURL.overrideLogicalId("ComparisonPreSignedURLFunc");
 
     // Grant the Lambda function the necessary permissions
-    dataIngestionBucket.grantReadWrite(comparisonGeneratePreSignedURL);
+    comparisonBucket.grantReadWrite(comparisonGeneratePreSignedURL);
     comparisonGeneratePreSignedURL.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["s3:PutObject", "s3:GetObject"],
@@ -692,7 +693,7 @@ export class ApiGatewayStack extends cdk.Stack {
     comparisonGeneratePreSignedURL.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
     });
 
     /**
@@ -813,6 +814,7 @@ export class ApiGatewayStack extends cdk.Stack {
         },
         functionName: `${id}-GeneratePreSignedURLFunc`,
         layers: [powertoolsLayer],
+        role: lambdaRole,
       }
     );
 

@@ -43,12 +43,6 @@ def lambda_handler(event, context):
             'statusCode': 400,
             'body': json.dumps('Missing required parameter: category_id')
         }
-
-    # if not document:
-    #     return {
-    #         'statusCode': 400,
-    #         'body': json.dumps('Missing required parameter: module_id')
-    #     }
     
     if not document_name:
         return {
@@ -78,7 +72,6 @@ def lambda_handler(event, context):
         }
 
     logger.info({
-        # "course_id": course_id,
         "category": category_id,
         "document_type": document_type,
         "document_name": document_name,
