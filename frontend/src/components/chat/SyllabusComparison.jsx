@@ -79,8 +79,8 @@ const SyllabusComparisonModal = ({
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="text">Enter Text</TabsTrigger>
             <TabsTrigger value="files">Upload File</TabsTrigger>
+            <TabsTrigger value="text">Enter Text</TabsTrigger>
           </TabsList>
 
           <TabsContent value="text">

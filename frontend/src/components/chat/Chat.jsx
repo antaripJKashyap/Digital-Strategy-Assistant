@@ -18,6 +18,7 @@ import FeedbackComponent from "./Feedback";
 import SyllabusComparisonModal from "./SyllabusComparison";
 import { processAndUploadFiles } from "./Utility";
 import { getUserRole } from "./Utility";
+import { TbLayersDifference } from "react-icons/tb";
 const Chat = ({ setPage }) => {
   const [fingerprint, setFingerprint] = useState("");
   const [session, setSession] = useState(null);
@@ -316,6 +317,7 @@ const Chat = ({ setPage }) => {
             <OptionMessage
               key={`${index}-syllabus`}
               text="Compare Materials"
+              icon={TbLayersDifference}
               onClick={() => setShowSyllabusModal(true)}
             />
           )}
