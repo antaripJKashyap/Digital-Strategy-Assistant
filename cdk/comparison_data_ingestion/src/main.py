@@ -15,7 +15,7 @@ logger = logging.getLogger()
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
-DSA_DATA_INGESTION_BUCKET = os.environ["BUCKET"]
+DSA_COMPARISON_BUCKET = os.environ["BUCKET"]
 # bucket_name="DSA-data-ingestion-bucket"
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
@@ -197,7 +197,7 @@ def handler(event, context):
         bucket_name = record['s3']['bucket']['name']
 
         # Only process files from the DSA_DATA_INGESTION_BUCKET
-        if bucket_name != DSA_DATA_INGESTION_BUCKET:
+        if bucket_name != DSA_COMPARISON_BUCKET:
             print(f"Ignoring event from non-target bucket: {bucket_name}")
             continue  # Ignore this event and move to the next one
         document_key = record['s3']['object']['key']
