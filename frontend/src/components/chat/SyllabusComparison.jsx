@@ -66,9 +66,28 @@ const SyllabusComparisonModal = ({
     onSubmit();
   };
 
+  // Truncate filename if it's too long
+  const formatFileName = (fileName, maxLength = 30) => {
+    if (fileName.length <= maxLength) return fileName;
+    const extensionStart = fileName.lastIndexOf(".");
+    if (extensionStart === -1) {
+      return fileName.substring(0, maxLength) + "...";
+    }
+    const name = fileName.substring(0, extensionStart);
+    const extension = fileName.substring(extensionStart);
+
+    if (name.length > maxLength - 3) {
+      return name.substring(0, maxLength - 3) + "..." + extension;
+    }
+
+    return name + "..." + extension;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-xl sm:max-w-2xl">
+        {" "}
+        {/* Increased width */}
         <DialogHeader>
           <DialogTitle>Compare Materials</DialogTitle>
           <DialogDescription>
@@ -76,7 +95,6 @@ const SyllabusComparisonModal = ({
             Strategy Guidelines.
           </DialogDescription>
         </DialogHeader>
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="files">Upload File</TabsTrigger>
@@ -118,13 +136,16 @@ const SyllabusComparisonModal = ({
                     {files.map((file, index) => (
                       <li
                         key={index}
-                        className="flex justify-between items-center mb-1 p-2 bg-gray-100 rounded"
+                        className="flex justify-between items-center mb-1 p-2 bg-gray-100 rounded overflow-hidden"
                       >
-                        {file.name}
+                        <span className="truncate max-w-[70%]">
+                          {formatFileName(file.name)}
+                        </span>
                         <Button
                           variant="destructive"
                           size="sm"
                           onClick={removeFile}
+                          className="flex-shrink-0 ml-2"
                         >
                           Remove
                         </Button>
@@ -136,12 +157,11 @@ const SyllabusComparisonModal = ({
             </div>
           </TabsContent>
         </Tabs>
-
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button className="bg-customMain " onClick={handleSubmit}>
+          <Button className="bg-customMain" onClick={handleSubmit}>
             Submit {activeTab === "text" ? "Text" : "File"}
           </Button>
         </DialogFooter>
