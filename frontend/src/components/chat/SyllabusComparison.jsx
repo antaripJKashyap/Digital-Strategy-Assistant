@@ -72,7 +72,8 @@ const SyllabusComparisonModal = ({
         <DialogHeader>
           <DialogTitle>Compare Materials</DialogTitle>
           <DialogDescription>
-            Choose to upload files or paste text to compare with the Digital Strategy Guidelines.
+            Choose to upload files or paste text to compare with the Digital
+            Strategy Guidelines.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,6 +106,7 @@ const SyllabusComparisonModal = ({
                 type="file"
                 multiple
                 onChange={handleFileChange}
+                accept=".pdf,.docx,.pptx,.txt,.xlsx,.xps,.mobi,.cbz"
                 onClick={(e) => {
                   e.currentTarget.value = null;
                 }}
