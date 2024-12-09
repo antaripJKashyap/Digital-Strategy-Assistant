@@ -11,4 +11,3 @@ Pillow
 pymupdf
 psycopg[binary,pool]
 psycopg2-binary
-transformers
