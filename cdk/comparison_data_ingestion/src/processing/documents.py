@@ -22,7 +22,7 @@ EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 print('EMBEDDING_BUCKET_NAME', EMBEDDING_BUCKET_NAME)
 
 # Initialize the offensive content classifier
-offensive_classifier = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-offensive")
+# offensive_classifier = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-offensive")
 
 def extract_txt(
     bucket: str,
@@ -161,13 +161,13 @@ def store_doc_chunks(
         doc_chunks = [x for x in doc_chunks if x.page_content]
 
         # Check each doc_chunk for offensive content
-        for doc_chunk in doc_chunks:
-            predictions = offensive_classifier(doc_chunk.page_content)
-            label = predictions[0]['label']
-            score = predictions[0]['score']
-            if label == "offensive":  # If flagged as offensive, raise an error
-                s3.delete_object(Bucket=bucket, Key=documentname)
-                raise ValueError(f"Offensive content detected in chunk: {doc_chunk.page_content[:50]}... (label={label}, score={score})")
+        # for doc_chunk in doc_chunks:
+            # predictions = offensive_classifier(doc_chunk.page_content)
+            # label = predictions[0]['label']
+            # score = predictions[0]['score']
+            # if label == "offensive":  # If flagged as offensive, raise an error
+                # s3.delete_object(Bucket=bucket, Key=documentname)
+                # raise ValueError(f"Offensive content detected in chunk: {doc_chunk.page_content[:50]}... (label={label}, score={score})")
 
         # If none are offensive, then proceed
         for doc_chunk in doc_chunks:
