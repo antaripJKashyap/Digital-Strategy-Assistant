@@ -17,6 +17,7 @@ export class DatabaseStack extends Stack {
   public readonly secretPathAdminName: string;
   public readonly comparisonSecretPathAdminName: string;
   public readonly secretPathUser: secretsmanager.Secret;
+  public readonly comparisonSecretPathUser: secretsmanager.Secret;
   public readonly secretPathTableCreator: secretsmanager.Secret;
   public readonly rdsProxyEndpoint: string;
   public readonly comparisonRDSProxyEndpoint: string;
@@ -49,6 +50,7 @@ export class DatabaseStack extends Stack {
      * Secrets will be populate at initalization of data
      */
     this.secretPathAdminName = `${id}-DSA/credentials/DbCredential`; // Name in the Secret Manager to store DB credentials
+    this.comparisonSecretPathAdminName = `${id}-DSA/credentials/DbComparison`; // Name in the Secret Manager to store DB credentials
     const secretPathUserName = `${id}-DSA/userCredentials/DbCredential`;
     this.secretPathUser = new secretsmanager.Secret(this, secretPathUserName, {
       secretName: secretPathUserName,
@@ -59,6 +61,21 @@ export class DatabaseStack extends Stack {
         password: SecretValue.unsafePlainText("applicationPassword"), // in the initializer
       },
     });
+
+    const comparisonSecretPathUserName = `${id}-DSA/userCredentials/DbComparison`;
+    this.comparisonSecretPathUser = new secretsmanager.Secret(
+      this,
+      comparisonSecretPathUserName,
+      {
+        secretName: comparisonSecretPathUserName,
+        description: "Secrets for clients to connect to RDS",
+        removalPolicy: RemovalPolicy.DESTROY,
+        secretObjectValue: {
+          username: SecretValue.unsafePlainText("applicationUsername"), // this will change later at runtime
+          password: SecretValue.unsafePlainText("applicationPassword"), // in the initializer
+        },
+      }
+    );
 
     const secretPathTableCreator = `${id}-DSA/userCredentials/rdsTableCreator`;
     this.secretPathTableCreator = new secretsmanager.Secret(

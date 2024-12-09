@@ -13,76 +13,99 @@ import { ApiGatewayStack } from './api-gateway-stack';
 
 export class DBFlowStack extends Stack {
     constructor(scope: Construct, id: string, vpcStack: VpcStack, db: DatabaseStack, apiStack: ApiGatewayStack, props?: StackProps){
-        super(scope, id, props);
+      super(scope, id, props);
 
-        /**
-         * 
-         * Create an database initializer using lambda
-         */
+      /**
+       *
+       * Create an database initializer using lambda
+       */
 
-        const psycopgLambdaLayer = apiStack.getLayers()['psycopg2'];   
-        const lambdaRole = new iam.Role(this, `${id}-lambda-vpc-role`, {
-          assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-          description: "Role for all Lambda function inside VPC",
-        });
-        lambdaRole.addToPolicy(
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-              // Secrets Manager
-              "secretsmanager:GetSecretValue",
-              "secretsmanager:PutSecretValue",
-            ],
-            resources: [
-              `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
-            ],
-          })
-        );
-        lambdaRole.addToPolicy(
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-              // CloudWatch Logs
-              "logs:CreateLogGroup",
-              "logs:CreateLogStream",
-              "logs:PutLogEvents",
-            ],
-            resources: ["arn:aws:logs:*:*:*"],
-          })
-        );
-        lambdaRole.addToPolicy(
-          new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-              "ec2:CreateNetworkInterface",
-              "ec2:DeleteNetworkInterface",
-              "ec2:DescribeNetworkInterfaces",
-            ],
-            resources: ["*"],
-          })
-        );
-        lambdaRole.addManagedPolicy(
-          iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMReadOnlyAccess")
-        );
-        lambdaRole.addManagedPolicy(
-          iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess")
-        );
-        // Create an initilizer for the RDS instance, only invoke during deployment
-        const initializerLambda = new triggers.TriggerFunction(this, `${id}-triggerLambda`, {
-            functionName: `${id}-initializerFunction`,
-            runtime: lambda.Runtime.PYTHON_3_9,
-            handler: "initializer.handler",
-            timeout: Duration.seconds(300),
-            memorySize: 512,
-            environment: {
-              DB_SECRET_NAME: db.secretPathAdminName,     // Admin Secret Manager name that only use once here.
-              DB_USER_SECRET_NAME: db.secretPathUser.secretName,
-              DB_PROXY: db.secretPathTableCreator.secretName,
-            },
-            vpc: db.dbInstance.vpc,
-            code: lambda.Code.fromAsset("lambda/initializer"),
-            layers: [psycopgLambdaLayer],
-            role: lambdaRole,
-        });
+      const psycopgLambdaLayer = apiStack.getLayers()["psycopg2"];
+      const lambdaRole = new iam.Role(this, `${id}-lambda-vpc-role`, {
+        assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+        description: "Role for all Lambda function inside VPC",
+      });
+      lambdaRole.addToPolicy(
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            // Secrets Manager
+            "secretsmanager:GetSecretValue",
+            "secretsmanager:PutSecretValue",
+          ],
+          resources: [
+            `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+          ],
+        })
+      );
+      lambdaRole.addToPolicy(
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            // CloudWatch Logs
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents",
+          ],
+          resources: ["arn:aws:logs:*:*:*"],
+        })
+      );
+      lambdaRole.addToPolicy(
+        new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: [
+            "ec2:CreateNetworkInterface",
+            "ec2:DeleteNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+          ],
+          resources: ["*"],
+        })
+      );
+      lambdaRole.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMReadOnlyAccess")
+      );
+      lambdaRole.addManagedPolicy(
+        iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonS3FullAccess")
+      );
+      // Create an initilizer for the RDS instance, only invoke during deployment
+      const initializerLambda = new triggers.TriggerFunction(
+        this,
+        `${id}-triggerLambda`,
+        {
+          functionName: `${id}-initializerFunction`,
+          runtime: lambda.Runtime.PYTHON_3_9,
+          handler: "initializer.handler",
+          timeout: Duration.seconds(300),
+          memorySize: 512,
+          environment: {
+            DB_SECRET_NAME: db.secretPathAdminName, // Admin Secret Manager name that only use once here.
+            DB_USER_SECRET_NAME: db.secretPathUser.secretName,
+            DB_PROXY: db.secretPathTableCreator.secretName,
+          },
+          vpc: db.dbInstance.vpc,
+          code: lambda.Code.fromAsset("lambda/initializer"),
+          layers: [psycopgLambdaLayer],
+          role: lambdaRole,
+        }
+      );      // Create an Initilizer for the RDS instance, only invoke during deployment
+      const comparisonInitializerLambda = new triggers.TriggerFunction(
+        this,
+        `${id}-comparisonTriggerLambda`,
+        {
+          functionName: `${id}-comparisonInitializerFunction`,
+          runtime: lambda.Runtime.PYTHON_3_9,
+          handler: "comparisonInitializer.handler",
+          timeout: Duration.seconds(300),
+          memorySize: 512,
+          environment: {
+            DB_SECRET_NAME: db.comparisonSecretPathAdminName, // Admin Secret Manager name that only use once here.
+            DB_USER_SECRET_NAME: db.comparisonSecretPathUser.secretName,
+          },
+          vpc: db.comparisonDbInstance.vpc,
+          code: lambda.Code.fromAsset("lambda/initializer"),
+          layers: [psycopgLambdaLayer],
+          role: lambdaRole,
+        }
+      );
     }
 }

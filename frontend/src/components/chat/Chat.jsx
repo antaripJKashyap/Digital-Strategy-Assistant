@@ -15,7 +15,9 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TypingIndicator from "./TypingIndicator";
 import FeedbackComponent from "./Feedback";
-
+import SyllabusComparisonModal from "./SyllabusComparison";
+import { processAndUploadFiles } from "./Utility";
+import { getUserRole } from "./Utility";
 const Chat = ({ setPage }) => {
   const [fingerprint, setFingerprint] = useState("");
   const [session, setSession] = useState(null);
@@ -28,8 +30,9 @@ const Chat = ({ setPage }) => {
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedback, setFeedback] = useState({ rating: "", description: [] });
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
+  const [showSyllabusModal, setShowSyllabusModal] = useState(false);
+  const [textSyllabus, setTextSyllabus] = useState("");
+  const [syllabusFiles, setSyllabusFiles] = useState([]);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -86,20 +89,6 @@ const Chat = ({ setPage }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const getUserRole = (messageHistory) => {
-    const firstHumanMessage = messageHistory.find(
-      (msg) => msg.Type === "human"
-    );
-    if (!firstHumanMessage) return "";
-
-    const content = firstHumanMessage.Content.toLowerCase();
-    if (content.includes("student")) return "public";
-    if (content.includes("educator") || content.includes("educational"))
-      return "educator";
-    if (content.includes("admin")) return "admin";
-    return "";
-  };
-
   const sendMessage = async (content, isOption = false) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
 
@@ -137,7 +126,7 @@ const Chat = ({ setPage }) => {
       );
 
       if (!response.ok) {
-        const error =await response.json();
+        const error = await response.json();
         console.log("response", error);
         throw new Error(error || `HTTP error! status: ${response.status}`);
       }
@@ -298,18 +287,16 @@ const Chat = ({ setPage }) => {
     createNewSession(fingerprint);
   };
 
-  const handleOptionClick = (option) => {
-    if (option.isEndTask) {
-      setShowFeedback(true);
-    } else if (!isLoading) {
-      sendMessage(option.text, true);
-    }
-  };
-
   const renderMessage = (message, index) => {
     if (message.Type === "human") {
       return <UserMessage key={index} text={message.Content} />;
     } else if (message.Type === "ai") {
+      const userRole = getUserRole(messages);
+
+      const isEduOrAdminRole =
+        userRole.toLowerCase().includes("educator") ||
+        userRole.toLowerCase().includes("admin");
+
       return (
         <React.Fragment key={index}>
           <MainMessage text={message.Content} />
@@ -324,8 +311,16 @@ const Chat = ({ setPage }) => {
               />
             ))}
 
-          {/* Add "My task is done" for AI messages starting from the 5th, 
-        excluding specific AI messages */}
+          {/* Add "Compare Materials" option if the role is Educator/Admin */}
+          {isEduOrAdminRole && index > 0 && (
+            <OptionMessage
+              key={`${index}-syllabus`}
+              text="Compare Materials"
+              onClick={() => setShowSyllabusModal(true)}
+            />
+          )}
+
+          {/* Existing "My task is done" option */}
           {index >= 4 &&
             !message.Content.includes(
               "Thank you! Your feedback will help improve the Digital Strategy Assistant."
@@ -340,6 +335,24 @@ const Chat = ({ setPage }) => {
       );
     }
     return null;
+  };
+
+  const handleSyllabusSubmit = async () => {
+    try {
+      // Process and upload files
+      await processAndUploadFiles(syllabusFiles, textSyllabus, session);
+
+      // Close modal and send confirmation message
+      setShowSyllabusModal(false);
+      sendMessage("I've uploaded syllabus files for comparison", true);
+
+      // Reset state
+      setTextSyllabus("");
+      setSyllabusFiles([]);
+    } catch (error) {
+      console.error("Syllabus upload error:", error);
+      toast.error("Failed to upload syllabus: " + error.message);
+    }
   };
 
   return (
@@ -420,6 +433,15 @@ const Chat = ({ setPage }) => {
         draggable
         pauseOnHover
         theme="colored"
+      />
+      <SyllabusComparisonModal
+        isOpen={showSyllabusModal}
+        onClose={() => setShowSyllabusModal(false)}
+        onSubmit={handleSyllabusSubmit}
+        textSyllabus={textSyllabus}
+        setTextSyllabus={setTextSyllabus}
+        files={syllabusFiles}
+        setFiles={setSyllabusFiles}
       />
     </div>
   );

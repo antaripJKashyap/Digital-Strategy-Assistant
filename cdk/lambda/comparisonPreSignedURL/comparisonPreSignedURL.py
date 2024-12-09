@@ -32,16 +32,15 @@ def lambda_handler(event, context):
             'statusCode': 400,
             'body': json.dumps('Missing queries to generate pre-signed URL')
         }
-
+    session_id = query_params.get("session_id", "")
     document_type = query_params.get("document_type", "")
     document_name = query_params.get("document_name", "")
 
-
-    # if not document:
-    #     return {
-    #         'statusCode': 400,
-    #         'body': json.dumps('Missing required parameter: module_id')
-    #     }
+    if not session_id:
+        return {
+            'statusCode': 400,
+            'body': json.dumps('Missing required parameter: session_id')
+        }
     
     if not document_name:
         return {
@@ -62,7 +61,7 @@ def lambda_handler(event, context):
     }
     
     if document_type in allowed_document_types:
-        key = f"public/{document_name}.{document_type}"
+        key = f"{session_id}/{document_name}.{document_type}"
         content_type = allowed_document_types[document_type]
     else:
         return {
@@ -71,8 +70,7 @@ def lambda_handler(event, context):
         }
 
     logger.info({
-        # "course_id": course_id,
-        "category": "public",
+        "session_id": session_id,
         "document_type": document_type,
         "document_name": document_name,
     })

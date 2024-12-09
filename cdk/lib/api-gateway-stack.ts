@@ -4,6 +4,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as ssm from "aws-cdk-lib/aws-ssm";
+import * as sqs from "aws-cdk-lib/aws-sqs";
 import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
@@ -58,6 +59,13 @@ export class ApiGatewayStack extends cdk.Stack {
     this.layerList = {};
     const { embeddingStorageBucket, dataIngestionBucket, comparisonBucket } =
       createS3Buckets(this, id);
+    // Create FIFO SQS Queue
+    const comparisonQueue = new sqs.Queue(this, `${id}-ComparisonQueue`, {
+      queueName: `${id}-comparison-queue.fifo`,
+      fifo: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      visibilityTimeout: cdk.Duration.seconds(300),
+    });
 
     const { jwt, postgres, psycopgLayer } = createLayers(this, id);
     this.layerList["psycopg2"] = psycopgLayer;
@@ -668,6 +676,7 @@ export class ApiGatewayStack extends cdk.Stack {
         },
         functionName: `${id}-ComparisonPreSignedURLFunc`,
         layers: [powertoolsLayer],
+        role: lambdaRole,
       }
     );
 
@@ -677,7 +686,7 @@ export class ApiGatewayStack extends cdk.Stack {
     cfnComparisonPreSignedURL.overrideLogicalId("ComparisonPreSignedURLFunc");
 
     // Grant the Lambda function the necessary permissions
-    dataIngestionBucket.grantReadWrite(comparisonGeneratePreSignedURL);
+    comparisonBucket.grantReadWrite(comparisonGeneratePreSignedURL);
     comparisonGeneratePreSignedURL.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["s3:PutObject", "s3:GetObject"],
@@ -692,8 +701,33 @@ export class ApiGatewayStack extends cdk.Stack {
     comparisonGeneratePreSignedURL.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/user*`,
     });
+
+    // First Lambda Function (S3 Ingestion)
+    const sqsFunction = new lambda.Function(this, `${id}-sqsFunction`, {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "sqs.handler",
+      memorySize: 512,
+      code: lambda.Code.fromAsset("lambda/sqs"),
+      timeout: cdk.Duration.seconds(300),
+      environment: {
+        SQS_QUEUE_URL: comparisonQueue.queueUrl,
+      },
+      vpc: vpcStack.vpc,
+      role: coglambdaRole,
+    });
+
+    sqsFunction.addEventSource(
+      new lambdaEventSources.S3EventSource(comparisonBucket, {
+        events: [
+          s3.EventType.OBJECT_CREATED,
+          s3.EventType.OBJECT_RESTORE_COMPLETED,
+        ],
+      })
+    );
+
+    comparisonQueue.grantSendMessages(sqsFunction);
 
     /**
      *
@@ -747,6 +781,14 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    comparisonDataIngestFunction.addEventSource(
+      new lambdaEventSources.SqsEventSource(comparisonQueue, {
+        batchSize: 1,
+      })
+    );
+
+    comparisonQueue.grantConsumeMessages(comparisonDataIngestFunction);
+
     comparisonDataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -763,16 +805,6 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     comparisonDataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
-
-    comparisonDataIngestFunction.addEventSource(
-      new lambdaEventSources.S3EventSource(comparisonBucket, {
-        events: [
-          s3.EventType.OBJECT_CREATED,
-          s3.EventType.OBJECT_REMOVED,
-          s3.EventType.OBJECT_RESTORE_COMPLETED,
-        ],
-      })
-    );
 
     // Grant access to Secret Manager
     comparisonDataIngestFunction.addToRolePolicy(
@@ -813,6 +845,7 @@ export class ApiGatewayStack extends cdk.Stack {
         },
         functionName: `${id}-GeneratePreSignedURLFunc`,
         layers: [powertoolsLayer],
+        role: lambdaRole,
       }
     );
 
