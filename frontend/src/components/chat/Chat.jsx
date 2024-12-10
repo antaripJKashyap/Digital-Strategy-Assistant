@@ -90,23 +90,35 @@ const Chat = ({ setPage }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const sendMessage = async (content, isOption = false) => {
+  const sendMessage = async (
+    content,
+    isOption = false,
+    isComparison = false
+  ) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
-
     const currentMessages = [...messages];
     const userRole = getUserRole(currentMessages);
-
     if (!isOption && currentMessages.length === 1) {
       toast.error("Please select one of the options first!");
       return;
     }
     setMessageInput("");
-
     setIsLoading(true);
-
     try {
       const userMessage = { Type: "human", Content: content };
       setMessages((prev) => [...prev, userMessage]);
+
+      // Prepare the request body conditionally
+      const requestBody = isComparison
+        ? {
+            comparison: true,
+            message_content: content,
+            user_role: getUserRole([...currentMessages, userMessage]),
+          }
+        : {
+            message_content: content,
+            user_role: getUserRole([...currentMessages, userMessage]),
+          };
 
       const response = await fetch(
         `${
@@ -119,10 +131,7 @@ const Chat = ({ setPage }) => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            message_content: content,
-            user_role: getUserRole([...currentMessages, userMessage]),
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
@@ -346,7 +355,7 @@ const Chat = ({ setPage }) => {
 
       // Close modal and send confirmation message
       setShowSyllabusModal(false);
-      sendMessage("I've uploaded syllabus files for comparison", true);
+      sendMessage("I've uploaded syllabus files for comparison", true, true);
 
       // Reset state
       setTextSyllabus("");
