@@ -264,7 +264,7 @@ def get_llm_output(response: str) -> dict:
         "options": questions
     }
 
-def generate_response_evaluation(
+def get_response_evaluation(
     llm: ChatBedrock,
     retriever,
     s3_bucket: str = "text-extraction-data-dls",
