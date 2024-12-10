@@ -258,7 +258,7 @@ def handler(event, context):
     
     session_id = query_params.get("session_id", "")
     user_info = query_params.get("user_info", "")
-    comparison = query_params.get("comparison", "")
+
 
     if not session_id:
         logger.error("Missing required parameter: session_id")
