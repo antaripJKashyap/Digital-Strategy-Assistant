@@ -6,13 +6,13 @@ from langchain.chains import create_history_aware_retriever
 
 from helpers.helper import get_vectorstore
 
-def get_vectorstore_retriever(
+def get_vectorstore_retriever_ordinary(
     llm,
     vectorstore_config_dict: Dict[str, str],
     embeddings#: BedrockEmbeddings
 ) -> VectorStoreRetriever:
     """
-    Retrieve the vectorstore and return the history-aware retriever object.
+    Retrieve the vectorstore and directly return it.
 
     Args:
     llm: The language model instance used to generate the response.
@@ -20,7 +20,7 @@ def get_vectorstore_retriever(
     embeddings (BedrockEmbeddings): The embeddings instance used to process the documents.
 
     Returns:
-    VectorStoreRetriever: A history-aware retriever instance.
+    VectorStoreRetriever: An ordinary (non-history aware) retriever instance.
     """
     vectorstore, _ = get_vectorstore(
         collection_name=vectorstore_config_dict['collection_name'],
@@ -32,25 +32,4 @@ def get_vectorstore_retriever(
         port=int(vectorstore_config_dict['port'])
     )
 
-    retriever = vectorstore.as_retriever()
-
-    # Contextualize question and create history-aware retriever
-    contextualize_q_system_prompt = (
-        "Given a chat history and the latest user question "
-        "which might reference context in the chat history, "
-        "formulate a standalone question which can be understood "
-        "without the chat history. Do NOT answer the question, "
-        "just reformulate it if needed and otherwise return it as is."
-    )
-    contextualize_q_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", contextualize_q_system_prompt),
-            MessagesPlaceholder("chat_history"),
-            ("human", "{input}"),
-        ]
-    )
-    history_aware_retriever = create_history_aware_retriever(
-        llm, retriever, contextualize_q_prompt
-    )
-
-    return history_aware_retriever
+    return vectorstore.as_retriever(search_kwargs={'k': 10})
