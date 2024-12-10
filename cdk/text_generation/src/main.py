@@ -7,7 +7,7 @@ import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
 
-from helpers.vectorstore import get_vectorstore_retriever
+from helpers.vectorstore import get_vectorstore_retriever, get_vectorstore_retriever_ordinary
 from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response
 
 # Set up basic logging
@@ -328,8 +328,93 @@ def handler(event, context):
 
     if comparison:
         logger.info(f"Comparison document received: {comparison}")
+        # Try obtaining vectorstore config for the user uploaded document vectorstore
+        try:
+            logger.info("Retrieving vectorstore config.")
+            db_secret = get_secret(DB_SECRET_NAME)
+            vectorstore_config_dict = {
+                'collection_name': "all",
+                'dbname': db_secret["dbname"],
+                'user': db_secret["username"],
+                'password': db_secret["password"],
+                'host': db_secret["host"],
+                'port': db_secret["port"]
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving vectorstore config: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error retrieving user uploaded document vectorstore config')
+            }
+
+        # Try obtaining the ordinary retriever given this vectorstore config dict
+        try:
+            logger.info("Creating ordinary retriever for user uploaded vectorstore.")
+            
+            ordinary_retriever = get_vectorstore_retriever_ordinary(
+                llm=llm,
+                vectorstore_config_dict=vectorstore_config_dict,
+                embeddings=embeddings
+            )
+        except Exception as e:
+            logger.error(f"Error creating ordinary retriever for user uploaded vectorstore: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error creating history-aware retriever')
+            }
+
+        # Try getting an evaluation result from the LLM
+         try:
+             logger.info("Generating response from the LLM.")
+             response = get_response_evaluation(
+                 llm=llm,
+                 retriever=ordinary_retriever
+             )
+         except Exception as e:
+             logger.error(f"Error getting response: {e}")
+             return {
+                    'statusCode': 500,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Headers": "*",
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "*",
+                    },
+                    'body': json.dumps('Error getting response')
+                }
         
-    
+        logger.info("Returning the generated evaluation.")
+
+        # This part below might have to be fixed
+        # If LLM did generate a response, return it
+        return {
+            "statusCode": 200,
+            "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+            "body": json.dumps({
+                "type": "ai",
+                "content": response.get("llm_output", "LLM failed to create response"),
+                "options": response.get("options", []),
+                "user_role": user_role
+            })
+        }
+        
 
     logger.info("Fetching prompts from the database.")
     user_prompt = get_prompt_for_role(user_role)
