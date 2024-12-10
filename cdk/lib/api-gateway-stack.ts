@@ -742,7 +742,7 @@ export class ApiGatewayStack extends cdk.Stack {
           "./comparison_data_ingestion"
         ),
         memorySize: 512,
-        timeout: cdk.Duration.seconds(300),
+        timeout: cdk.Duration.seconds(600),
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-ComparisonDataIngestFunction`,
         environment: {

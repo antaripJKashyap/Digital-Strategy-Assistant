@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.indexes import SQLRecordManager, index
 
-from transformers import pipeline
+# from transformers import pipeline
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
