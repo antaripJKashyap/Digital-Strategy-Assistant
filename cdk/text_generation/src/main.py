@@ -337,7 +337,7 @@ def handler(event, context):
             logger.info("Retrieving vectorstore config.")
             db_secret = get_secret(DB_SECRET_NAME)
             vectorstore_config_dict = {
-                'collection_name': "all",
+                'collection_name': session_id,
                 'dbname': db_secret["dbname"],
                 'user': db_secret["username"],
                 'password': db_secret["password"],
@@ -390,7 +390,7 @@ def handler(event, context):
                     "Access-Control-Allow-Origin": "*",
                     "Access-Control-Allow-Methods": "*",
                 },
-                'body': json.dumps('Error creating history-aware retriever')
+                'body': json.dumps('Error creating ordinary retriever for user uploaded vectorstore')
             }
 
         # Try getting an evaluation result from the LLM
