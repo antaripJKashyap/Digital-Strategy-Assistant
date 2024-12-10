@@ -581,6 +581,8 @@ export class ApiGatewayStack extends cdk.Stack {
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-TextGenFunction`,
         environment: {
+          SM_DB_COMP_CREDENTIALS: db.comparisonSecretPathAdminName,
+          RDS_PROXY_COMP_ENDPOINT: db.comparisonRDSProxyEndpoint,
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
           RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,

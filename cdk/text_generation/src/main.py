@@ -16,6 +16,7 @@ logger = logging.getLogger()
 
 
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
+DB_COMP_SECRET_NAME = os.environ["SM_DB_COMP_CREDENTIALS"]
 REGION = os.environ["REGION"]
 
 def get_secret(secret_name, expect_json=True):
@@ -252,6 +253,7 @@ def check_embeddings():
 
 def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
+    
 
     query_params = event.get("queryStringParameters", {})
 
@@ -323,7 +325,7 @@ def handler(event, context):
     # Check if user_role is provided after the initial greeting
     if user_role:
         logger.info(f"User role received: {user_role}")
-        
+       
     else:
         logger.info("Awaiting user role selection.")
         
@@ -331,11 +333,13 @@ def handler(event, context):
     
 
     if comparison:
+        
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
         try:
             logger.info("Retrieving vectorstore config.")
-            db_secret = get_secret(DB_SECRET_NAME)
+            db_secret = get_secret(DB_COMP_SECRET_NAME)
+            print(f"print: getting secret COMP")
             vectorstore_config_dict = {
                 'collection_name': session_id,
                 'dbname': db_secret["dbname"],
@@ -358,6 +362,7 @@ def handler(event, context):
             }
         try:
             logger.info("Creating Bedrock LLM instance.")
+            print(f"print: creating bedrock llm")
             llm = get_bedrock_llm(BEDROCK_LLM_ID)
         except Exception as e:
             logger.error(f"Error getting LLM from Bedrock: {e}")
@@ -374,7 +379,7 @@ def handler(event, context):
         # Try obtaining the ordinary retriever given this vectorstore config dict
         try:
             logger.info("Creating ordinary retriever for user uploaded vectorstore.")
-            
+            print(f"print: creating ordinary retriever")
             ordinary_retriever = get_vectorstore_retriever_ordinary(
                 llm=llm,
                 vectorstore_config_dict=vectorstore_config_dict,
@@ -396,10 +401,12 @@ def handler(event, context):
         # Try getting an evaluation result from the LLM
         try:
             logger.info("Generating response from the LLM.")
+            print(f"print: generating response newwww")
             response = get_response_evaluation(
-                 llm=llm,
-                 retriever=ordinary_retriever
+                llm=llm,
+                retriever=ordinary_retriever
             )
+            print(f"print: response generated after get_response_evaluation")
             log_user_engagement(
             session_id=session_id,
             engagement_type="document comparison",

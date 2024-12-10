@@ -268,7 +268,7 @@ def get_response_evaluation(
     llm: ChatBedrock,
     retriever,
     s3_bucket: str = "text-extraction-data-dls",
-    guidelines_file: str = "dls_guidelines.json"
+    guidelines_file: str = "dsa_guidelines.json"
 ) -> dict:
     """
     This function uses the provided retriever and LLM to generate feedback based on guidelines.
@@ -279,17 +279,18 @@ def get_response_evaluation(
 
     The results are stored in a dictionary, where each key corresponds to the guidelines key.
     """
-
+    print("Retrieving guidelines file from S3 checkkkkkk.")
     s3 = boto3.client('s3')
     
     # Load the guidelines JSON file from S3
     obj = s3.get_object(Bucket=s3_bucket, Key=guidelines_file)
     guidelines_data = json.loads(obj['Body'].read().decode('utf-8'))
-    
+    print("Retrieved guidelines obtainedddddddd.")
     evaluation_results = {}
     
     # For each item in the guidelines data, create a query string by concatenating the key and its values
     for key, value in guidelines_data.items():
+        print(f"key: {key}, value: {value}")
         if isinstance(value, list):
             # If the value is a list of strings, join them into one string
             value_str = " ".join(value)
@@ -309,18 +310,19 @@ def get_response_evaluation(
             "documents:\n"
             "{context}\n"
         )
-
+        print(f"iteration_system_prompt: {iteration_system_prompt}")
         qa_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", iteration_system_prompt),
                 ("human", "{input}"),
             ]
         )
-
+        print(f"completed qa_prompt: {qa_prompt}")
         question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
         rag_chain = create_retrieval_chain(retriever, question_answer_chain)
-
+        print(f"completed rag_chain: {rag_chain}")
         response = rag_chain({"input": query})["answer"]
+        print(f"response completedeewucercnrei: {response}")
         evaluation_results[key] = response
     
     return evaluation_results
