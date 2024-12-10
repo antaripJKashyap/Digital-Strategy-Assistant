@@ -274,48 +274,6 @@ def handler(event, context):
             },
             'body': json.dumps('Missing required parameter: session_id')
         }
-
-    
-
-    # if public_prompt is None:
-    #     logger.error(f"Error fetching public prompt for you!")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Error fetching public prompt')
-    #     }
-
-    # if educator_prompt is None:
-    #     logger.error(f"Error fetching educator prompt for you!")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Error fetching educator prompt')
-    #     }
-    
-    # if admin_prompt is None:
-    #     logger.error(f"Error fetching admin prompt for you!")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Error fetching admin prompt')
-    #     }
-    
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
