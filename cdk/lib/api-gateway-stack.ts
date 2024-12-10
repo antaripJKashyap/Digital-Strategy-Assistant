@@ -660,6 +660,19 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
+
+    // Grant access to S3 bucket for text extraction data
+    textGenFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket", "s3:GetObject"],
+        resources: [
+          `arn:aws:s3:::text-extraction-data-dls`,
+          `arn:aws:s3:::text-extraction-data-dls/*`,
+        ],
+      })
+    );
+    
     // Create the Lambda function for generating presigned URLs for comparison bucket
     const comparisonGeneratePreSignedURL = new lambda.Function(
       this,

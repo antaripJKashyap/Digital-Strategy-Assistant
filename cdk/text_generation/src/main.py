@@ -8,7 +8,7 @@ from langchain_aws import BedrockEmbeddings
 
 
 from helpers.vectorstore import get_vectorstore_retriever, get_vectorstore_retriever_ordinary
-from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response
+from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response, get_response_evaluation
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
@@ -323,8 +323,12 @@ def handler(event, context):
     # Check if user_role is provided after the initial greeting
     if user_role:
         logger.info(f"User role received: {user_role}")
+        
     else:
         logger.info("Awaiting user role selection.")
+        
+
+    
 
     if comparison:
         logger.info(f"Comparison document received: {comparison}")
@@ -352,7 +356,21 @@ def handler(event, context):
                 },
                 'body': json.dumps('Error retrieving user uploaded document vectorstore config')
             }
-
+        try:
+            logger.info("Creating Bedrock LLM instance.")
+            llm = get_bedrock_llm(BEDROCK_LLM_ID)
+        except Exception as e:
+            logger.error(f"Error getting LLM from Bedrock: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error getting LLM from Bedrock')
+            }
         # Try obtaining the ordinary retriever given this vectorstore config dict
         try:
             logger.info("Creating ordinary retriever for user uploaded vectorstore.")
@@ -376,13 +394,21 @@ def handler(event, context):
             }
 
         # Try getting an evaluation result from the LLM
-         try:
-             logger.info("Generating response from the LLM.")
-             response = get_response_evaluation(
+        try:
+            logger.info("Generating response from the LLM.")
+            response = get_response_evaluation(
                  llm=llm,
                  retriever=ordinary_retriever
-             )
-         except Exception as e:
+            )
+            log_user_engagement(
+            session_id=session_id,
+            engagement_type="document comparison",
+            engagement_details="I've uploaded a document for comparison.",
+            user_info=user_info,
+            user_role=user_role
+            )
+            logger.info(f"User role {user_role} logged in engagement log.")
+        except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {
                     'statusCode': 500,
@@ -409,13 +435,13 @@ def handler(event, context):
                 },
             "body": json.dumps({
                 "type": "ai",
-                "content": response.get("llm_output", "LLM failed to create response"),
-                "options": response.get("options", []),
+                "content": response,
+                "options": [],
                 "user_role": user_role
             })
         }
         
-
+    
     logger.info("Fetching prompts from the database.")
     user_prompt = get_prompt_for_role(user_role)
 
