@@ -15,7 +15,9 @@ export class DatabaseStack extends Stack {
   public readonly dbInstance: rds.DatabaseInstance;
   public readonly comparisonDbInstance: rds.DatabaseInstance;
   public readonly secretPathAdminName: string;
+  public readonly rdsProxyEndpointAdmin: string;
   public readonly comparisonSecretPathAdminName: string;
+  public readonly comparisonRdsProxyEndpointAdmin: string;
   public readonly secretPathUser: secretsmanager.Secret;
   public readonly comparisonSecretPathUser: secretsmanager.Secret;
   public readonly secretPathTableCreator: secretsmanager.Secret;
@@ -231,6 +233,34 @@ export class DatabaseStack extends Stack {
       requireTLS: false,
     });
 
+    const secretPathAdmin = secretmanager.Secret.fromSecretNameV2(
+      this,
+      "AdminSecret",
+      this.secretPathAdminName
+    );
+
+    const comaprisonSecretPathAdmin = secretmanager.Secret.fromSecretNameV2(
+      this,
+      "AdminSecret",
+      this.comparisonSecretPathAdminName
+    );
+
+    const rdsProxyAdmin = this.dbInstance.addProxy(id + "-proxy-admin", {
+      secrets: [secretPathAdmin],
+      vpc: vpcStack.vpc,
+      role: rdsProxyRole,
+      securityGroups: this.dbInstance.connections.securityGroups,
+      requireTLS: false,
+    });
+
+    const comparisonRdsProxyAdmin = this.comparisonDbInstance.addProxy(id + "-proxy-admin", {
+      secrets: [comaprisonSecretPathAdmin],
+      vpc: vpcStack.vpc,
+      role: rdsProxyRole,
+      securityGroups: this.comparisonDbInstance.connections.securityGroups,
+      requireTLS: false,
+    });
+
     // Workaround for bug where TargetGroupName is not set but required
     let targetGroup = rdsProxy.node.children.find((child: any) => {
       return child instanceof rds.CfnDBProxyTargetGroup;
@@ -294,5 +324,8 @@ export class DatabaseStack extends Stack {
 
     this.comparisonDbInstance.grantConnect(rdsProxyRole);
     this.comparisonRDSProxyEndpoint = comparisonRdsProxy.endpoint;
+
+    this.rdsProxyEndpointAdmin = rdsProxyAdmin.endpoint;
+    this.comparisonRdsProxyEndpointAdmin = comparisonRdsProxyAdmin.endpoint;
   }
 }

@@ -582,9 +582,9 @@ export class ApiGatewayStack extends cdk.Stack {
         functionName: `${id}-TextGenFunction`,
         environment: {
           SM_DB_COMP_CREDENTIALS: db.comparisonSecretPathAdminName,
-          RDS_PROXY_COMP_ENDPOINT: db.comparisonRDSProxyEndpoint,
+          RDS_PROXY_COMP_ENDPOINT: db.comparisonRdsProxyEndpointAdmin,
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,
           REGION: this.region,
           BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
@@ -762,7 +762,7 @@ export class ApiGatewayStack extends cdk.Stack {
         functionName: `${id}-ComparisonDataIngestFunction`,
         environment: {
           SM_DB_CREDENTIALS: db.comparisonSecretPathAdminName,
-          RDS_PROXY_ENDPOINT: db.comparisonRDSProxyEndpoint,
+          RDS_PROXY_ENDPOINT: db.comparisonRdsProxyEndpointAdmin,
           BUCKET: comparisonBucket.bucketName,
           REGION: this.region,
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
@@ -904,7 +904,7 @@ export class ApiGatewayStack extends cdk.Stack {
         functionName: `${id}-DataIngestFunction`,
         environment: {
           SM_DB_CREDENTIALS: db.secretPathAdminName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,
           BUCKET: dataIngestionBucket.bucketName,
           REGION: this.region,
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,

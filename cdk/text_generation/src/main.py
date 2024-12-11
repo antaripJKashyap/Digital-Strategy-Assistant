@@ -18,6 +18,9 @@ logger = logging.getLogger()
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 DB_COMP_SECRET_NAME = os.environ["SM_DB_COMP_CREDENTIALS"]
 REGION = os.environ["REGION"]
+RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
+RDS_PROXY_COMP_ENDPOINT = os.environ["RDS_PROXY_COMP_ENDPOINT"]
+
 
 def get_secret(secret_name, expect_json=True):
     try:
@@ -53,7 +56,7 @@ def log_user_engagement(
             'dbname': db_secret["dbname"],
             'user': db_secret["username"],
             'password': db_secret["password"],
-            'host': db_secret["host"],
+            'host': RDS_PROXY_ENDPOINT,
             'port': db_secret["port"]
         }
 
@@ -143,7 +146,7 @@ def get_prompt_for_role(user_role):
             'dbname': db_secret["dbname"],
             'user': db_secret["username"],
             'password': db_secret["password"],
-            'host': db_secret["host"],
+            'host': RDS_PROXY_ENDPOINT,
             'port': db_secret["port"]
         }
 
@@ -202,7 +205,7 @@ def check_embeddings():
             'dbname': db_secret["dbname"],
             'user': db_secret["username"],
             'password': db_secret["password"],
-            'host': db_secret["host"],
+            'host': RDS_PROXY_ENDPOINT,
             'port': db_secret["port"]
         }
 
@@ -300,7 +303,7 @@ def handler(event, context):
                 'dbname': db_secret["dbname"],
                 'user': db_secret["username"],
                 'password': db_secret["password"],
-                'host': db_secret["host"],
+                'host': RDS_PROXY_COMP_ENDPOINT,
                 'port': db_secret["port"]
             }
         except Exception as e:
@@ -491,7 +494,7 @@ def handler(event, context):
             'dbname': db_secret["dbname"],
             'user': db_secret["username"],
             'password': db_secret["password"],
-            'host': db_secret["host"],
+            'host': RDS_PROXY_ENDPOINT,
             'port': db_secret["port"]
         }
     except Exception as e:
