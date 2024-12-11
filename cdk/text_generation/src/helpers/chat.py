@@ -1,4 +1,5 @@
 import boto3, re, json
+from datetime import datetime
 from langchain_aws import ChatBedrock
 from langchain_aws import BedrockLLM
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -59,9 +60,53 @@ def create_dynamodb_history_table(table_name: str) -> bool:
         # Wait until the table exists.
         table.meta.client.get_waiter("table_exists").wait(TableName=table_name)
 
+def get_guardrails():
+    response = bedrock.create_guardrail(
+    name='comprehensive-guardrail-' + datetime.now().strftime("%Y%m%d-%H%M"),
+    description='Guardrail to prevent financial advice, offensive content, and exposure of PII.',
+    topicPolicyConfig={
+        'topicsConfig': [
+            {
+                'name': 'FinancialAdvice',
+                'definition': 'Providing personalized financial guidance or investment recommendations.',
+                'examples': [
+                    'Which mutual fund should I invest in for retirement?',
+                    'Can you advise on the best way to reduce my debt?'
+                ],
+                'type': 'DENY'
+            },
+            {
+                'name': 'OffensiveContent',
+                'definition': 'Content that includes hate speech, discriminatory remarks, explicit material, or language intended to offend individuals or groups.',
+                'examples': [
+                    'Tell me a joke about [a specific race or religion].',
+                    'Share an offensive meme targeting [a specific group].'
+                ],
+                'type': 'DENY'
+            }
+        ]
+    },
+    sensitiveInformationPolicyConfig={
+        'piiEntitiesConfig': [
+            {'type': 'EMAIL', 'action': 'ANONYMIZE'},
+            {'type': 'PHONE', 'action': 'ANONYMIZE'},
+            {'type': 'NAME', 'action': 'ANONYMIZE'},
+            {'type': 'US_SOCIAL_SECURITY_NUMBER', 'action': 'BLOCK'},
+            {'type': 'US_BANK_ACCOUNT_NUMBER', 'action': 'BLOCK'},
+            {'type': 'CREDIT_DEBIT_CARD_NUMBER', 'action': 'BLOCK'}
+        ]
+    },
+    blockedInputMessaging='Sorry, I cannot respond to that.',
+    blockedOutputsMessaging='Sorry, I cannot respond to that.'
+    )
+        
+    return response['guardrailId']
+    
+
 def get_bedrock_llm(
     bedrock_llm_id: str,
-    temperature: float = 0
+    temperature: float = 0,
+    enable_guardrails: bool = False
 ) -> ChatBedrock:
     """
     Retrieve a Bedrock LLM instance based on the provided model ID.
@@ -74,6 +119,18 @@ def get_bedrock_llm(
     Returns:
     ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
+    if enable_guardrails:
+        guardrailId = get_guardrails()
+        return ChatBedrock(
+            model_id=bedrock_llm_id,
+            model_kwargs=dict(temperature=temperature),
+            guardrails={
+                'guardrailIdentifier': guardrailId,
+                'guardrailVersion': '1.0',
+                'trace': True
+            }
+        )
+    
     return ChatBedrock(
         model_id=bedrock_llm_id,
         model_kwargs=dict(temperature=temperature),
