@@ -321,7 +321,8 @@ def get_response_evaluation(
         question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
         rag_chain = create_retrieval_chain(retriever, question_answer_chain)
         print(f"completed rag_chain: {rag_chain}")
-        response = rag_chain({"input": query})["answer"]
+        # response = rag_chain({"input": query})["answer"]
+        response = rag_chain.invoke({"input": query})["answer"]
         print(f"response completedeewucercnrei: {response}")
         evaluation_results[key] = response
     
