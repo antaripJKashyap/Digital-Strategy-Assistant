@@ -287,9 +287,6 @@ def handler(event, context):
     else:
         logger.info("Awaiting user role selection.")
         
-
-    
-
     if comparison:
         
         logger.info(f"Comparison document received: {comparison}")
@@ -320,7 +317,6 @@ def handler(event, context):
             }
         try:
             logger.info("Creating Bedrock LLM instance.")
-            print(f"print: creating bedrock llm")
             llm = get_bedrock_llm(BEDROCK_LLM_ID)
         except Exception as e:
             logger.error(f"Error getting LLM from Bedrock: {e}")
@@ -337,8 +333,7 @@ def handler(event, context):
         # Try obtaining the ordinary retriever given this vectorstore config dict
         try:
             logger.info("Creating ordinary retriever for user uploaded vectorstore.")
-            print(f"print: creating ordinary retriever")
-            ordinary_retriever = get_vectorstore_retriever_ordinary(
+            ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
                 llm=llm,
                 vectorstore_config_dict=vectorstore_config_dict,
                 embeddings=embeddings
@@ -359,7 +354,6 @@ def handler(event, context):
         # Try getting an evaluation result from the LLM
         try:
             logger.info("Generating response from the LLM.")
-            print(f"print: generating response newwww")
             response = get_response_evaluation(
                 llm=llm,
                 retriever=ordinary_retriever
@@ -373,6 +367,20 @@ def handler(event, context):
             user_role=user_role
             )
             logger.info(f"User role {user_role} logged in engagement log.")
+
+            # Delete the collection from the vectorstore after the embeddings have been used for evaluation
+            
+            # Fetch all collections
+            collections = user_uploaded_vectorstore.list_collections()
+
+            # Check if this collection exists
+            if vectorstore_config_dict['collection_name'] in collections:
+                # If yes, then delete it and notify
+                user_uploaded_vectorstore.delete_collection(vectorstore_config_dict['collection_name'])
+                logger.info(f"Evaluation complete. Collection '{collection_name}' was found and deleted.")
+            else:
+                logger.info(f"Collection '{collection_name}' was not found in the vectorstore.")
+            
         except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {
