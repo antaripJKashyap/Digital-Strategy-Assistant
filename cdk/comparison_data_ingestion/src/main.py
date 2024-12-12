@@ -4,6 +4,7 @@ import boto3
 import psycopg2
 from datetime import datetime, timezone
 import logging
+import requests
 
 from helpers.vectorstore import update_vectorstore
 from langchain_aws import BedrockEmbeddings
@@ -19,6 +20,80 @@ DSA_COMPARISON_BUCKET = os.environ["BUCKET"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
+APPSYNC_API_KEY = os.environ["APPSYNC_API_KEY"]
+
+# appsync = boto3.client('appsync')
+
+# def publish_event(session_id):
+#     channel = '/default/embeddings'
+#     message = {
+#         "channel": channel,
+#         "events": [
+#             json.dumps({"message": f"Embeddings created successfully for session {session_id}", "sessionId": session_id})
+#         ]
+#     }
+
+#     response = appsync.publish(
+#         apiId=APPSYNC_API_ID,
+#         payload=json.dumps(message)
+#     )
+    
+# def publish_event(session_id, message="Embeddings created successfully for session"):
+#     url = f"https://{os.environ['APPSYNC_API_ID']}.appsync-api.{os.environ['AWS_REGION']}.amazonaws.com/graphql"
+#     headers = {
+#         "Content-Type": "application/json",
+#         "x-api-key": os.environ["APPSYNC_API_KEY"],
+#     }
+#     payload = {
+#         "query": """
+#             mutation sendNotification($message: String!, $sessionId: String!) {
+#                 sendNotification(message: $message, sessionId: $sessionId) {
+#                     message
+#                     sessionId
+#                 }
+#             }
+#         """,
+#         "variables": {
+#             "message": message,
+#             "sessionId": session_id,
+#         },
+#     }
+
+    # response = requests.post(url, headers=headers, json=payload)
+    # return response.json()
+
+
+def publish_event(session_id, message="Embeddings created successfully for session"):
+    url = f"https://{os.environ['APPSYNC_API_ID']}.appsync-api.{os.environ['REGION']}.amazonaws.com/graphql"
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": os.environ["APPSYNC_API_KEY"],
+    }
+    payload = {
+        "query": """
+            mutation sendNotification($message: String!, $sessionId: String!) {
+                sendNotification(message: $message, sessionId: $sessionId) {
+                    message
+                    sessionId
+                }
+            }
+        """,
+        "variables": {
+            "message": message,
+            "sessionId": session_id,
+        },
+    }
+
+    response = requests.post(url, headers=headers, json=payload)
+
+    # Log errors if any
+    if response.status_code != 200 or "errors" in response.json():
+        print(f"Error publishing event: {response.json()}")
+        raise Exception("Failed to publish event")
+    
+    return response.json()
+
 def get_parameter(param_name):
     """
     Fetch a parameter value from Systems Manager Parameter Store.
@@ -73,6 +148,7 @@ def update_vectorstore_from_s3(bucket, session_id):
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
+        publish_event(session_id)
     except Exception as e:
         logger.error(f"Error updating vectorstore for session {session_id}: {e}")
         raise

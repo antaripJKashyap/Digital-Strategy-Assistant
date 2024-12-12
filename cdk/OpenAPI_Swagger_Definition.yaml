@@ -431,6 +431,55 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
+  /events/notify:
+    post:
+      tags:
+        - Events
+      summary: Notify clients of an event
+      operationId: events_notify_POST
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: The message to send
+                sessionId:
+                  type: string
+                  description: The session ID
+      responses:
+        "200":
+          description: Notification sent
+        "400":
+          description: Invalid value
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NotificationFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+
+components:
+  responses:
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Success"
   /admin/generate_presigned_url:
     options:
       summary: CORS support

@@ -241,7 +241,7 @@ export class DatabaseStack extends Stack {
 
     const comaprisonSecretPathAdmin = secretmanager.Secret.fromSecretNameV2(
       this,
-      "AdminSecret",
+      "AdminComparisonSecret",
       this.comparisonSecretPathAdminName
     );
 

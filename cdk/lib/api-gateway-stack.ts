@@ -1,9 +1,11 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as ssm from "aws-cdk-lib/aws-ssm";
+import { ISchema } from "aws-cdk-lib/aws-appsync";
 import * as sqs from "aws-cdk-lib/aws-sqs";
 import { Construct } from "constructs";
 import { Duration } from "aws-cdk-lib";
@@ -64,7 +66,7 @@ export class ApiGatewayStack extends cdk.Stack {
       queueName: `${id}-comparison-queue.fifo`,
       fifo: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      visibilityTimeout: cdk.Duration.seconds(300),
+      visibilityTimeout: cdk.Duration.seconds(900),
     });
 
     const { jwt, postgres, psycopgLayer } = createLayers(this, id);
@@ -229,6 +231,67 @@ export class ApiGatewayStack extends cdk.Stack {
         unauthenticated: unauthenticatedRole.roleArn,
       },
     });
+
+    const eventApi = new appsync.GraphqlApi(this,
+       `${id}-EventApi`, {
+      name: 'EventApi',
+      schema: appsync.SchemaFile.fromAsset('graphql/schema.graphql'),
+      authorizationConfig: {
+        defaultAuthorization: {
+          authorizationType: appsync.AuthorizationType.API_KEY,
+        },
+      },
+      xrayEnabled: true,
+    });
+
+    new cdk.CfnOutput(this, 'GraphQLAPIURL', {
+      value: eventApi.graphqlUrl,
+    });
+
+    new cdk.CfnOutput(this, 'GraphQLAPIKey', {
+      value: eventApi.apiKey || '',
+    });
+
+    new cdk.CfnOutput(this, 'GraphQLAPIID', {
+      value: eventApi.apiId,
+    });
+
+    const notificationFunction = new lambda.Function(this, `${id}-NotificationFunction`, {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      code: lambda.Code.fromAsset("lambda/eventNotification"),
+      handler: "eventNotification.lambda_handler",
+      environment: {
+        APPSYNC_API_URL: eventApi.graphqlUrl,
+        APPYSYNC_API_ID: eventApi.apiId,
+        APPSYNC_API_KEY: eventApi.apiKey!,
+        REGION: this.region,
+      },
+      functionName: `${id}-NotificationFunction`,
+      timeout: cdk.Duration.seconds(300),
+      memorySize: 128,
+      vpc: vpcStack.vpc,
+      role: lambdaRole,
+    });
+
+    notificationFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+          effect: iam.Effect.ALLOW,
+          actions: ['appsync:GraphQL'],
+          resources: [`arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`],
+      })
+    );
+    notificationFunction.addPermission("AppSyncInvokePermission", {
+      principal: new iam.ServicePrincipal("appsync.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`,
+    });
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfneventNotificationLambdaDockerFunction = notificationFunction
+      .node.defaultChild as lambda.CfnFunction;
+    cfneventNotificationLambdaDockerFunction.overrideLogicalId(
+      "NotificationFunction"
+    );
+     
 
     const lambdaUserFunction = new lambda.Function(this, `${id}-userFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -725,7 +788,7 @@ export class ApiGatewayStack extends cdk.Stack {
       handler: "sqs.handler",
       memorySize: 512,
       code: lambda.Code.fromAsset("lambda/sqs"),
-      timeout: cdk.Duration.seconds(300),
+      timeout: cdk.Duration.seconds(900),
       environment: {
         SQS_QUEUE_URL: comparisonQueue.queueUrl,
       },
