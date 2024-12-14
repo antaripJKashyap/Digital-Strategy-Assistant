@@ -5,6 +5,7 @@ import {
   PenSquare,
   FileText,
   MessageCircle,
+  ScrollText,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,6 +39,11 @@ const menuItems = [
     id: "feedback",
     label: "Feedback",
     icon: MessageCircle,
+  },
+  {
+    id: "guidelines",
+    label: "Guidelines",
+    icon: ScrollText,
   },
 ];
 

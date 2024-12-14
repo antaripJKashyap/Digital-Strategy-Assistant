@@ -694,6 +694,152 @@ exports.handler = async (event) => {
           response.body = JSON.stringify({ error: "Internal server error" });
         }
         break;
+      case "GET /admin/guidelines":
+        try {
+          // SQL query to get all guidelines
+          const guidelines = await sqlConnectionTableCreator`
+      SELECT 
+        guideline_id, 
+        header, 
+        body, 
+        timestamp 
+      FROM guidelines 
+      ORDER BY timestamp DESC;
+    `;
+
+          // Insert a record into the user engagement log
+          await sqlConnectionTableCreator`
+      INSERT INTO user_engagement_log (
+        log_id, 
+        session_id, 
+        timestamp, 
+        engagement_type, 
+        user_info, 
+        user_role
+      ) VALUES (
+        uuid_generate_v4(),
+        NULL,
+        CURRENT_TIMESTAMP,
+        'guidelines retrieval',
+        NULL,
+        'admin'
+      )
+    `;
+
+          response.body = JSON.stringify({
+            guidelines: guidelines.map((guideline) => ({
+              guideline_id: guideline.guideline_id,
+              header: guideline.header,
+              body: guideline.body,
+              timestamp: guideline.timestamp,
+            })),
+          });
+        } catch (err) {
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+      case "DELETE /admin/guidelines":
+        try {
+          // First, count the number of rows that will be deleted
+          const countResult = await sqlConnectionTableCreator`
+    SELECT COUNT(*) AS rows_to_delete 
+    FROM guidelines
+  `;
+          const rowsToDelete = countResult[0].rows_to_delete;
+
+          // Then perform the deletion
+          await sqlConnectionTableCreator`
+    DELETE FROM guidelines
+  `;
+
+          // Insert a record into the user engagement log
+          await sqlConnectionTableCreator`
+    INSERT INTO user_engagement_log (
+      log_id,
+      session_id,
+      timestamp,
+      engagement_type,
+      user_info,
+      user_role
+    ) VALUES (
+      uuid_generate_v4(),
+      NULL,
+      CURRENT_TIMESTAMP,
+      'guidelines deletion',
+      NULL,
+      'admin'
+    )
+  `;
+
+          response.body = JSON.stringify({
+            rows_deleted: rowsToDelete,
+          });
+        } catch (err) {
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+      case "POST /admin/guidelines":
+        if (event.queryStringParameters.header && event.body) {
+          const { header } = event.queryStringParameters;
+          const { body } = JSON.parse(event.body);
+          try {
+            // Insert the new guideline
+            const guidelineData = await sqlConnectionTableCreator`
+        INSERT INTO guidelines (
+          guideline_id, 
+          header, 
+          body, 
+          timestamp
+        ) VALUES (
+          uuid_generate_v4(),
+          ${header},
+          ${body},
+          CURRENT_TIMESTAMP
+        ) RETURNING *;
+      `;
+
+            // Insert a record into the user engagement log
+            await sqlConnectionTableCreator`
+        INSERT INTO user_engagement_log (
+          log_id, 
+          session_id, 
+          timestamp, 
+          engagement_type, 
+          user_info, 
+          user_role
+        ) VALUES (
+          uuid_generate_v4(),
+          NULL,
+          CURRENT_TIMESTAMP,
+          'guideline creation',
+          NULL,
+          'admin'
+        )
+      `;
+
+            response.statusCode = 201;
+            response.body = JSON.stringify({
+              guideline_id: guidelineData[0]?.guideline_id,
+              header: guidelineData[0]?.header,
+              body: guidelineData[0]?.body,
+              timestamp: guidelineData[0]?.timestamp,
+            });
+          } catch (err) {
+            response.statusCode = 500;
+            console.error(err);
+            response.body = JSON.stringify({ error: "Internal server error" });
+          }
+        } else {
+          response.statusCode = 400;
+          response.body = JSON.stringify({
+            error: "Invalid value: header and body are required.",
+          });
+        }
+        break;
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }
