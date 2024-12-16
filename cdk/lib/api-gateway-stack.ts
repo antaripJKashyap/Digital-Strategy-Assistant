@@ -69,7 +69,7 @@ export class ApiGatewayStack extends cdk.Stack {
       visibilityTimeout: cdk.Duration.seconds(900),
     });
 
-    const { jwt, postgres, psycopgLayer } = createLayers(this, id);
+    const { jwt, postgres, psycopgLayer, } = createLayers(this, id);
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
@@ -81,9 +81,17 @@ export class ApiGatewayStack extends cdk.Stack {
       `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:78`
     );
 
+    // const requestsLayer = new lambda.LayerVersion(this, `${id}-RequestsLayer`, {
+    //   code: lambda.Code.fromAsset("layers/requests_layer.zip"), // Path to the zip file
+    //   compatibleRuntimes: [lambda.Runtime.PYTHON_3_9], // Ensure compatibility
+    //   description: "Layer for requests library",
+    // });
+    
+
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
+    
 
     const { userPool, appClient, identityPool, secret } =
       createCognitoResources(this, id);
@@ -234,8 +242,8 @@ export class ApiGatewayStack extends cdk.Stack {
 
     const eventApi = new appsync.GraphqlApi(this,
        `${id}-EventApi`, {
-      name: 'EventApi',
-      schema: appsync.SchemaFile.fromAsset('graphql/schema.graphql'),
+      name: `${id}-EventApi`,
+      definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
       authorizationConfig: {
         defaultAuthorization: {
           authorizationType: appsync.AuthorizationType.API_KEY,
@@ -244,17 +252,6 @@ export class ApiGatewayStack extends cdk.Stack {
       xrayEnabled: true,
     });
 
-    new cdk.CfnOutput(this, 'GraphQLAPIURL', {
-      value: eventApi.graphqlUrl,
-    });
-
-    new cdk.CfnOutput(this, 'GraphQLAPIKey', {
-      value: eventApi.apiKey || '',
-    });
-
-    new cdk.CfnOutput(this, 'GraphQLAPIID', {
-      value: eventApi.apiId,
-    });
 
     const notificationFunction = new lambda.Function(this, `${id}-NotificationFunction`, {
       runtime: lambda.Runtime.PYTHON_3_9,
@@ -262,7 +259,7 @@ export class ApiGatewayStack extends cdk.Stack {
       handler: "eventNotification.lambda_handler",
       environment: {
         APPSYNC_API_URL: eventApi.graphqlUrl,
-        APPYSYNC_API_ID: eventApi.apiId,
+        APPSYNC_API_ID: eventApi.apiId,
         APPSYNC_API_KEY: eventApi.apiKey!,
         REGION: this.region,
       },
@@ -285,10 +282,25 @@ export class ApiGatewayStack extends cdk.Stack {
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`,
     });
+
+    const notificationLambdaDataSource = eventApi.addLambdaDataSource(
+      "NotificationLambdaDataSource",
+      notificationFunction
+    );
+    
+    notificationLambdaDataSource.createResolver("ResolverEventApi", {
+      typeName: "Mutation",
+      fieldName: "sendNotification",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
+    
+    
+    
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfneventNotificationLambdaDockerFunction = notificationFunction
+    const cfnNotificationFunction = notificationFunction
       .node.defaultChild as lambda.CfnFunction;
-    cfneventNotificationLambdaDockerFunction.overrideLogicalId(
+    cfnNotificationFunction.overrideLogicalId(
       "NotificationFunction"
     );
      
