@@ -5,8 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Save } from "lucide-react";
 import { fetchAuthSession } from "aws-amplify/auth";
-
-const Guidelines = () => {
+import { toast } from "react-toastify";const Guidelines = () => {
   const [guidelines, setGuidelines] = useState([]);
   const [currentGuideline, setCurrentGuideline] = useState({
     header: "",
@@ -93,6 +92,16 @@ const Guidelines = () => {
       await Promise.all(insertPromises);
 
       fetchGuidelines();
+      toast.success("Guidelines saved successfully!", {
+              position: "top-center",
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
     } catch (error) {
       console.error("Failed to save guidelines", error);
     }
