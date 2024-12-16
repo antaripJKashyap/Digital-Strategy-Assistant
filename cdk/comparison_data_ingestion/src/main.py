@@ -20,79 +20,43 @@ DSA_COMPARISON_BUCKET = os.environ["BUCKET"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
+APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
 APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
 APPSYNC_API_KEY = os.environ["APPSYNC_API_KEY"]
 
-# appsync = boto3.client('appsync')
-
-# def publish_event(session_id):
-#     channel = '/default/embeddings'
-#     message = {
-#         "channel": channel,
-#         "events": [
-#             json.dumps({"message": f"Embeddings created successfully for session {session_id}", "sessionId": session_id})
-#         ]
-#     }
-
-#     response = appsync.publish(
-#         apiId=APPSYNC_API_ID,
-#         payload=json.dumps(message)
-#     )
-    
-# def publish_event(session_id, message="Embeddings created successfully for session"):
-#     url = f"https://{os.environ['APPSYNC_API_ID']}.appsync-api.{os.environ['AWS_REGION']}.amazonaws.com/graphql"
-#     headers = {
-#         "Content-Type": "application/json",
-#         "x-api-key": os.environ["APPSYNC_API_KEY"],
-#     }
-#     payload = {
-#         "query": """
-#             mutation sendNotification($message: String!, $sessionId: String!) {
-#                 sendNotification(message: $message, sessionId: $sessionId) {
-#                     message
-#                     sessionId
-#                 }
-#             }
-#         """,
-#         "variables": {
-#             "message": message,
-#             "sessionId": session_id,
-#         },
-#     }
-
-    # response = requests.post(url, headers=headers, json=payload)
-    # return response.json()
 
 
 def publish_event(session_id, message="Embeddings created successfully for session"):
-    url = f"https://{os.environ['APPSYNC_API_ID']}.appsync-api.{os.environ['REGION']}.amazonaws.com/graphql"
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": os.environ["APPSYNC_API_KEY"],
-    }
-    payload = {
-        "query": """
-            mutation sendNotification($message: String!, $sessionId: String!) {
-                sendNotification(message: $message, sessionId: $sessionId) {
-                    message
-                    sessionId
+    try:
+        url = f"{APPSYNC_API_URL}"
+        headers = {
+            "Content-Type": "application/json",
+            "x-api-key": os.environ["APPSYNC_API_KEY"],
+        }
+        payload = {
+            "query": """
+                mutation sendNotification($message: String!, $sessionId: String!) {
+                    sendNotification(message: $message, sessionId: $sessionId) {
+                        message
+                        sessionId
+                    }
                 }
-            }
-        """,
-        "variables": {
-            "message": message,
-            "sessionId": session_id,
-        },
-    }
+            """,
+            "variables": {
+                "message": message,
+                "sessionId": session_id,
+            },
+        }
+        response = requests.post(url, headers=headers, json=payload)
 
-    response = requests.post(url, headers=headers, json=payload)
+        # Log errors if AppSync mutation fails
+        if response.status_code != 200 or "errors" in response.json():
+            logger.error(f"Error publishing event: {response.json()}")
+            raise Exception("Failed to publish event")
 
-    # Log errors if any
-    if response.status_code != 200 or "errors" in response.json():
-        print(f"Error publishing event: {response.json()}")
-        raise Exception("Failed to publish event")
-    
-    return response.json()
+        return response.json()
+    except Exception as e:
+        logger.error(f"Failed to send notification: {str(e)}")
 
 def get_parameter(param_name):
     """
