@@ -659,7 +659,7 @@ export class ApiGatewayStack extends cdk.Stack {
           SM_DB_COMP_CREDENTIALS: db.comparisonSecretPathAdminName,
           RDS_PROXY_COMP_ENDPOINT: db.comparisonRdsProxyEndpointAdmin,
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
           BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,

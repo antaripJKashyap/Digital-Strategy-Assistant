@@ -16,6 +16,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import LoadingScreen from "./Loading/LoadingScreen.jsx";
 import Feedback from "./feedback/Feedback.jsx";
+import Guidelines from "./guidelines/Guidelines.jsx";
 const AdminHome = () => {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
@@ -79,10 +80,9 @@ const AdminHome = () => {
             />
           );
         case "feedback":
-          return (
-            <Feedback
-            />
-          );
+          return <Feedback />;
+        case "guidelines":
+          return <Guidelines />;
         default:
           return <Analytics />;
       }
