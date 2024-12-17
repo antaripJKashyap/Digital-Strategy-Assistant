@@ -25,6 +25,18 @@ EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
 # APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
 APPSYNC_API_KEY = os.environ["APPSYNC_API_KEY"]
+EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
+# AWS Clients
+secrets_manager_client = boto3.client("secretsmanager")
+ssm_client = boto3.client("ssm")
+bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
+
+# Cached resources
+connection = None
+db_secret = None
+EMBEDDING_MODEL_ID = None
+
+
 
 def invoke_event_notification(session_id, message="Embeddings created successfully"):
     """
@@ -68,38 +80,38 @@ def invoke_event_notification(session_id, message="Embeddings created successful
         logging.error(f"Error publishing event to AppSync: {str(e)}")
         raise
 
-def get_parameter(param_name):
+def get_parameter():
     """
     Fetch a parameter value from Systems Manager Parameter Store.
     """
-    try:
-        ssm_client = boto3.client("ssm")
-        response = ssm_client.get_parameter(Name=param_name, WithDecryption=True)
-        return response["Parameter"]["Value"]
-    except Exception as e:
-        logger.error(f"Error fetching parameter {param_name}: {e}")
-        raise
-## GET PARAMETER VALUES FOR CONSTANTS
-EMBEDDING_MODEL_ID = get_parameter(os.environ["EMBEDDING_MODEL_PARAM"])
+    global EMBEDDING_MODEL_ID
+    if EMBEDDING_MODEL_ID is None:
+        try:
+            response = ssm_client.get_parameter(Name=EMBEDDING_MODEL_PARAM, WithDecryption=True)
+            EMBEDDING_MODEL_ID = response["Parameter"]["Value"]
+        except Exception as e:
+            logger.error(f"Error fetching parameter {EMBEDDING_MODEL_PARAM}: {e}")
+            raise
+    return EMBEDDING_MODEL_ID
 
 
 
 def get_secret():
-    # secretsmanager client to get db credentials
-    sm_client = boto3.client("secretsmanager")
-    response = sm_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
-    secret = json.loads(response)
-    return secret
+    global db_secret
+    if db_secret is None:
+        try:
+            response = secrets_manager_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
+            db_secret = json.loads(response)
+        except Exception as e:
+            logger.error(f"Error fetching secret {DB_SECRET_NAME}: {e}")
+            raise
+    return db_secret
 
 def update_vectorstore_from_s3(bucket, session_id):
     # bucket = "DSA-data-ingestion-bucket"
-    bedrock_runtime = boto3.client(
-        service_name="bedrock-runtime",
-        region_name=REGION
-    )
     
     embeddings = BedrockEmbeddings(
-        model_id=EMBEDDING_MODEL_ID, 
+        model_id=get_parameter(), 
         client=bedrock_runtime,
         region_name=REGION
     )

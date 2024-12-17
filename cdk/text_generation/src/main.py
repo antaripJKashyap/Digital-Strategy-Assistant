@@ -20,25 +20,83 @@ DB_COMP_SECRET_NAME = os.environ["SM_DB_COMP_CREDENTIALS"]
 REGION = os.environ["REGION"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 RDS_PROXY_COMP_ENDPOINT = os.environ["RDS_PROXY_COMP_ENDPOINT"]
-
+BEDROCK_LLM_PARAM = os.environ["BEDROCK_LLM_PARAM"]
+EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
+TABLE_NAME_PARAM = os.environ["TABLE_NAME_PARAM"]
+# AWS Clients
+secrets_manager_client = boto3.client("secretsmanager")
+ssm_client = boto3.client("ssm", region_name=REGION)
+bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
+# Cached resources
+connection = None
+db_secret = None
+BEDROCK_LLM_ID = None
+EMBEDDING_MODEL_ID = None
+TABLE_NAME = None
+# Cached embeddings instance
+embeddings = None
 
 def get_secret(secret_name, expect_json=True):
-    try:
-        # secretsmanager client to get db credentials
-        sm_client = boto3.client("secretsmanager")
-        response = sm_client.get_secret_value(SecretId=secret_name)["SecretString"]
-        
-        if expect_json:
-            return json.loads(response)
-        else:
-            return response
-    except json.JSONDecodeError as e:
-        logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
-        raise ValueError(f"Secret {secret_name} is not properly formatted as JSON.")
-    except Exception as e:
-        logger.error(f"Error fetching secret {secret_name}: {e}")
-        raise
+    global db_secret
+    if db_secret is None:
+        try:
+            response = secrets_manager_client.get_secret_value(SecretId=secret_name)["SecretString"]
+            db_secret = json.loads(response) if expect_json else response
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
+            raise ValueError(f"Secret {secret_name} is not properly formatted as JSON.")
+        except Exception as e:
+            logger.error(f"Error fetching secret {secret_name}: {e}")
+            raise
+    return db_secret
 
+def get_parameter(param_name, cached_var):
+    """
+    Fetch a parameter value from Systems Manager Parameter Store.
+    """
+    if cached_var is None:
+        try:
+            response = ssm_client.get_parameter(Name=param_name, WithDecryption=True)
+            cached_var = response["Parameter"]["Value"]
+        except Exception as e:
+            logger.error(f"Error fetching parameter {param_name}: {e}")
+            raise
+    return cached_var
+def initialize_constants():
+    global BEDROCK_LLM_ID, EMBEDDING_MODEL_ID, TABLE_NAME, embeddings
+    BEDROCK_LLM_ID = get_parameter(BEDROCK_LLM_PARAM, BEDROCK_LLM_ID)
+    EMBEDDING_MODEL_ID = get_parameter(EMBEDDING_MODEL_PARAM, EMBEDDING_MODEL_ID)
+    TABLE_NAME = get_parameter(TABLE_NAME_PARAM, TABLE_NAME)
+    if embeddings is None:
+        embeddings = BedrockEmbeddings(
+            model_id=EMBEDDING_MODEL_ID,
+            client=bedrock_runtime,
+            region_name=REGION,
+        )
+    
+    create_dynamodb_history_table(TABLE_NAME)
+def connect_to_db():
+    global connection
+    if connection is None or connection.closed:
+        try:
+            secret = get_secret(DB_SECRET_NAME)
+            connection_params = {
+                'dbname': secret["dbname"],
+                'user': secret["username"],
+                'password': secret["password"],
+                'host': RDS_PROXY_ENDPOINT,
+                'port': secret["port"]
+            }
+            connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+            connection = psycopg2.connect(connection_string)
+            logger.info("Connected to the database!")
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            if connection:
+                connection.rollback()
+                connection.close()
+            raise
+    return connection
 def log_user_engagement(
     session_id, 
     document_id=None, 
@@ -47,21 +105,15 @@ def log_user_engagement(
     user_role=None, 
     user_info=None
 ):
-    connection = None
-    cur = None
-    try:
-        # Get database credentials and establish a connection
-        db_secret = get_secret(DB_SECRET_NAME)
-        connection_params = {
-            'dbname': db_secret["dbname"],
-            'user': db_secret["username"],
-            'password': db_secret["password"],
-            'host': RDS_PROXY_ENDPOINT,
-            'port': db_secret["port"]
+    connection = connect_to_db()
+    if connection is None:
+        logger.error("No database connection available.")
+        return {
+            "statusCode": 500,
+            "body": json.dumps("Database connection failed.")
         }
 
-        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-        connection = psycopg2.connect(connection_string)
+    try:
         cur = connection.cursor()
 
         # Define the SQL query
@@ -96,63 +148,22 @@ def log_user_engagement(
         logger.info("User engagement logged successfully.")
 
     except Exception as e:
-        if connection:
-            connection.rollback()
+        connection.rollback()
         logger.error(f"Error logging user engagement: {e}")
     finally:
         if cur:
             cur.close()
-        if connection:
-            connection.close()
-
-def get_parameter(param_name):
-    """
-    Fetch a parameter value from Systems Manager Parameter Store.
-    """
-    try:
-        ssm_client = boto3.client("ssm", region_name=REGION)
-        response = ssm_client.get_parameter(Name=param_name, WithDecryption=True)
-        return response["Parameter"]["Value"]
-    except Exception as e:
-        logger.error(f"Error fetching parameter {param_name}: {e}")
-        raise
-## GET PARAMETER VALUES FOR CONSTANTS
-BEDROCK_LLM_ID = get_parameter(os.environ["BEDROCK_LLM_PARAM"])
-EMBEDDING_MODEL_ID = get_parameter(os.environ["EMBEDDING_MODEL_PARAM"])
-TABLE_NAME = get_parameter(os.environ["TABLE_NAME_PARAM"])
-                        
-## GETTING AMAZON TITAN EMBEDDINGS MODEL
-bedrock_runtime = boto3.client(
-        service_name="bedrock-runtime",
-        region_name=REGION,
-    )
-
-embeddings = BedrockEmbeddings(
-    model_id=EMBEDDING_MODEL_ID, 
-    client=bedrock_runtime,
-    region_name=REGION
-)
-
-create_dynamodb_history_table(TABLE_NAME)
 
 def get_prompt_for_role(user_role):
-    connection = None
-    cur = None
-    try:
-        logger.info(f"Fetching system prompt for role: {user_role}.")
-        db_secret = get_secret(DB_SECRET_NAME)
-
-        connection_params = {
-            'dbname': db_secret["dbname"],
-            'user': db_secret["username"],
-            'password': db_secret["password"],
-            'host': RDS_PROXY_ENDPOINT,
-            'port': db_secret["port"]
+    connection = connect_to_db()
+    if connection is None:
+        logger.error("No database connection available.")
+        return {
+            "statusCode": 500,
+            "body": json.dumps("Database connection failed.")
         }
-
-        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-
-        connection = psycopg2.connect(connection_string)
+        
+    try:
         cur = connection.cursor()
         logger.info("Connected to RDS instance!")
 
@@ -163,14 +174,15 @@ def get_prompt_for_role(user_role):
             return None
 
         # Query to fetch the most recent prompt for the specified role
-        query = f"""
-            SELECT {user_role}
+        query = """
+            SELECT prompt
             FROM prompts
-            WHERE {user_role} IS NOT NULL
+            WHERE role = %s
             ORDER BY time_created DESC NULLS LAST
             LIMIT 1;
         """
-        cur.execute(query)
+        
+        cur.execute(query, (user_role,))
         result = cur.fetchone()
         logger.info(f"Query result for role {user_role}: {result}")
 
@@ -184,36 +196,22 @@ def get_prompt_for_role(user_role):
 
     except Exception as e:
         logger.error(f"Error fetching system prompt for role {user_role}: {e}")
-        if connection:
-            connection.rollback()
+        connection.rollback()
         return None
     finally:
         if cur:
             cur.close()
-        if connection:
-            connection.close()
         logger.info("Connection closed.")
 
 def check_embeddings():
-    connection = None
-    cur = None
-    try:
-        logger.info("Checking embeddings table.")
-        db_secret = get_secret(DB_SECRET_NAME)
-
-        connection_params = {
-            'dbname': db_secret["dbname"],
-            'user': db_secret["username"],
-            'password': db_secret["password"],
-            'host': RDS_PROXY_ENDPOINT,
-            'port': db_secret["port"]
+    connection = connect_to_db()
+    if connection is None:
+        logger.error("No database connection available.")
+        return {
+            "statusCode": 500,
+            "body": json.dumps("Database connection failed.")
         }
-
-        connection_string = " ".join(
-            [f"{key}={value}" for key, value in connection_params.items()]
-        )
-
-        connection = psycopg2.connect(connection_string)
+    try:
         cur = connection.cursor()
 
         # Check if table exists
@@ -242,21 +240,18 @@ def check_embeddings():
 
     except Exception as e:
         logger.error(f"Error checking embeddings table: {e}")
-        if connection:
-            connection.rollback()
+        connection.rollback()
         return False
     finally:
         if cur:
             cur.close()
-        if connection:
-            connection.close()
         logger.info("Connection closed.")
 
 
 
 def handler(event, context):
     logger.info("Text Generation Lambda function is called!")
-    
+    initialize_constants()
 
     query_params = event.get("queryStringParameters", {})
 
