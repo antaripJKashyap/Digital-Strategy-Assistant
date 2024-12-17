@@ -4,7 +4,8 @@ import boto3
 import psycopg2
 from datetime import datetime, timezone
 import logging
-import requests
+import httpx
+# import requests
 
 from helpers.vectorstore import update_vectorstore
 from langchain_aws import BedrockEmbeddings
@@ -13,7 +14,8 @@ from langchain_aws import BedrockEmbeddings
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-
+LAMBDA_CLIENT = boto3.client("lambda")
+EVENT_NOTIFICATION_LAMBDA_NAME = os.environ["EVENT_NOTIFICATION_LAMBDA_NAME"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
 DSA_COMPARISON_BUCKET = os.environ["BUCKET"]
@@ -21,42 +23,50 @@ RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
-APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
+# APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
 APPSYNC_API_KEY = os.environ["APPSYNC_API_KEY"]
 
-
-
-def publish_event(session_id, message="Embeddings created successfully for session"):
+def invoke_event_notification(session_id, message="Embeddings created successfully"):
+    """
+    Publish a notification event to AppSync via HTTPX (directly to the AppSync API).
+    """
     try:
-        url = f"{APPSYNC_API_URL}"
+        query = """
+        mutation sendNotification($message: String!, $sessionId: String!) {
+            sendNotification(message: $message, sessionId: $sessionId) {
+                message
+                sessionId
+            }
+        }
+        """
         headers = {
             "Content-Type": "application/json",
-            "x-api-key": os.environ["APPSYNC_API_KEY"],
+            "x-api-key": APPSYNC_API_KEY
         }
+
         payload = {
-            "query": """
-                mutation sendNotification($message: String!, $sessionId: String!) {
-                    sendNotification(message: $message, sessionId: $sessionId) {
-                        message
-                        sessionId
-                    }
-                }
-            """,
+            "query": query,
             "variables": {
                 "message": message,
-                "sessionId": session_id,
-            },
+                "sessionId": session_id
+            }
         }
-        response = requests.post(url, headers=headers, json=payload)
 
-        # Log errors if AppSync mutation fails
-        if response.status_code != 200 or "errors" in response.json():
-            logger.error(f"Error publishing event: {response.json()}")
-            raise Exception("Failed to publish event")
+        # Send the request to AppSync
+        with httpx.Client() as client:
+            response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
+            response_data = response.json()
 
-        return response.json()
+            logging.info(f"AppSync Response: {json.dumps(response_data, indent=2)}")
+            if response.status_code != 200 or "errors" in response_data:
+                raise Exception(f"Failed to send notification: {response_data}")
+
+            print(f"Notification sent successfully: {response_data}")
+            return response_data["data"]["sendNotification"]
+
     except Exception as e:
-        logger.error(f"Failed to send notification: {str(e)}")
+        logging.error(f"Error publishing event to AppSync: {str(e)}")
+        raise
 
 def get_parameter(param_name):
     """
@@ -112,7 +122,9 @@ def update_vectorstore_from_s3(bucket, session_id):
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
-        publish_event(session_id)
+        print(f"Updating vectorstore for session: {session_id}")
+        print(f"session_id for sending to AppSync: {session_id}")
+        invoke_event_notification(session_id, "Embeddings created successfully")
     except Exception as e:
         logger.error(f"Error updating vectorstore for session {session_id}: {e}")
         raise
