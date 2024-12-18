@@ -74,6 +74,7 @@ def invoke_event_notification(session_id, message="Embeddings created successful
                 raise Exception(f"Failed to send notification: {response_data}")
 
             print(f"Notification sent successfully: {response_data}")
+            print(f"apikey: {APPSYNC_API_KEY}")
             return response_data["data"]["sendNotification"]
 
     except Exception as e:
