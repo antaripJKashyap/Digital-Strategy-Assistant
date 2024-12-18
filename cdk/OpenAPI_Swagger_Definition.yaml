@@ -431,7 +431,66 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
-
+  /user/guidelines:
+    options:
+      summary: CORS support
+      description: Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - User
+      summary: Retrieve all criteria
+      operationId: user_get_guidelines_GET
+      responses:
+        "200":
+          description: Guidelines retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    guideline_id:
+                      type: string
+                      format: uuid
+                    criteria_name:
+                      type: string
+                    header:
+                      type: string
+                    body:
+                      type: string
+                    timestamp:
+                      type: string
+                      format: date-time
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    
   /admin/generate_presigned_url:
     options:
       summary: CORS support
@@ -1552,6 +1611,8 @@ paths:
                     guideline_id:
                       type: string
                       format: uuid
+                    criteria_name:
+                      type: string
                     header:
                       type: string
                     body:
@@ -1606,6 +1667,12 @@ paths:
           description: header of the guideline
           schema:
             type: string
+        - in: query
+          name: criteria_name
+          required: true
+          description: name of the criteria for the guideline
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -1628,6 +1695,15 @@ paths:
                   guideline_id:
                     type: string
                     format: uuid
+                  criteria_name:
+                    type: string
+                  header:
+                    type: string
+                  body:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
         "400":
           description: Bad Request
         "500":

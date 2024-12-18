@@ -85,7 +85,7 @@ export default function PreviousPrompts({ previousPrompts = [] }) {
 
           {/* Prompt Content */}
           <div className="text-center">
-            <p className="text-gray-700 mb-1 text-xs sm:text-sm">
+            <p className="w-full p-2 bg-gray-100 border border-gray-300 rounded-md text-gray-700 mb-1 text-xs sm:text-sm whitespace-pre-wrap overflow-auto max-h-60 text-left">
               {previousPrompts[currentPage]?.prompt || ""}
             </p>
             <p className="text-[10px] sm:text-xs text-gray-500">

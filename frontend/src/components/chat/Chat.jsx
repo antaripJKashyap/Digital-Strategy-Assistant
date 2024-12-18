@@ -325,7 +325,7 @@ const Chat = ({ setPage }) => {
           {isEduOrAdminRole && index > 0 && (
             <OptionMessage
               key={`${index}-syllabus`}
-              text="Compare Materials"
+              text="I want to compare my course materials with the Digital Strategy Guidelines"
               icon={TbLayersDifference}
               onClick={() => setShowSyllabusModal(true)}
             />

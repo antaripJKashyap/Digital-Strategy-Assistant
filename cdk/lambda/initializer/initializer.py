@@ -71,6 +71,7 @@ def handler(event, context):
             CREATE EXTENSION IF NOT EXISTS "vector";
             CREATE TABLE IF NOT EXISTS "guidelines" (
                 "guideline_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+                criteria_name varchar,
                 header varchar,
                 body text,
                 timestamp timestamp

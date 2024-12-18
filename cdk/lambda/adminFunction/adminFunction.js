@@ -700,6 +700,7 @@ exports.handler = async (event) => {
           const guidelines = await sqlConnectionTableCreator`
       SELECT 
         guideline_id, 
+        criteria_name,
         header, 
         body, 
         timestamp 
@@ -729,6 +730,7 @@ exports.handler = async (event) => {
           response.body = JSON.stringify({
             guidelines: guidelines.map((guideline) => ({
               guideline_id: guideline.guideline_id,
+              criteria_name: guideline.criteria_name,
               header: guideline.header,
               body: guideline.body,
               timestamp: guideline.timestamp,
@@ -783,19 +785,25 @@ exports.handler = async (event) => {
         }
         break;
       case "POST /admin/guidelines":
-        if (event.queryStringParameters.header && event.body) {
-          const { header } = event.queryStringParameters;
+        if (
+          event.queryStringParameters.header &&
+          event.queryStringParameters.criteria_name &&
+          event.body
+        ) {
+          const { header, criteria_name } = event.queryStringParameters;
           const { body } = JSON.parse(event.body);
           try {
             // Insert the new guideline
             const guidelineData = await sqlConnectionTableCreator`
         INSERT INTO guidelines (
           guideline_id, 
+          criteria_name,
           header, 
           body, 
           timestamp
         ) VALUES (
           uuid_generate_v4(),
+          ${criteria_name},
           ${header},
           ${body},
           CURRENT_TIMESTAMP
@@ -824,6 +832,7 @@ exports.handler = async (event) => {
             response.statusCode = 201;
             response.body = JSON.stringify({
               guideline_id: guidelineData[0]?.guideline_id,
+              criteria_name: guidelineData[0]?.criteria_name,
               header: guidelineData[0]?.header,
               body: guidelineData[0]?.body,
               timestamp: guidelineData[0]?.timestamp,
@@ -836,7 +845,8 @@ exports.handler = async (event) => {
         } else {
           response.statusCode = 400;
           response.body = JSON.stringify({
-            error: "Invalid value: header and body are required.",
+            error:
+              "Invalid value: header, criteria_name, and body are required.",
           });
         }
         break;
