@@ -34,6 +34,8 @@ const Chat = ({ setPage }) => {
   const [showSyllabusModal, setShowSyllabusModal] = useState(false);
   const [textSyllabus, setTextSyllabus] = useState("");
   const [syllabusFiles, setSyllabusFiles] = useState([]);
+  const [selectedCriteria, setSelectedCriteria] = useState([]);
+  
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -114,6 +116,7 @@ const Chat = ({ setPage }) => {
             comparison: true,
             message_content: content,
             user_role: getUserRole([...currentMessages, userMessage]),
+            criteria: selectedCriteria,
           }
         : {
             message_content: content,
@@ -453,6 +456,8 @@ const Chat = ({ setPage }) => {
         setTextSyllabus={setTextSyllabus}
         files={syllabusFiles}
         setFiles={setSyllabusFiles}
+        selectedCriteria={selectedCriteria}
+        setSelectedCriteria={setSelectedCriteria}
       />
     </div>
   );

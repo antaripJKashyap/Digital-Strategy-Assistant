@@ -21,10 +21,43 @@ const SyllabusComparisonModal = ({
   setTextSyllabus,
   files,
   setFiles,
+  selectedCriteria,
+  setSelectedCriteria,
 }) => {
   const [activeTab, setActiveTab] = useState("text");
+  const [guidelines, setGuidelines] = useState([]);
+  useEffect(() => {
+    console.log("guidelines", guidelines);
+    console.log("selectedCriteria", selectedCriteria);
+  }, [guidelines, selectedCriteria]);
+  useEffect(() => {
+    const fetchGuidelines = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_ENDPOINT}user/guidelines`
+        );
+        if (!response.ok) throw new Error("Failed to fetch guidelines");
+        const data = await response.json();
+        setGuidelines(data.guidelines);
+      } catch (error) {
+        console.error("Error fetching guidelines:", error);
+        toast.error("Failed to fetch guidelines");
+      }
+    };
 
-  // Clear opposite input when tab changes
+    if (isOpen) {
+      fetchGuidelines();
+    }
+  }, [isOpen]);
+
+   const handleCriteriaChange = (e) => {
+     const criteriaName = e.target.value;
+     setSelectedCriteria((prev) =>
+       e.target.checked
+         ? [...prev, criteriaName]
+         : prev.filter((name) => name !== criteriaName)
+     );
+   };
   useEffect(() => {
     if (activeTab === "text") {
       setFiles([]);
@@ -91,8 +124,10 @@ const SyllabusComparisonModal = ({
         <DialogHeader>
           <DialogTitle>Compare Materials</DialogTitle>
           <DialogDescription>
-            Choose to upload files or paste text of course materials to compare with the Digital
-            Strategy Guidelines. Examples of course materials include syllabi, course outlines, and policy documents. Files must be less than 25MB.
+            Choose to upload files or paste text of course materials to compare
+            with the Digital Strategy Guidelines. Examples of course materials
+            include syllabi, course outlines, and policy documents. Files must
+            be less than 25MB.
           </DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -157,6 +192,32 @@ const SyllabusComparisonModal = ({
             </div>
           </TabsContent>
         </Tabs>
+        <div className="mt-4">
+          <h3 className="mb-2 font-semibold">
+            Select Guidelines for Comparison:
+          </h3>
+          {guidelines.map((guideline) => (
+            <div
+              key={guideline.criteria_name}
+              className="flex items-center space-x-2 mb-2"
+            >
+              <input
+                type="checkbox"
+                id={guideline.criteria_name}
+                value={guideline.criteria_name}
+                checked={selectedCriteria.includes(guideline.criteria_name)}
+                onChange={handleCriteriaChange}
+                className="form-checkbox h-4 w-4 text-blue-600"
+              />
+              <label
+                htmlFor={guideline.criteria_name}
+                className="text-sm font-medium leading-none"
+              >
+                {guideline.criteria_name}
+              </label>
+            </div>
+          ))}
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
