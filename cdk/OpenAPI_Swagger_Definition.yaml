@@ -1802,6 +1802,31 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
+    post:
+      tags:
+        - Admin
+      summary: adds a message in csv sqs
+      operationId: admin_update_csv_notify_Post
+      responses:
+        "200":
+          description: Conversation CSV entries updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows_updated:
+                    type: integer
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${csvFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
 components:
   securitySchemes:
     adminAuthorizer:
