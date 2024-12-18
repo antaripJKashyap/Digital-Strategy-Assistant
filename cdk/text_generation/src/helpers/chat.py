@@ -8,7 +8,7 @@ from langchain.chains import create_retrieval_chain
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.pydantic_v1 import BaseModel, Field
-
+from typing import Dict, List
 class LLM_evaluation(BaseModel):
     response: str = Field(description="Assessment of the student's answer with a follow-up question.")
     
@@ -321,6 +321,37 @@ def get_llm_output(response: str) -> dict:
         "options": questions
     }
 
+def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, any]:
+    """
+    Parses the output of get_response_evaluation to return llm_output and options.
+
+    Args:
+        evaluation_output (dict): The dictionary output of get_response_evaluation.
+            It contains keys like 'type', 'content', 'options', and 'user_role'.
+
+    Returns:
+        dict: A dictionary containing:
+            - llm_output: Concatenated content of all LLM outputs.
+            - options: A list of follow-up questions (empty in this case).
+    """
+    content = evaluation_output.get("content", {})  # Extract the 'content' key
+    options = evaluation_output.get("options", [])  # Extract the 'options' key
+
+    # Concatenate all content values into a single string
+    main_content = "\n\n".join([f"{key}: {value}" for key, value in content.items()])
+
+    # Replace URLs in the content with Markdown links
+    def markdown_link_replacer(match):
+        url = match.group(0)
+        return f"[{url}]({url})"
+
+    main_content = re.sub(r"https?://[^\s]+", markdown_link_replacer, main_content)
+
+    return {
+        "llm_output": main_content.strip(),
+        "options": options
+    }
+
 def get_response_evaluation(
     llm: ChatBedrock,
     retriever,
@@ -383,4 +414,6 @@ def get_response_evaluation(
         print(f"response completedeewucercnrei: {response}")
         evaluation_results[key] = response
     
-    return evaluation_results
+        parsed_response = parse_evaluation_response(evaluation_results)
+
+    return parsed_response

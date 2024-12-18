@@ -270,13 +270,16 @@ export class ApiGatewayStack extends cdk.Stack {
       role: lambdaRole,
     });
 
+    //#removerd graphql permission
+    
     notificationFunction.addToRolePolicy(
-      new iam.PolicyStatement({
-          effect: iam.Effect.ALLOW,
-          actions: ['appsync:GraphQL'],
-          resources: [`arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`],
-      })
-    );
+        new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ['appsync:GraphQL'],
+            resources: [`arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`],
+        })
+      );
+
     notificationFunction.addPermission("AppSyncInvokePermission", {
       principal: new iam.ServicePrincipal("appsync.amazonaws.com"),
       action: "lambda:InvokeFunction",
@@ -295,9 +298,12 @@ export class ApiGatewayStack extends cdk.Stack {
       responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
     });
     
+    // Add permission to allow main.py Lambda to invoke eventNotification Lambda
+    notificationFunction.grantInvoke(new iam.ServicePrincipal("lambda.amazonaws.com"));
     
     
-    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    
+    // Override the Logical ID of the Lambdas Function to get ARN in OpenAPI
     const cfnNotificationFunction = notificationFunction
       .node.defaultChild as lambda.CfnFunction;
     cfnNotificationFunction.overrideLogicalId(
@@ -842,9 +848,14 @@ export class ApiGatewayStack extends cdk.Stack {
           REGION: this.region,
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
+          EVENT_NOTIFICATION_LAMBDA_NAME: notificationFunction.functionName,
+          APPSYNC_API_URL: eventApi.graphqlUrl,
+          APPSYNC_API_ID: eventApi.apiId,
+          APPSYNC_API_KEY: eventApi.apiKey!,
         },
       }
     );
+
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnComparisonLambdaDockerFunction = comparisonDataIngestFunction.node
@@ -859,6 +870,14 @@ export class ApiGatewayStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:ListBucket"],
+        resources: [comparisonBucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:DeleteObject"],
         resources: [comparisonBucket.bucketArn], // Access to the specific bucket
       })
     );
@@ -894,8 +913,22 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
 
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
+        resources: [
+          `arn:aws:s3:::${comparisonBucket.bucketName}/*`, // Grant access to all objects within this bucket
+        ],
+      })
+    );
     comparisonDataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
-
+    
     // Grant access to Secret Manager
     comparisonDataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -918,6 +951,8 @@ export class ApiGatewayStack extends cdk.Stack {
         resources: [embeddingModelParameter.parameterArn],
       })
     );
+
+    notificationFunction.grantInvoke(comparisonDataIngestFunction);
 
     // Create the Lambda function for generating presigned URLs
     const generatePreSignedURL = new lambda.Function(
