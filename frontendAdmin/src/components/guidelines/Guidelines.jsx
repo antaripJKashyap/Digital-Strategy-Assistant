@@ -387,7 +387,7 @@ const Guidelines = () => {
               onClick={() => setIsAddCriteriaModalOpen(true)}
               className=" gap-2"
             >
-              <Plus className="h-4 w-4" /> Add Criteria
+              <Plus className="h-4 w-4" /> Add Sub-Criteria
             </Button>
           </div>
           {/* Add Criteria Modal */}
