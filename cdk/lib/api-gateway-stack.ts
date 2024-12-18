@@ -821,6 +821,34 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     // First Lambda Function (S3 Ingestion)
+    const csvFunction = new lambda.Function(this, `${id}-csvFunction`, {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "csv.handler",
+      memorySize: 512,
+      code: lambda.Code.fromAsset("lambda/sqs"),
+      timeout: cdk.Duration.seconds(900),
+      environment: {
+        SQS_QUEUE_URL: csvQueue.queueUrl,
+      },
+      vpc: vpcStack.vpc,
+      role: coglambdaRole,
+    });
+
+    csvQueue.grantSendMessages(csvFunction);
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnCsvFunction = csvFunction.node
+      .defaultChild as lambda.CfnFunction;
+      cfnCsvFunction.overrideLogicalId("csvFunction");
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    csvFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+
+    // First Lambda Function (S3 Ingestion)
     const sqsFunction = new lambda.Function(this, `${id}-sqsFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "sqs.handler",

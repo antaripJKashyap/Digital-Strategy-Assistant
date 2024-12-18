@@ -5,9 +5,7 @@ const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
 
 exports.handler = async (event, context) => {
   try {
-    // Iterate through S3 event records
     for (const record of event.Records) {
-      // Extract full S3 object key and decode it
       const fullKey = decodeURIComponent(
         record.s3.object.key.replace(/\+/g, " ")
       );
@@ -22,11 +20,9 @@ exports.handler = async (event, context) => {
       const baseFileName =
         lastDotIndex !== -1 ? fileName.slice(0, lastDotIndex) : fileName;
 
-      // Extract session ID (first folder in the path)
       const pathParts = fullKey.split("/");
       const sessionId = pathParts.length > 1 ? pathParts[0] : "unknown";
 
-      // Prepare message for SQS
       const message = {
         filePath: fullKey,
         fileName: fileName,
@@ -34,12 +30,11 @@ exports.handler = async (event, context) => {
         sessionId: sessionId,
       };
 
-      // Prepare SQS send message command
       const params = {
         QueueUrl: process.env.SQS_QUEUE_URL,
         MessageBody: JSON.stringify(message),
-        MessageGroupId: sessionId, // Use session ID as group ID
-        MessageDeduplicationId: fullKey, // Use full path as deduplication ID
+        MessageGroupId: sessionId, 
+        MessageDeduplicationId: fullKey, 
       };
 
       console.log(message);
