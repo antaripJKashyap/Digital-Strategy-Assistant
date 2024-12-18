@@ -29,6 +29,7 @@ ssm_client = boto3.client("ssm", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
 # Cached resources
 connection = None
+connection_comparison = None
 db_secret = None
 BEDROCK_LLM_ID = None
 EMBEDDING_MODEL_ID = None
@@ -98,8 +99,8 @@ def connect_to_db():
             raise
     return connection
 def connect_to_comparison_db():
-    global connection
-    if connection is None or connection.closed:
+    global connection_comparison
+    if connection_comparison is None or connection_comparison.closed:
         try:
             secret = get_secret(DB_SECRET_NAME)
             connection_params = {
@@ -110,15 +111,15 @@ def connect_to_comparison_db():
                 'port': secret["port"]
             }
             connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-            connection = psycopg2.connect(connection_string)
+            connection_comparison = psycopg2.connect(connection_string)
             logger.info("Connected to the database!")
         except Exception as e:
             logger.error(f"Failed to connect to database: {e}")
-            if connection:
-                connection.rollback()
-                connection.close()
+            if connection_comparison:
+                connection_comparison.rollback()
+                connection_comparison.close()
             raise
-    return connection
+    return connection_comparison
 
 def log_user_engagement(
     session_id, 
@@ -235,66 +236,16 @@ def get_prompt_for_role(user_role):
             connection.close()
         logger.info("Connection closed.")
 
-
-# def get_prompt_for_role(user_role):
-#     connection = connect_to_db()
-#     if connection is None:
-#         logger.error("No database connection available.")
-#         return {
-#             "statusCode": 500,
-#             "body": json.dumps("Database connection failed.")
-#         }
-        
-#     try:
-#         cur = connection.cursor()
-#         logger.info("Connected to RDS instance!")
-
-#         # Validate the role
-#         valid_roles = ["public", "educator", "admin"]
-#         if user_role not in valid_roles:
-#             logger.error(f"Invalid user_role: {user_role}")
-#             return None
-
-#         # Query to fetch the most recent prompt for the specified role
-#         query = """
-#             SELECT %s 
-#             FROM prompts
-#             WHERE role = %s
-#             ORDER BY time_created DESC NULLS LAST
-#             LIMIT 1;
-#         """
-        
-#         cur.execute(query, (user_role,))
-#         result = cur.fetchone()
-#         logger.info(f"Query result for role {user_role}: {result}")
-
-#         if result:
-#             prompt = str(result[0])
-#             logger.info(f"{user_role.capitalize()} prompt fetched successfully.")
-#             return prompt
-#         else:
-#             logger.warning(f"No prompts found for role: {user_role}.")
-#             return None
-
-#     except Exception as e:
-#         logger.error(f"Error fetching system prompt for role {user_role}: {e}")
-#         connection.rollback()
-#         return None
-#     finally:
-#         if cur:
-#             cur.close()
-#         logger.info("Connection closed.")
-
 def check_embeddings():
-    connection = connect_to_comparison_db()
-    if connection is None:
+    connection_comparison = connect_to_comparison_db()
+    if connection_comparison is None:
         logger.error("No database connection available.")
         return {
             "statusCode": 500,
             "body": json.dumps("Database connection failed.")
         }
     try:
-        cur = connection.cursor()
+        cur = connection_comparison.cursor()
 
         # Check if table exists
         cur.execute("""
@@ -322,7 +273,7 @@ def check_embeddings():
 
     except Exception as e:
         logger.error(f"Error checking embeddings table: {e}")
-        connection.rollback()
+        connection_comparison.rollback()
         return False
     finally:
         if cur:
@@ -442,13 +393,6 @@ def handler(event, context):
                 retriever=ordinary_retriever
             )
             print(f"print: response generated after get_response_evaluation")
-            log_user_engagement(
-            session_id=session_id,
-            engagement_type="document comparison",
-            engagement_details="I've uploaded a document for comparison.",
-            user_info=user_info,
-            user_role=user_role
-            )
             logger.info(f"User role {user_role} logged in engagement log.")
 
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
@@ -460,9 +404,9 @@ def handler(event, context):
             if vectorstore_config_dict['collection_name'] in collections:
                 # If yes, then delete it and notify
                 user_uploaded_vectorstore.delete_collection(vectorstore_config_dict['collection_name'])
-                logger.info(f"Evaluation complete. Collection '{collection_name}' was found and deleted.")
+                logger.info(f"Evaluation complete. Collection was found and deleted.")
             else:
-                logger.info(f"Collection '{collection_name}' was not found in the vectorstore.")
+                logger.info(f"Collection was not found in the vectorstore.")
             
         except Exception as e:
              logger.error(f"Error getting response: {e}")
