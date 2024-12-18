@@ -45,6 +45,7 @@ export class ApiGatewayStack extends cdk.Stack {
   public readonly secret: secretsmanager.ISecret;
   private eventApi: appsync.GraphqlApi;
   public getEndpointUrl = () => this.api.url;
+  private downloadMessagesApi: appsync.GraphqlApi;
   public getUserPoolId = () => this.userPool.userPoolId;
   public getUserPoolClientId = () => this.appClient.userPoolClientId;
   public getEventApiUrl = () => this.eventApi.graphqlUrl;
@@ -74,7 +75,7 @@ export class ApiGatewayStack extends cdk.Stack {
 
     // Create FIFO SQS Queue
     const csvQueue = new sqs.Queue(this, `${id}-CsvQueue`, {
-      queueName: `${id}-comparison-queue.fifo`,
+      queueName: `${id}-csv-queue.fifo`,
       fifo: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       visibilityTimeout: cdk.Duration.seconds(900),
@@ -257,12 +258,26 @@ export class ApiGatewayStack extends cdk.Stack {
       xrayEnabled: true,
     });
 
+    this.downloadMessagesApi = new appsync.GraphqlApi(this,
+      `${id}-downloadMessagesApi`, {
+     name: `${id}-downloadMessagesApi`,
+     definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
+     authorizationConfig: {
+       defaultAuthorization: {
+         authorizationType: appsync.AuthorizationType.API_KEY,
+       },
+     },
+     xrayEnabled: true,
+   });
+
 
     const notificationFunction = new lambda.Function(this, `${id}-NotificationFunction`, {
       runtime: lambda.Runtime.PYTHON_3_9,
       code: lambda.Code.fromAsset("lambda/eventNotification"),
       handler: "eventNotification.lambda_handler",
       environment: {
+        DOWNLOAD_MESSAGES_API: this.downloadMessagesApi.graphqlUrl,
+        DOWNLOAD_MESSAGES_API_KEY: this.downloadMessagesApi.apiKey!,
         APPSYNC_API_URL: this.eventApi.graphqlUrl,
         APPSYNC_API_ID: this.eventApi.apiId,
         APPSYNC_API_KEY: this.eventApi.apiKey!,
