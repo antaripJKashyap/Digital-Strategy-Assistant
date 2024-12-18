@@ -322,6 +322,20 @@ def handler(event, context):
         logger.info("Awaiting user role selection.")
         
     if comparison:
+        if not check_embeddings():
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps(
+                    "Error: The Administrator has not uploaded Digital Strategy documents, please contact the Administrator."
+                )
+            }
+    
         
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
@@ -532,19 +546,6 @@ def handler(event, context):
                 "Access-Control-Allow-Methods": "*",
             },
             'body': json.dumps('Error retrieving vectorstore config')
-        }
-    if not check_embeddings():
-        return {
-            'statusCode': 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            'body': json.dumps(
-                "Error: The Administrator has not uploaded Digital Strategy documents, please contact the Administrator."
-            )
         }
     try:
         logger.info("Creating history-aware retriever.")
