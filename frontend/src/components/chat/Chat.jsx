@@ -35,6 +35,7 @@ const Chat = ({ setPage }) => {
   const [textSyllabus, setTextSyllabus] = useState("");
   const [syllabusFiles, setSyllabusFiles] = useState([]);
   const [selectedCriteria, setSelectedCriteria] = useState([]);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -97,6 +98,10 @@ const Chat = ({ setPage }) => {
     isComparison = false
   ) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
+    if (isInitializing) {
+      toast.warning("Please wait while the session is being initialized...");
+      return;
+    }
     const currentMessages = [...messages];
     const userRole = getUserRole(currentMessages);
     if (!isOption && currentMessages.length === 1) {
@@ -172,7 +177,7 @@ const Chat = ({ setPage }) => {
 
   const createNewSession = async (currentFingerprint) => {
     if (!currentFingerprint) return;
-
+    setIsInitializing(true);
     setIsCreatingSession(true);
     try {
       const response = await fetch(
@@ -201,7 +206,9 @@ const Chat = ({ setPage }) => {
       const textGenResponse = await fetch(
         `${
           process.env.NEXT_PUBLIC_API_ENDPOINT
-        }user/text_generation?session_id=${encodeURIComponent(sessionData)}`,
+        }user/text_generation?session_id=${encodeURIComponent(
+          sessionData
+        )}&user_info=${encodeURIComponent(fingerprint)}`,
         {
           method: "POST",
           headers: {
@@ -216,6 +223,7 @@ const Chat = ({ setPage }) => {
     } catch (error) {
       console.error("Error creating session:", error);
     } finally {
+      setIsInitializing(false);
       setIsCreatingSession(false);
     }
   };
@@ -381,7 +389,7 @@ const Chat = ({ setPage }) => {
 
       const wsUrl = constructWebSocketUrl();
       console.log("wsUrl", wsUrl);
-      ws = new WebSocket(wsUrl, 'graphql-ws');
+      ws = new WebSocket(wsUrl, "graphql-ws");
       console.log("Establishing WebSocket connection...");
 
       // Handle WebSocket connection
