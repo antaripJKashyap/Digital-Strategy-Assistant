@@ -74,7 +74,7 @@ import {
         this,
         "DSA-owner-name"
       );
-  
+
       const amplifyApp = new App(this, `${id}-amplifyApp`, {
         appName: `${id}-public`,
         platform: Platform.WEB_COMPUTE,
@@ -94,6 +94,10 @@ import {
           NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          NEXT_PUBLIC_GRAPHQL_WS_URL: this.createGraphQLWebSocketUrl(
+            apiStack.getEventApiUrl(),
+            apiStack.getEventApiKey(),
+          ),
           AMPLIFY_DIFF_DEPLOY: "false",
           AMPLIFY_MONOREPO_APP_ROOT: "frontend",
 
@@ -106,6 +110,8 @@ import {
         target: '	/index.html',
         status: RedirectStatus.NOT_FOUND_REWRITE ,
       });
+
+      
 
       const amplifyAppAdmin = new App(this, `${id}-amplifyAppAdmin`, {
         appName: `${id}-admin`,
@@ -142,5 +148,20 @@ import {
       amplifyAppAdmin.addBranch("main");
       amplifyApp.addBranch("phase2");
       amplifyAppAdmin.addBranch("phase2");
+    }
+    private createGraphQLWebSocketUrl(apiUrl: string, apiKey: string): string {
+      // Extract the hostname from the API URL
+      const url = new URL(apiUrl);
+      const host = url.hostname; // Extracts the hostname, e.g., "f3274umsvbezxkugpmex7mcawa.appsync-realtime-api.ca-central-1.amazonaws.com"
+    
+      const header = {
+        host: host,
+        "x-api-key": apiKey,
+      };
+    
+      const encodedHeader = Buffer.from(JSON.stringify(header)).toString("base64");
+      const payload = "e30="; // Base64-encoded empty JSON object {}
+    
+      return `${apiUrl}?header=${encodedHeader}&payload=${payload}`;
     }
   }

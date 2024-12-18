@@ -1,5 +1,5 @@
 type Subscription {
-  onNotify: Notification
+  onNotify(sessionId: String!): Notification
     @aws_subscribe(mutations: ["sendNotification"])
 }
 
