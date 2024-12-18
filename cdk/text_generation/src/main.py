@@ -235,56 +235,6 @@ def get_prompt_for_role(user_role):
             connection.close()
         logger.info("Connection closed.")
 
-
-# def get_prompt_for_role(user_role):
-#     connection = connect_to_db()
-#     if connection is None:
-#         logger.error("No database connection available.")
-#         return {
-#             "statusCode": 500,
-#             "body": json.dumps("Database connection failed.")
-#         }
-        
-#     try:
-#         cur = connection.cursor()
-#         logger.info("Connected to RDS instance!")
-
-#         # Validate the role
-#         valid_roles = ["public", "educator", "admin"]
-#         if user_role not in valid_roles:
-#             logger.error(f"Invalid user_role: {user_role}")
-#             return None
-
-#         # Query to fetch the most recent prompt for the specified role
-#         query = """
-#             SELECT %s 
-#             FROM prompts
-#             WHERE role = %s
-#             ORDER BY time_created DESC NULLS LAST
-#             LIMIT 1;
-#         """
-        
-#         cur.execute(query, (user_role,))
-#         result = cur.fetchone()
-#         logger.info(f"Query result for role {user_role}: {result}")
-
-#         if result:
-#             prompt = str(result[0])
-#             logger.info(f"{user_role.capitalize()} prompt fetched successfully.")
-#             return prompt
-#         else:
-#             logger.warning(f"No prompts found for role: {user_role}.")
-#             return None
-
-#     except Exception as e:
-#         logger.error(f"Error fetching system prompt for role {user_role}: {e}")
-#         connection.rollback()
-#         return None
-#     finally:
-#         if cur:
-#             cur.close()
-#         logger.info("Connection closed.")
-
 def check_embeddings():
     connection = connect_to_comparison_db()
     if connection is None:
