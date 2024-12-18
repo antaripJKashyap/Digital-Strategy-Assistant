@@ -69,6 +69,12 @@ def handler(event, context):
         sqlTableCreation = """
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE EXTENSION IF NOT EXISTS "vector";
+            CREATE TABLE IF NOT EXISTS "conversation_csv" (
+                file_path varchar,
+                file_type varchar,
+                notified boolean,
+                timestamp timestamp
+            );
             CREATE TABLE IF NOT EXISTS "guidelines" (
                 "guideline_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 criteria_name varchar,

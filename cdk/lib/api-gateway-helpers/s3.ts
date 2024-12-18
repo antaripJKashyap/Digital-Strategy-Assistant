@@ -62,6 +62,25 @@ export const createS3Buckets = (scope: Construct, id: string) => {
     enforceSSL: true,
     autoDeleteObjects: true,
   });
+  const csv_bucket = new s3.Bucket(scope, `${id}-csvBucket`, {
+    blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+    cors: [
+      {
+        allowedHeaders: ["*"],
+        allowedMethods: [
+          s3.HttpMethods.GET,
+          s3.HttpMethods.PUT,
+          s3.HttpMethods.HEAD,
+          s3.HttpMethods.POST,
+          s3.HttpMethods.DELETE,
+        ],
+        allowedOrigins: ["*"],
+      },
+    ],
+    removalPolicy: cdk.RemovalPolicy.DESTROY,
+    enforceSSL: true,
+    autoDeleteObjects: true,
+  });
 
-  return { embeddingStorageBucket, dataIngestionBucket, comparisonBucket };
+  return { embeddingStorageBucket, dataIngestionBucket, comparisonBucket, csv_bucket };
 };
