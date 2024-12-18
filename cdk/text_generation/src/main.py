@@ -207,6 +207,7 @@ def get_prompt_for_role(user_role):
         query = f"""
             SELECT {column_name}
             FROM prompts
+            WHERE {column_name} IS NOT NULL
             ORDER BY time_created DESC NULLS LAST
             LIMIT 1;
         """
@@ -285,7 +286,7 @@ def get_prompt_for_role(user_role):
 #         logger.info("Connection closed.")
 
 def check_embeddings():
-    connection = connect_to_db()
+    connection = connect_to_comparison_db()
     if connection is None:
         logger.error("No database connection available.")
         return {
