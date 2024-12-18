@@ -35,7 +35,6 @@ const Chat = ({ setPage }) => {
   const [textSyllabus, setTextSyllabus] = useState("");
   const [syllabusFiles, setSyllabusFiles] = useState([]);
   const [selectedCriteria, setSelectedCriteria] = useState([]);
-  
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -350,15 +349,95 @@ const Chat = ({ setPage }) => {
     }
     return null;
   };
+  const constructWebSocketUrl = () => {
+    const tempUrl = process.env.NEXT_PUBLIC_GRAPHQL_WS_URL;
+    const apiKey = process.env.NEXT_PUBLIC_GRAPHQL_API_KEY;
+    const apiUrl = tempUrl.replace("https://", "wss://");
+    const urlObj = new URL(apiUrl);
+    const tmpObj = new URL(tempUrl);
+    const modifiedHost = urlObj.hostname.replace(
+      "appsync-api",
+      "appsync-realtime-api"
+    );
+
+    urlObj.hostname = modifiedHost;
+    const host = tmpObj.hostname;
+    const header = {
+      host: host,
+      "x-api-key": apiKey,
+    };
+
+    const encodedHeader = btoa(JSON.stringify(header));
+    const payload = "e30=";
+
+    return `${urlObj.toString()}?header=${encodedHeader}&payload=${payload}`;
+  };
 
   const handleSyllabusSubmit = async () => {
+    let ws = null;
     try {
       // Process and upload files
       await processAndUploadFiles(syllabusFiles, textSyllabus, session);
 
+      const wsUrl = constructWebSocketUrl();
+      console.log("wsUrl", wsUrl);
+      ws = new WebSocket(wsUrl, 'graphql-ws');
+      console.log("Establishing WebSocket connection...");
+
+      // Handle WebSocket connection
+      await new Promise((resolve, reject) => {
+        ws.onopen = () => {
+          console.log("WebSocket connection established");
+          const initMessage = { type: "connection_init" };
+          ws.send(JSON.stringify(initMessage));
+          console.log("Sent:", initMessage);
+
+          const subscriptionMessage = {
+            id: session,
+            type: "start",
+            payload: {
+              data: `{"query":"subscription OnNotify($sessionId: String!) { onNotify(sessionId: $sessionId) { message sessionId } }","variables":{"sessionId":"${session}"}}`,
+              extensions: {
+                authorization: {
+                  "x-api-key": process.env.NEXT_PUBLIC_GRAPHQL_API_KEY,
+                  host: new URL(process.env.NEXT_PUBLIC_GRAPHQL_WS_URL)
+                    .hostname,
+                },
+              },
+            },
+          };
+          ws.send(JSON.stringify(subscriptionMessage));
+          console.log("Sent subscription message:", subscriptionMessage);
+        };
+
+        ws.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+          console.log("Received:", message);
+
+          // Check if this is a complete message
+          if (message.type === "data" && message.payload?.data?.onNotify) {
+            resolve(message);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          reject(error);
+        };
+
+        // Set a timeout for the WebSocket connection
+        setTimeout(() => {
+          reject(new Error("WebSocket connection timeout"));
+        }, 30000); // 30 second timeout
+      });
+
       // Close modal and send confirmation message
       setShowSyllabusModal(false);
-      sendMessage("I've uploaded syllabus files for comparison", true, true);
+      await sendMessage(
+        "I've uploaded syllabus files for comparison",
+        true,
+        true
+      );
 
       // Reset state
       setTextSyllabus("");
@@ -366,6 +445,12 @@ const Chat = ({ setPage }) => {
     } catch (error) {
       console.error("Syllabus upload error:", error);
       toast.error("Failed to upload syllabus: " + error.message);
+    } finally {
+      // Ensure WebSocket is properly closed
+      if (ws) {
+        console.log("Closing WebSocket connection");
+        ws.close();
+      }
     }
   };
 
