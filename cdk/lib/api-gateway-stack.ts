@@ -75,7 +75,7 @@ export class ApiGatewayStack extends cdk.Stack {
 
     // Create FIFO SQS Queue
     const csvQueue = new sqs.Queue(this, `${id}-CsvQueue`, {
-      queueName: `${id}-comparison-queue.fifo`,
+      queueName: `${id}-csv-queue.fifo`,
       fifo: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       visibilityTimeout: cdk.Duration.seconds(900),
