@@ -194,7 +194,7 @@ const SyllabusComparisonModal = ({
         </Tabs>
         <div className="mt-4">
           <h3 className="mb-2 font-semibold">
-            Select Guidelines for Comparison:
+            Select Sub-Criteria for Comparison:
           </h3>
           {guidelines.map((guideline) => (
             <div
