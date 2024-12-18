@@ -102,7 +102,7 @@ def connect_to_comparison_db():
     global connection_comparison
     if connection_comparison is None or connection_comparison.closed:
         try:
-            secret = get_secret(DB_SECRET_NAME)
+            secret = get_secret(DB_COMP_SECRET_NAME)
             connection_params = {
                 'dbname': secret["dbname"],
                 'user': secret["username"],

@@ -26,12 +26,14 @@ const SyllabusComparisonModal = ({
 }) => {
   const [activeTab, setActiveTab] = useState("text");
   const [guidelines, setGuidelines] = useState([]);
+  const [isLoadingGuidelines, setIsLoadingGuidelines] = useState(false);
   useEffect(() => {
     console.log("guidelines", guidelines);
     console.log("selectedCriteria", selectedCriteria);
   }, [guidelines, selectedCriteria]);
   useEffect(() => {
     const fetchGuidelines = async () => {
+      setIsLoadingGuidelines(true);
       try {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_ENDPOINT}user/guidelines`
@@ -42,6 +44,8 @@ const SyllabusComparisonModal = ({
       } catch (error) {
         console.error("Error fetching guidelines:", error);
         toast.error("Failed to fetch guidelines");
+      } finally {
+        setIsLoadingGuidelines(false);
       }
     };
 
@@ -50,14 +54,14 @@ const SyllabusComparisonModal = ({
     }
   }, [isOpen]);
 
-   const handleCriteriaChange = (e) => {
-     const criteriaName = e.target.value;
-     setSelectedCriteria((prev) =>
-       e.target.checked
-         ? [...prev, criteriaName]
-         : prev.filter((name) => name !== criteriaName)
-     );
-   };
+  const handleCriteriaChange = (e) => {
+    const criteriaName = e.target.value;
+    setSelectedCriteria((prev) =>
+      e.target.checked
+        ? [...prev, criteriaName]
+        : prev.filter((name) => name !== criteriaName)
+    );
+  };
   useEffect(() => {
     if (activeTab === "text") {
       setFiles([]);
@@ -85,6 +89,10 @@ const SyllabusComparisonModal = ({
   };
 
   const handleSubmit = () => {
+    if (!selectedCriteria.length) {
+      toast.error("Please select at least one criterion for comparison");
+      return;
+    }
     // Prevent submission if both text and files are empty
     if (activeTab === "text" && !textSyllabus.trim()) {
       toast.error("Please enter text");
@@ -196,27 +204,35 @@ const SyllabusComparisonModal = ({
           <h3 className="mb-2 font-semibold">
             Select Sub-Criteria for Comparison:
           </h3>
-          {guidelines.map((guideline) => (
-            <div
-              key={guideline.criteria_name}
-              className="flex items-center space-x-2 mb-2"
-            >
-              <input
-                type="checkbox"
-                id={guideline.criteria_name}
-                value={guideline.criteria_name}
-                checked={selectedCriteria.includes(guideline.criteria_name)}
-                onChange={handleCriteriaChange}
-                className="form-checkbox h-4 w-4 text-blue-600"
-              />
-              <label
-                htmlFor={guideline.criteria_name}
-                className="text-sm font-medium leading-none"
-              >
-                {guideline.criteria_name}
-              </label>
+          {isLoadingGuidelines ? (
+            <p>Loading criteria...</p>
+          ) : guidelines.length > 0 ? (
+            <div>
+              {guidelines.map((guideline) => (
+                <div
+                  key={guideline.criteria_name}
+                  className="flex items-center space-x-2 mb-2"
+                >
+                  <input
+                    type="checkbox"
+                    id={guideline.criteria_name}
+                    value={guideline.criteria_name}
+                    checked={selectedCriteria.includes(guideline.criteria_name)}
+                    onChange={handleCriteriaChange}
+                    className="form-checkbox h-4 w-4 text-blue-600"
+                  />
+                  <label
+                    htmlFor={guideline.criteria_name}
+                    className="text-sm font-medium leading-none"
+                  >
+                    {guideline.criteria_name}
+                  </label>
+                </div>
+              ))}
             </div>
-          ))}
+          ) : (
+            <p>No criteria available. Please contact the administrator.</p>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
