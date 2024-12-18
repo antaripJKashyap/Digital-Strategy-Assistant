@@ -310,6 +310,9 @@ def handler(event, context):
     question = body.get("message_content", "")
     user_role = body.get("user_role", "")
     comparison = body.get("comparison", "")
+    # criteria = body.get("criteria", "")
+    
+
     
     # Check if user_role is provided after the initial greeting
     if user_role:
@@ -455,7 +458,7 @@ def handler(event, context):
             'body': json.dumps('Error fetching system prompt')
         }
 
-    if not question:
+    if question == "":
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
         initial_query = get_initial_student_query()
         query_data = json.loads(initial_query)
