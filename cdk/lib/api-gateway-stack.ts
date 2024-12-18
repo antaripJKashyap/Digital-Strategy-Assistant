@@ -43,9 +43,12 @@ export class ApiGatewayStack extends cdk.Stack {
   public readonly stageARN_APIGW: string;
   public readonly apiGW_basedURL: string;
   public readonly secret: secretsmanager.ISecret;
+  private eventApi: appsync.GraphqlApi;
   public getEndpointUrl = () => this.api.url;
   public getUserPoolId = () => this.userPool.userPoolId;
   public getUserPoolClientId = () => this.appClient.userPoolClientId;
+  public getEventApiUrl = () => this.eventApi.graphqlUrl;
+  public getEventApiKey = () => this.eventApi.apiKey!;
   public getIdentityPoolId = () => this.identityPool.ref;
   public addLayer = (name: string, layer: LayerVersion) =>
     (this.layerList[name] = layer);
@@ -240,7 +243,7 @@ export class ApiGatewayStack extends cdk.Stack {
       },
     });
 
-    const eventApi = new appsync.GraphqlApi(this,
+    this.eventApi = new appsync.GraphqlApi(this,
        `${id}-EventApi`, {
       name: `${id}-EventApi`,
       definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
@@ -258,9 +261,9 @@ export class ApiGatewayStack extends cdk.Stack {
       code: lambda.Code.fromAsset("lambda/eventNotification"),
       handler: "eventNotification.lambda_handler",
       environment: {
-        APPSYNC_API_URL: eventApi.graphqlUrl,
-        APPSYNC_API_ID: eventApi.apiId,
-        APPSYNC_API_KEY: eventApi.apiKey!,
+        APPSYNC_API_URL: this.eventApi.graphqlUrl,
+        APPSYNC_API_ID: this.eventApi.apiId,
+        APPSYNC_API_KEY: this.eventApi.apiKey!,
         REGION: this.region,
       },
       functionName: `${id}-NotificationFunction`,
@@ -276,17 +279,17 @@ export class ApiGatewayStack extends cdk.Stack {
         new iam.PolicyStatement({
             effect: iam.Effect.ALLOW,
             actions: ['appsync:GraphQL'],
-            resources: [`arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`],
+            resources: [`arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}/*`],
         })
       );
 
     notificationFunction.addPermission("AppSyncInvokePermission", {
       principal: new iam.ServicePrincipal("appsync.amazonaws.com"),
       action: "lambda:InvokeFunction",
-      sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${eventApi.apiId}/*`,
+      sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}/*`,
     });
 
-    const notificationLambdaDataSource = eventApi.addLambdaDataSource(
+    const notificationLambdaDataSource = this.eventApi.addLambdaDataSource(
       "NotificationLambdaDataSource",
       notificationFunction
     );
@@ -849,9 +852,9 @@ export class ApiGatewayStack extends cdk.Stack {
           EMBEDDING_BUCKET_NAME: embeddingStorageBucket.bucketName,
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
           EVENT_NOTIFICATION_LAMBDA_NAME: notificationFunction.functionName,
-          APPSYNC_API_URL: eventApi.graphqlUrl,
-          APPSYNC_API_ID: eventApi.apiId,
-          APPSYNC_API_KEY: eventApi.apiKey!,
+          APPSYNC_API_URL: this.eventApi.graphqlUrl,
+          APPSYNC_API_ID: this.eventApi.apiId,
+          APPSYNC_API_KEY: this.eventApi.apiKey!,
         },
       }
     );
