@@ -397,10 +397,10 @@ const Guidelines = () => {
           >
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Criteria</DialogTitle>
+                <DialogTitle>Add New Sub-Criteria</DialogTitle>
               </DialogHeader>
               <Input
-                placeholder="Enter criteria name"
+                placeholder="Enter sub-criteria name"
                 value={newCriteriaName}
                 onChange={(e) => setNewCriteriaName(e.target.value)}
                 className="mb-4"
