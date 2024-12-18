@@ -237,15 +237,15 @@ def get_prompt_for_role(user_role):
         logger.info("Connection closed.")
 
 def check_embeddings():
-    connection_comparison = connect_to_comparison_db()
-    if connection_comparison is None:
+    connection = connect_to_db()
+    if connection is None:
         logger.error("No database connection available.")
         return {
             "statusCode": 500,
             "body": json.dumps("Database connection failed.")
         }
     try:
-        cur = connection_comparison.cursor()
+        cur = connection.cursor()
 
         # Check if table exists
         cur.execute("""
@@ -273,7 +273,7 @@ def check_embeddings():
 
     except Exception as e:
         logger.error(f"Error checking embeddings table: {e}")
-        connection_comparison.rollback()
+        connection.rollback()
         return False
     finally:
         if cur:
@@ -322,20 +322,6 @@ def handler(event, context):
         logger.info("Awaiting user role selection.")
         
     if comparison:
-        if not check_embeddings():
-            return {
-                'statusCode': 500,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-                'body': json.dumps(
-                    "Error: The Administrator has not uploaded Digital Strategy documents, please contact the Administrator."
-                )
-            }
-    
         
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
@@ -546,6 +532,19 @@ def handler(event, context):
                 "Access-Control-Allow-Methods": "*",
             },
             'body': json.dumps('Error retrieving vectorstore config')
+        }
+    if not check_embeddings():
+        return {
+            'statusCode': 500,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "*",
+            },
+            'body': json.dumps(
+                "Error: The Administrator has not uploaded Digital Strategy documents, please contact the Administrator."
+            )
         }
     try:
         logger.info("Creating history-aware retriever.")
