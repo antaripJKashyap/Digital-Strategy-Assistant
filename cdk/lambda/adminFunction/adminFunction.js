@@ -850,6 +850,96 @@ exports.handler = async (event) => {
           });
         }
         break;
+      case "GET /admin/csv":
+        try {
+          // SQL query to get all conversation CSV entries
+          const conversationCSVs = await sqlConnectionTableCreator`
+              SELECT 
+                file_path, 
+                file_type, 
+                notified, 
+                timestamp 
+              FROM conversation_csv 
+              ORDER BY timestamp DESC;
+            `;
+
+          // Insert a record into the user engagement log
+          await sqlConnectionTableCreator`
+              INSERT INTO user_engagement_log (
+                log_id, 
+                session_id, 
+                timestamp, 
+                engagement_type, 
+                user_info, 
+                user_role
+              ) VALUES (
+                uuid_generate_v4(),
+                NULL,
+                CURRENT_TIMESTAMP,
+                'conversation_csv retrieval',
+                NULL,
+                'admin'
+              )
+            `;
+
+          response.body = JSON.stringify({
+            conversation_csvs: conversationCSVs.map((entry) => ({
+              file_path: entry.file_path,
+              file_type: entry.file_type,
+              notified: entry.notified,
+              timestamp: entry.timestamp,
+            })),
+          });
+        } catch (err) {
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
+      case "PUT /admin/csv":
+        try {
+          // First, count the number of rows that will be updated
+          const countResult = await sqlConnectionTableCreator`
+              SELECT COUNT(*) AS rows_to_update 
+              FROM conversation_csv
+              WHERE notified = FALSE;
+            `;
+          const rowsToUpdate = countResult[0].rows_to_update;
+
+          // Update all rows to set notified to true
+          await sqlConnectionTableCreator`
+              UPDATE conversation_csv
+              SET notified = TRUE;
+            `;
+
+          // Insert a record into the user engagement log
+          await sqlConnectionTableCreator`
+              INSERT INTO user_engagement_log (
+                log_id,
+                session_id,
+                timestamp,
+                engagement_type,
+                user_info,
+                user_role
+              ) VALUES (
+                uuid_generate_v4(),
+                NULL,
+                CURRENT_TIMESTAMP,
+                'conversation_csv notify update',
+                NULL,
+                'admin'
+              )
+            `;
+
+          response.body = JSON.stringify({
+            rows_updated: rowsToUpdate,
+          });
+        } catch (err) {
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }

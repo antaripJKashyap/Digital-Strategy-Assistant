@@ -59,10 +59,18 @@ export class ApiGatewayStack extends cdk.Stack {
   ) {
     super(scope, id, props);
     this.layerList = {};
-    const { embeddingStorageBucket, dataIngestionBucket, comparisonBucket } =
+    const { embeddingStorageBucket, dataIngestionBucket, comparisonBucket, csv_bucket } =
       createS3Buckets(this, id);
     // Create FIFO SQS Queue
     const comparisonQueue = new sqs.Queue(this, `${id}-ComparisonQueue`, {
+      queueName: `${id}-comparison-queue.fifo`,
+      fifo: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      visibilityTimeout: cdk.Duration.seconds(900),
+    });
+
+    // Create FIFO SQS Queue
+    const csvQueue = new sqs.Queue(this, `${id}-CsvQueue`, {
       queueName: `${id}-comparison-queue.fifo`,
       fifo: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -80,12 +88,6 @@ export class ApiGatewayStack extends cdk.Stack {
       `${id}-PowertoolsLayer`,
       `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:78`
     );
-
-    // const requestsLayer = new lambda.LayerVersion(this, `${id}-RequestsLayer`, {
-    //   code: lambda.Code.fromAsset("layers/requests_layer.zip"), // Path to the zip file
-    //   compatibleRuntimes: [lambda.Runtime.PYTHON_3_9], // Ensure compatibility
-    //   description: "Layer for requests library",
-    // });
     
 
     this.layerList["psycopg2"] = psycopgLayer;
