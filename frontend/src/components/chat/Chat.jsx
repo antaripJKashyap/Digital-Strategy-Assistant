@@ -359,7 +359,6 @@ const Chat = ({ setPage }) => {
   };
   const constructWebSocketUrl = () => {
     const tempUrl = process.env.NEXT_PUBLIC_GRAPHQL_WS_URL;
-    const apiKey = process.env.NEXT_PUBLIC_GRAPHQL_API_KEY;
     const apiUrl = tempUrl.replace("https://", "wss://");
     const urlObj = new URL(apiUrl);
     const tmpObj = new URL(tempUrl);
@@ -372,7 +371,6 @@ const Chat = ({ setPage }) => {
     const host = tmpObj.hostname;
     const header = {
       host: host,
-      "x-api-key": apiKey,
     };
 
     const encodedHeader = btoa(JSON.stringify(header));
