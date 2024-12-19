@@ -24,7 +24,6 @@ RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
 # APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
-APPSYNC_API_KEY = os.environ["APPSYNC_API_KEY"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
 # AWS Clients
 secrets_manager_client = boto3.client("secretsmanager")
@@ -53,7 +52,6 @@ def invoke_event_notification(session_id, message="Embeddings created successful
         """
         headers = {
             "Content-Type": "application/json",
-            "x-api-key": APPSYNC_API_KEY
         }
 
         payload = {
@@ -74,7 +72,6 @@ def invoke_event_notification(session_id, message="Embeddings created successful
                 raise Exception(f"Failed to send notification: {response_data}")
 
             print(f"Notification sent successfully: {response_data}")
-            print(f"apikey: {APPSYNC_API_KEY}")
             return response_data["data"]["sendNotification"]
 
     except Exception as e:
