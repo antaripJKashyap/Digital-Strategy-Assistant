@@ -250,8 +250,11 @@ export class ApiGatewayStack extends cdk.Stack {
     const authHandler = new lambda.Function(this, `${id}-AuthHandler`, {
       runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset("lambda/lib"),
-      handler: "appsync.js",
+      handler: "appsync.handler",
+      functionName: `${id}-AuthHandler`,
     });
+  
+
 
     this.eventApi = new appsync.GraphqlApi(this, `${id}-EventApi`, {
       name: `${id}-EventApi`,

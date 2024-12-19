@@ -52,6 +52,7 @@ def invoke_event_notification(session_id, message="Embeddings created successful
         """
         headers = {
             "Content-Type": "application/json",
+            "Authorization": "API_KEY"
         }
 
         payload = {
