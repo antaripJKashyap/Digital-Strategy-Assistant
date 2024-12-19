@@ -95,7 +95,6 @@ import {
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
           NEXT_PUBLIC_GRAPHQL_WS_URL: apiStack.getEventApiUrl(),
-          NEXT_PUBLIC_GRAPHQL_API_KEY: apiStack.getEventApiKey(),
           AMPLIFY_DIFF_DEPLOY: "false",
           AMPLIFY_MONOREPO_APP_ROOT: "frontend",
 

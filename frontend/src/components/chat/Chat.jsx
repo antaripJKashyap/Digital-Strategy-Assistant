@@ -35,7 +35,6 @@ const Chat = ({ setPage }) => {
   const [textSyllabus, setTextSyllabus] = useState("");
   const [syllabusFiles, setSyllabusFiles] = useState([]);
   const [selectedCriteria, setSelectedCriteria] = useState([]);
-  const [isInitializing, setIsInitializing] = useState(true);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -98,10 +97,6 @@ const Chat = ({ setPage }) => {
     isComparison = false
   ) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
-    if (isInitializing) {
-      toast.warning("Please wait while the session is being initialized...");
-      return;
-    }
     const currentMessages = [...messages];
     const userRole = getUserRole(currentMessages);
     if (!isOption && currentMessages.length === 1) {
@@ -169,7 +164,7 @@ const Chat = ({ setPage }) => {
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!isLoading && messageInput.trim()) {
+      if (!isLoading && !isCreatingSession && messageInput.trim()) {
         sendMessage(messageInput);
       }
     }
@@ -177,7 +172,6 @@ const Chat = ({ setPage }) => {
 
   const createNewSession = async (currentFingerprint) => {
     if (!currentFingerprint) return;
-    setIsInitializing(true);
     setIsCreatingSession(true);
     try {
       const response = await fetch(
@@ -223,7 +217,6 @@ const Chat = ({ setPage }) => {
     } catch (error) {
       console.error("Error creating session:", error);
     } finally {
-      setIsInitializing(false);
       setIsCreatingSession(false);
     }
   };
@@ -327,7 +320,9 @@ const Chat = ({ setPage }) => {
               <OptionMessage
                 key={`${index}-${optIndex}`}
                 text={option}
-                onClick={() => !isLoading && sendMessage(option, true)}
+                onClick={() =>
+                  !isLoading && !isCreatingSession && sendMessage(option, true)
+                }
               />
             ))}
 
@@ -359,7 +354,6 @@ const Chat = ({ setPage }) => {
   };
   const constructWebSocketUrl = () => {
     const tempUrl = process.env.NEXT_PUBLIC_GRAPHQL_WS_URL;
-    const apiKey = process.env.NEXT_PUBLIC_GRAPHQL_API_KEY;
     const apiUrl = tempUrl.replace("https://", "wss://");
     const urlObj = new URL(apiUrl);
     const tmpObj = new URL(tempUrl);
@@ -372,7 +366,7 @@ const Chat = ({ setPage }) => {
     const host = tmpObj.hostname;
     const header = {
       host: host,
-      "x-api-key": apiKey,
+      Authorization: "API_KEY=",
     };
 
     const encodedHeader = btoa(JSON.stringify(header));
@@ -383,22 +377,34 @@ const Chat = ({ setPage }) => {
 
   const handleSyllabusSubmit = async () => {
     let ws = null;
+
     try {
+      // First set loading state to disable message input
+      setIsLoading(true);
+
+      // Add user message immediately
+      setMessages((prev) => [
+        ...prev,
+        {
+          Type: "human",
+          Content: "I've uploaded course files for comparison",
+        },
+      ]);
+
       // Process and upload files
       await processAndUploadFiles(syllabusFiles, textSyllabus, session);
 
       const wsUrl = constructWebSocketUrl();
-      console.log("wsUrl", wsUrl);
       ws = new WebSocket(wsUrl, "graphql-ws");
-      console.log("Establishing WebSocket connection...");
 
-      // Handle WebSocket connection
+      // Rest of websocket code remains the same
       await new Promise((resolve, reject) => {
         ws.onopen = () => {
           console.log("WebSocket connection established");
+
           const initMessage = { type: "connection_init" };
+          console.log("Sent:", initMessage); // Print sent message
           ws.send(JSON.stringify(initMessage));
-          console.log("Sent:", initMessage);
 
           const subscriptionMessage = {
             id: session,
@@ -407,22 +413,21 @@ const Chat = ({ setPage }) => {
               data: `{"query":"subscription OnNotify($sessionId: String!) { onNotify(sessionId: $sessionId) { message sessionId } }","variables":{"sessionId":"${session}"}}`,
               extensions: {
                 authorization: {
-                  "x-api-key": process.env.NEXT_PUBLIC_GRAPHQL_API_KEY,
+                  Authorization: "API_KEY=",
                   host: new URL(process.env.NEXT_PUBLIC_GRAPHQL_WS_URL)
                     .hostname,
                 },
               },
             },
           };
+          console.log("Sent:", subscriptionMessage); // Print sent message
           ws.send(JSON.stringify(subscriptionMessage));
-          console.log("Sent subscription message:", subscriptionMessage);
         };
 
         ws.onmessage = (event) => {
           const message = JSON.parse(event.data);
-          console.log("Received:", message);
+          console.log("Received:", message); // Print received message
 
-          // Check if this is a complete message
           if (message.type === "data" && message.payload?.data?.onNotify) {
             resolve(message);
           }
@@ -433,19 +438,32 @@ const Chat = ({ setPage }) => {
           reject(error);
         };
 
-        // Set a timeout for the WebSocket connection
         setTimeout(() => {
           reject(new Error("WebSocket connection timeout"));
-        }, 30000); // 30 second timeout
+        }, 180000);
+      });
+      setMessages((prev) => {
+        const index = [...prev]
+          .reverse()
+          .findIndex(
+            (message) =>
+              message.Content === "I've uploaded course files for comparison"
+          );
+        if (index !== -1) {
+          const reversedMessages = [...prev];
+          reversedMessages.splice(prev.length - 1 - index, 1);
+          return reversedMessages;
+        }
+        return prev;
       });
 
-      // Close modal and send confirmation message
-      setShowSyllabusModal(false);
+      // Send message for comparison after WebSocket connection
       await sendMessage(
-        "I've uploaded syllabus files for comparison",
+        "I've uploaded course files for comparison",
         true,
         true
       );
+      console.log("Sent: 'I've uploaded course files for comparison'"); // Print sent message
 
       // Reset state
       setTextSyllabus("");
@@ -454,11 +472,10 @@ const Chat = ({ setPage }) => {
       console.error("Syllabus upload error:", error);
       toast.error("Failed to upload syllabus: " + error.message);
     } finally {
-      // Ensure WebSocket is properly closed
       if (ws) {
-        console.log("Closing WebSocket connection");
         ws.close();
       }
+      setIsLoading(false);
     }
   };
 
@@ -516,12 +533,17 @@ const Chat = ({ setPage }) => {
             </div>
             <button
               onClick={() =>
-                !isLoading && messageInput.trim() && sendMessage(messageInput)
+                !isLoading &&
+                !isCreatingSession &&
+                messageInput.trim() &&
+                sendMessage(messageInput)
               }
               className={`${
-                isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                isLoading || isCreatingSession
+                  ? "opacity-50 cursor-not-allowed"
+                  : "cursor-pointer"
               }`}
-              disabled={isLoading}
+              disabled={isLoading || isCreatingSession}
             >
               <LuSendHorizonal size={20} />
             </button>

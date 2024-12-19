@@ -104,6 +104,8 @@ const SyllabusComparisonModal = ({
       return;
     }
 
+    onClose();
+
     onSubmit();
   };
 

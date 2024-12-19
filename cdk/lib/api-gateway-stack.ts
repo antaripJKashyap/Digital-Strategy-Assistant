@@ -49,7 +49,6 @@ export class ApiGatewayStack extends cdk.Stack {
   public getUserPoolId = () => this.userPool.userPoolId;
   public getUserPoolClientId = () => this.appClient.userPoolClientId;
   public getEventApiUrl = () => this.eventApi.graphqlUrl;
-  public getEventApiKey = () => this.eventApi.apiKey!;
   public getIdentityPoolId = () => this.identityPool.ref;
   public addLayer = (name: string, layer: LayerVersion) =>
     (this.layerList[name] = layer);
@@ -63,8 +62,12 @@ export class ApiGatewayStack extends cdk.Stack {
   ) {
     super(scope, id, props);
     this.layerList = {};
-    const { embeddingStorageBucket, dataIngestionBucket, comparisonBucket, csv_bucket } =
-      createS3Buckets(this, id);
+    const {
+      embeddingStorageBucket,
+      dataIngestionBucket,
+      comparisonBucket,
+      csv_bucket,
+    } = createS3Buckets(this, id);
     // Create FIFO SQS Queue
     const comparisonQueue = new sqs.Queue(this, `${id}-ComparisonQueue`, {
       queueName: `${id}-comparison-queue.fifo`,
@@ -81,7 +84,7 @@ export class ApiGatewayStack extends cdk.Stack {
       visibilityTimeout: cdk.Duration.seconds(900),
     });
 
-    const { jwt, postgres, psycopgLayer, } = createLayers(this, id);
+    const { jwt, postgres, psycopgLayer } = createLayers(this, id);
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
@@ -92,12 +95,10 @@ export class ApiGatewayStack extends cdk.Stack {
       `${id}-PowertoolsLayer`,
       `arn:aws:lambda:${this.region}:017000801446:layer:AWSLambdaPowertoolsPythonV2:78`
     );
-    
 
     this.layerList["psycopg2"] = psycopgLayer;
     this.layerList["postgres"] = postgres;
     this.layerList["jwt"] = jwt;
-    
 
     const { userPool, appClient, identityPool, secret } =
       createCognitoResources(this, id);
@@ -246,59 +247,80 @@ export class ApiGatewayStack extends cdk.Stack {
       },
     });
 
-    this.eventApi = new appsync.GraphqlApi(this,
-       `${id}-EventApi`, {
+    const authHandler = new lambda.Function(this, `${id}-AuthHandler`, {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      code: lambda.Code.fromAsset("lambda/lib"),
+      handler: "appsync.handler",
+      functionName: `${id}-AuthHandler`,
+    });
+  
+
+
+    this.eventApi = new appsync.GraphqlApi(this, `${id}-EventApi`, {
       name: `${id}-EventApi`,
       definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
       authorizationConfig: {
         defaultAuthorization: {
-          authorizationType: appsync.AuthorizationType.API_KEY,
+          authorizationType: appsync.AuthorizationType.LAMBDA,
+          lambdaAuthorizerConfig: {
+            handler: authHandler,
+          },
         },
       },
       xrayEnabled: true,
     });
 
-    this.downloadMessagesApi = new appsync.GraphqlApi(this,
-      `${id}-downloadMessagesApi`, {
-     name: `${id}-downloadMessagesApi`,
-     definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
-     authorizationConfig: {
-       defaultAuthorization: {
-         authorizationType: appsync.AuthorizationType.API_KEY,
-       },
-     },
-     xrayEnabled: true,
-   });
+    this.downloadMessagesApi = new appsync.GraphqlApi(
+      this,
+      `${id}-downloadMessagesApi`,
+      {
+        name: `${id}-downloadMessagesApi`,
+        definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
+        authorizationConfig: {
+          defaultAuthorization: {
+            authorizationType: appsync.AuthorizationType.LAMBDA,
+            lambdaAuthorizerConfig: {
+              handler: authHandler,
+            },
+          },
+        },
+        xrayEnabled: true,
+      }
+    );
 
-
-    const notificationFunction = new lambda.Function(this, `${id}-NotificationFunction`, {
-      runtime: lambda.Runtime.PYTHON_3_9,
-      code: lambda.Code.fromAsset("lambda/eventNotification"),
-      handler: "eventNotification.lambda_handler",
-      environment: {
-        DOWNLOAD_MESSAGES_API: this.downloadMessagesApi.graphqlUrl,
-        DOWNLOAD_MESSAGES_API_KEY: this.downloadMessagesApi.apiKey!,
-        APPSYNC_API_URL: this.eventApi.graphqlUrl,
-        APPSYNC_API_ID: this.eventApi.apiId,
-        APPSYNC_API_KEY: this.eventApi.apiKey!,
-        REGION: this.region,
-      },
-      functionName: `${id}-NotificationFunction`,
-      timeout: cdk.Duration.seconds(300),
-      memorySize: 128,
-      vpc: vpcStack.vpc,
-      role: lambdaRole,
-    });
+    const notificationFunction = new lambda.Function(
+      this,
+      `${id}-NotificationFunction`,
+      {
+        runtime: lambda.Runtime.PYTHON_3_9,
+        code: lambda.Code.fromAsset("lambda/eventNotification"),
+        handler: "eventNotification.lambda_handler",
+        environment: {
+          DOWNLOAD_MESSAGES_API: this.downloadMessagesApi.graphqlUrl,
+          DOWNLOAD_MESSAGES_API_KEY: this.downloadMessagesApi.apiKey!,
+          APPSYNC_API_URL: this.eventApi.graphqlUrl,
+          APPSYNC_API_ID: this.eventApi.apiId,
+          REGION: this.region,
+        },
+        functionName: `${id}-NotificationFunction`,
+        timeout: cdk.Duration.seconds(300),
+        memorySize: 128,
+        vpc: vpcStack.vpc,
+        role: lambdaRole,
+      }
+    );
 
     //#removerd graphql permission
-    
+
     notificationFunction.addToRolePolicy(
-        new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: ['appsync:GraphQL'],
-            resources: [`arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}/*`],
-        })
-      );
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["appsync:GraphQL"],
+        resources: [
+          `arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}/*`,
+        ],
+      })
+    );
 
     notificationFunction.addPermission("AppSyncInvokePermission", {
       principal: new iam.ServicePrincipal("appsync.amazonaws.com"),
@@ -310,26 +332,23 @@ export class ApiGatewayStack extends cdk.Stack {
       "NotificationLambdaDataSource",
       notificationFunction
     );
-    
+
     notificationLambdaDataSource.createResolver("ResolverEventApi", {
       typeName: "Mutation",
       fieldName: "sendNotification",
       requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
       responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
     });
-    
+
     // Add permission to allow main.py Lambda to invoke eventNotification Lambda
-    notificationFunction.grantInvoke(new iam.ServicePrincipal("lambda.amazonaws.com"));
-    
-    
-    
-    // Override the Logical ID of the Lambdas Function to get ARN in OpenAPI
-    const cfnNotificationFunction = notificationFunction
-      .node.defaultChild as lambda.CfnFunction;
-    cfnNotificationFunction.overrideLogicalId(
-      "NotificationFunction"
+    notificationFunction.grantInvoke(
+      new iam.ServicePrincipal("lambda.amazonaws.com")
     );
-     
+
+    // Override the Logical ID of the Lambdas Function to get ARN in OpenAPI
+    const cfnNotificationFunction = notificationFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnNotificationFunction.overrideLogicalId("NotificationFunction");
 
     const lambdaUserFunction = new lambda.Function(this, `${id}-userFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -775,7 +794,7 @@ export class ApiGatewayStack extends cdk.Stack {
         ],
       })
     );
-    
+
     // Create the Lambda function for generating presigned URLs for comparison bucket
     const comparisonGeneratePreSignedURL = new lambda.Function(
       this,
@@ -837,9 +856,8 @@ export class ApiGatewayStack extends cdk.Stack {
     csvQueue.grantSendMessages(csvFunction);
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-    const cfnCsvFunction = csvFunction.node
-      .defaultChild as lambda.CfnFunction;
-      cfnCsvFunction.overrideLogicalId("csvFunction");
+    const cfnCsvFunction = csvFunction.node.defaultChild as lambda.CfnFunction;
+    cfnCsvFunction.overrideLogicalId("csvFunction");
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
     csvFunction.addPermission("AllowApiGatewayInvoke", {
@@ -899,11 +917,9 @@ export class ApiGatewayStack extends cdk.Stack {
           EVENT_NOTIFICATION_LAMBDA_NAME: notificationFunction.functionName,
           APPSYNC_API_URL: this.eventApi.graphqlUrl,
           APPSYNC_API_ID: this.eventApi.apiId,
-          APPSYNC_API_KEY: this.eventApi.apiKey!,
         },
       }
     );
-
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnComparisonLambdaDockerFunction = comparisonDataIngestFunction.node
@@ -976,7 +992,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
     comparisonDataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
-    
+
     // Grant access to Secret Manager
     comparisonDataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
