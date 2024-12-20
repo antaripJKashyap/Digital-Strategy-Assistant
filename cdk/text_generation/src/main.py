@@ -406,10 +406,8 @@ def handler(event, context):
                 logger.info("Evaluation complete. Collection was found and deleted.")
             except Exception as e:
                 # If an exception is raised, send an error message
-                logger.info("Collection was not found in the vectorstore or could not be deleted.")
-                logger.debug(f"Exception details: {e}")
-
-            
+                logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+    
         except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {
