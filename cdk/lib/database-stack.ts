@@ -284,7 +284,7 @@ export class DatabaseStack extends Stack {
     const comparisonRdsProxy = this.comparisonDbInstance.addProxy(
       id + "-proxy",
       {
-        secrets: [this.secretPathUser!],
+        secrets: [this.comparisonSecretPathUser!],
         vpc: vpcStack.vpc,
         role: rdsProxyRole,
         securityGroups: this.comparisonDbInstance.connections.securityGroups,

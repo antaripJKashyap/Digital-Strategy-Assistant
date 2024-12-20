@@ -8,7 +8,7 @@ from langchain.chains import create_retrieval_chain
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import Dict, List
+from typing import Dict, Any
 class LLM_evaluation(BaseModel):
     response: str = Field(description="Assessment of the student's answer with a follow-up question.")
     
@@ -351,8 +351,51 @@ def get_llm_output(response: str) -> dict:
 #         "llm_output": main_content.strip(),
 #         "options": options
 #     }
+#################2nd try
+# def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, any]:
+#     """
+#     Parses the output of get_response_evaluation to return llm_output and options.
 
-def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, any]:
+#     Args:
+#         evaluation_output (dict): The dictionary output of get_response_evaluation.
+#             It contains keys like 'response' or 'evaluation' and associated feedback.
+
+#     Returns:
+#         dict: A dictionary containing:
+#             - llm_output: Concatenated content of all LLM outputs.
+#             - options: A list of follow-up questions (empty if none are available).
+#     """
+#     # Initialize variables
+#     main_content = []
+#     options = []
+
+#     # Handle content structure (assuming a dictionary with strings as keys/values)
+#     for key, value in evaluation_output.items():
+#         if isinstance(value, str):
+#             main_content.append(f"{key}: {value}")
+#         elif isinstance(value, list):
+#             # If value is a list (e.g., options), append it directly to options
+#             options.extend(value)
+    
+#     # Concatenate all content into a single string
+#     main_content = "\n\n".join(main_content)
+
+#     # Replace URLs with Markdown links in the content
+#     main_content = re.sub(
+#         r"https?://[^\s]+",
+#         lambda match: f"[{match.group(0)}]({match.group(0)})",
+#         main_content
+#     )
+
+#     return {
+#         "llm_output": main_content.strip(),
+#         "options": options
+#     }
+
+
+############3rd try
+
+def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, Any]:
     """
     Parses the output of get_response_evaluation to return llm_output and options.
 
@@ -362,36 +405,43 @@ def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, an
 
     Returns:
         dict: A dictionary containing:
-            - llm_output: Concatenated content of all LLM outputs.
+            - llm_output: Concatenated and cleaned content of all LLM outputs without newlines.
             - options: A list of follow-up questions (empty if none are available).
     """
-    # Initialize variables
     main_content = []
     options = []
 
-    # Handle content structure (assuming a dictionary with strings as keys/values)
+    # Iterate over the evaluation output dictionary
     for key, value in evaluation_output.items():
         if isinstance(value, str):
-            main_content.append(f"{key}: {value}")
+            # Process string values
+            main_content.append(value.strip())
         elif isinstance(value, list):
-            # If value is a list (e.g., options), append it directly to options
+            # Assume lists are for options or follow-ups
             options.extend(value)
-    
-    # Concatenate all content into a single string
-    main_content = "\n\n".join(main_content)
+        elif isinstance(value, dict):
+            # Recursively parse nested dictionaries
+            nested_content = parse_evaluation_response(value)
+            main_content.append(nested_content.get("llm_output", ""))
+            options.extend(nested_content.get("options", []))
 
-    # Replace URLs with Markdown links in the content
-    main_content = re.sub(
+    # Concatenate all main content into a single string
+    content_str = " ".join(main_content)
+
+    # Replace URLs with Markdown links
+    content_str = re.sub(
         r"https?://[^\s]+",
         lambda match: f"[{match.group(0)}]({match.group(0)})",
-        main_content
+        content_str
     )
 
+    # Remove all newlines and extra whitespace
+    content_str = re.sub(r"\s+", " ", content_str).replace("\n", " ").strip()
+
     return {
-        "llm_output": main_content.strip(),
+        "llm_output": content_str,
         "options": options
     }
-
 
 # def get_response_evaluation(
 #     llm: ChatBedrock,
@@ -466,8 +516,8 @@ def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, an
 def get_response_evaluation(
     llm: ChatBedrock,
     retriever,
+    guidelines_file,
     s3_bucket: str = "text-extraction-data-dls",
-    guidelines_file: str = "dsa_guidelines.json"
 ) -> dict:
     """
     Evaluates documents against guidelines using the LLM and retriever.
@@ -481,18 +531,20 @@ def get_response_evaluation(
     Returns:
         dict: Parsed evaluation results.
     """
-    s3 = boto3.client("s3")
+    # s3 = boto3.client("s3")
     
     # Load the guidelines from S3
-    try:
-        obj = s3.get_object(Bucket=s3_bucket, Key=guidelines_file)
-        guidelines_data = json.loads(obj["Body"].read().decode("utf-8"))
-    except Exception as e:
-        raise ValueError(f"Failed to fetch or parse guidelines: {e}")
+    # try:
+    #     obj = s3.get_object(Bucket=s3_bucket, Key=guidelines_file)
+    #     guidelines_data = json.loads(obj["Body"].read().decode("utf-8"))
+    # except Exception as e:
+    #     raise ValueError(f"Failed to fetch or parse guidelines: {e}")
     
     evaluation_results = {}
 
-    for key, value in guidelines_data.items():
+    print(f"guidelines_file: {guidelines_file}")
+
+    for key, value in guidelines_file.items():
         # Format the query string based on the guideline key and values
         value_str = " ".join(value) if isinstance(value, list) else str(value)
         query = f"{key}: {value_str}"

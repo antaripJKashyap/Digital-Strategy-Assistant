@@ -51,6 +51,20 @@ def get_secret(secret_name, expect_json=True):
             raise
     return db_secret
 
+def get_secret(secret_name, expect_json=True):
+    global db_secret
+    if db_secret is None:
+        try:
+            response = secrets_manager_client.get_secret_value(SecretId=secret_name)["SecretString"]
+            db_secret = json.loads(response) if expect_json else response
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
+            raise ValueError(f"Secret {secret_name} is not properly formatted as JSON.")
+        except Exception as e:
+            logger.error(f"Error fetching secret {secret_name}: {e}")
+            raise
+    return db_secret
+
 def get_parameter(param_name, cached_var):
     """
     Fetch a parameter value from Systems Manager Parameter Store.
@@ -63,6 +77,8 @@ def get_parameter(param_name, cached_var):
             logger.error(f"Error fetching parameter {param_name}: {e}")
             raise
     return cached_var
+
+
 def initialize_constants():
     global BEDROCK_LLM_ID, EMBEDDING_MODEL_ID, TABLE_NAME, embeddings
     BEDROCK_LLM_ID = get_parameter(BEDROCK_LLM_PARAM, BEDROCK_LLM_ID)
@@ -76,6 +92,8 @@ def initialize_constants():
         )
     
     create_dynamodb_history_table(TABLE_NAME)
+
+
 def connect_to_db():
     global connection
     if connection is None or connection.closed:
@@ -98,6 +116,8 @@ def connect_to_db():
                 connection.close()
             raise
     return connection
+
+
 def connect_to_comparison_db():
     global connection_comparison
     if connection_comparison is None or connection_comparison.closed:
@@ -178,6 +198,54 @@ def log_user_engagement(
         if cur:
             cur.close()
 
+def get_combined_guidelines(criteria):
+    """
+    Fetch and combine the headers and bodies of all guidelines matching the criteria name.
+
+    Args:
+        criteria (str): The criteria name to search for in the guidelines table.
+
+    Returns:
+        str: A single string combining headers and bodies of all matching guidelines, 
+             or an empty string if no guidelines are found.
+    """
+    connection = connect_to_db()
+    if connection is None:
+        logger.error("No database connection available.")
+        return ""
+
+    try:
+        cur = connection.cursor()
+
+        # Define the SQL query
+        query = """
+        SELECT header, body
+        FROM guidelines
+        WHERE criteria_name = %s
+        ORDER BY timestamp DESC;
+        """
+
+        # Execute the query with the criteria parameter
+        cur.execute(query, (criteria,))
+        results = cur.fetchall()
+
+        # Combine header and body for each guideline
+        combined = ", ".join([f"{row[0]} + {row[1]}" for row in results])
+
+        # Return the combined string
+        return combined
+
+    except Exception as e:
+        logger.error(f"Error fetching guidelines: {e}")
+        connection.rollback()
+        return ""
+
+    finally:
+        if cur:
+            cur.close()
+        logger.info("Database connection closed.")
+
+
 def get_prompt_for_role(user_role):
     connection = connect_to_db()
     if connection is None:
@@ -235,6 +303,52 @@ def get_prompt_for_role(user_role):
         if connection:
             connection.close()
         logger.info("Connection closed.")
+
+def delete_collection_by_id(session_id):
+    """
+    Delete a collection by its ID from the langchain_pg_embedding table.
+    
+    Args:
+        collection_id (str): The ID of the collection to delete.
+    
+    Returns:
+        bool: True if the deletion was successful, False otherwise.
+    """
+    connection_comparison = connect_to_comparison_db()
+    if connection_comparison is None:
+        logger.error("No database connection available for comparison.")
+        return {
+            "statusCode": 500,
+            "body": json.dumps("Database connection failed.")
+        }
+
+    try:
+        with connection_comparison.cursor() as cur:
+            # Construct and execute the DELETE query
+            query = """
+                DELETE FROM langchain_pg_embedding 
+                WHERE collection_id = %s;
+            """
+            logger.debug(f"Executing query: {query} with collection_id: {session_id}")
+            cur.execute(query, (session_id,))
+            
+            # Commit the transaction
+            connection_comparison.commit()
+            logger.info(f"Collection with ID {session_id} deleted successfully.")
+            return True
+
+    except Exception as e:
+        # Rollback in case of any failure
+        connection_comparison.rollback()
+        logger.error(f"Error deleting collection with ID {session_id}: {e}")
+        return False
+
+    finally:
+        # Close the connection
+        if connection_comparison:
+            connection_comparison.close()
+            logger.info("Comparison database connection closed.")
+
 
 def check_embeddings():
     connection = connect_to_db()
@@ -322,6 +436,10 @@ def handler(event, context):
         logger.info("Awaiting user role selection.")
         
     if comparison:
+
+        
+        # guidelines = get_recent_guideline_body(criteria)
+
         
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
@@ -393,7 +511,8 @@ def handler(event, context):
             logger.info("Generating response from the LLM.")
             response = get_response_evaluation(
                 llm=llm,
-                retriever=ordinary_retriever
+                retriever=ordinary_retriever,
+                guidelines_file=guidelines
             )
             print(f"print: response generated after get_response_evaluation")
             logger.info(f"User role {user_role} logged in engagement log.")
@@ -401,13 +520,12 @@ def handler(event, context):
 
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
             try:
-                # Attempt to delete the specified collection
-                user_uploaded_vectorstore.delete_collection(vectorstore_config_dict['collection_name'])
-                logger.info("Evaluation complete. Collection was found and deleted.")
+                    delete_collection_by_id(session_id)
+                    print("Evaluation complete. Collection was found and deleted.")
             except Exception as e:
                 # If an exception is raised, send an error message
                 logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
-    
+                print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
         except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {
