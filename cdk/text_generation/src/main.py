@@ -400,18 +400,15 @@ def handler(event, context):
             print(f"response COMP", response)
 
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
-            
-            # Fetch all collections
-            # collections = user_uploaded_vectorstore.list_collections()
-            # print(f"print: collections fetched COMP")
-            # Check if this collection exists
-            # if vectorstore_config_dict['collection_name'] in collections:
-            #     # If yes, then delete it and notify
-            #     user_uploaded_vectorstore.delete_collection(vectorstore_config_dict['collection_name'])
-            #     print(f"print: collection deleted COMP")
-            #     logger.info(f"Evaluation complete. Collection was found and deleted.")
-            # else:
-            #     logger.info(f"Collection was not found in the vectorstore.")
+            try:
+                # Attempt to delete the specified collection
+                user_uploaded_vectorstore.delete_collection(vectorstore_config_dict['collection_name'])
+                logger.info("Evaluation complete. Collection was found and deleted.")
+            except Exception as e:
+                # If an exception is raised, send an error message
+                logger.info("Collection was not found in the vectorstore or could not be deleted.")
+                logger.debug(f"Exception details: {e}")
+
             
         except Exception as e:
              logger.error(f"Error getting response: {e}")
