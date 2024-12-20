@@ -33,11 +33,12 @@ def get_vectorstore(
     Returns:
     Optional[PGVector]: The initialized PGVector instance, or None if an error occurred.
     """
+    print("inside get_vectorstore")
     try:
         connection_string = (
             f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
         )
-
+        print(f"connection string inside get_vectorstore", connection_string)
         
         logger.info("Initializing the VectorStore")
         vectorstore = PGVector(
@@ -46,6 +47,7 @@ def get_vectorstore(
             connection=connection_string,
             use_jsonb=True
         )
+        print(f"vectorstore in get_vectorstore: {vectorstore}")
 
 
 

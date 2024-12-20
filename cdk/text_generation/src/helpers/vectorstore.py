@@ -71,6 +71,7 @@ def get_vectorstore_retriever_ordinary(
     Returns:
     VectorStoreRetriever: An ordinary (non-history aware) retriever instance.
     """
+    print("inside get_vectorstore_retriever_ordinary")
     vectorstore, _ = get_vectorstore(
         collection_name=vectorstore_config_dict['collection_name'],
         embeddings=embeddings,
