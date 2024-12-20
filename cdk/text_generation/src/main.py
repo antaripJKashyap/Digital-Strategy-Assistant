@@ -51,19 +51,19 @@ def get_secret(secret_name, expect_json=True):
             raise
     return db_secret
 
-def get_secret(secret_name, expect_json=True):
-    global db_secret
-    if db_secret is None:
+def get_secret_comparison(secret_name, expect_json=True):
+    global db_secret_comparison
+    if db_secret_comparison is None:
         try:
             response = secrets_manager_client.get_secret_value(SecretId=secret_name)["SecretString"]
-            db_secret = json.loads(response) if expect_json else response
+            db_secret_comparison = json.loads(response) if expect_json else response
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
             raise ValueError(f"Secret {secret_name} is not properly formatted as JSON.")
         except Exception as e:
             logger.error(f"Error fetching secret {secret_name}: {e}")
             raise
-    return db_secret
+    return db_secret_comparison
 
 def get_parameter(param_name, cached_var):
     """
@@ -122,7 +122,7 @@ def connect_to_comparison_db():
     global connection_comparison
     if connection_comparison is None or connection_comparison.closed:
         try:
-            secret = get_secret(DB_COMP_SECRET_NAME)
+            secret = get_secret_comparison(DB_COMP_SECRET_NAME)
             connection_params = {
                 'dbname': secret["dbname"],
                 'user': secret["username"],
