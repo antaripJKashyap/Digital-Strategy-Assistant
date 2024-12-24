@@ -31,6 +31,7 @@ bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
 connection = None
 connection_comparison = None
 db_secret = None
+db_secret_comparison = None
 BEDROCK_LLM_ID = None
 EMBEDDING_MODEL_ID = None
 TABLE_NAME = None
@@ -323,19 +324,23 @@ def delete_collection_by_id(session_id):
         }
 
     try:
-        with connection_comparison.cursor() as cur:
+        session = session_id
+        print(f"Deleting collection with ID: {session_id}")
+        cur = connection_comparison.cursor()
             # Construct and execute the DELETE query
-            query = """
-                DELETE FROM langchain_pg_embedding 
-                WHERE collection_id = %s;
-            """
-            logger.debug(f"Executing query: {query} with collection_id: {session_id}")
-            cur.execute(query, (session_id,))
+        query = f"""
+            DELETE FROM langchain_pg_embedding 
+            WHERE collection_id = {session};
+        """
+        
+        print(f"Executing query: {query} with collection_id: {session_id}")
+        logger.debug(f"Executing query: {query} with collection_id: {session_id}")
+        cur.execute(query)
             
             # Commit the transaction
-            connection_comparison.commit()
-            logger.info(f"Collection with ID {session_id} deleted successfully.")
-            return True
+        connection_comparison.commit()
+        logger.info(f"Collection with ID {session_id} deleted successfully.")
+        return True
 
     except Exception as e:
         # Rollback in case of any failure
@@ -424,7 +429,7 @@ def handler(event, context):
     question = body.get("message_content", "")
     user_role = body.get("user_role", "")
     comparison = body.get("comparison", "")
-    # criteria = body.get("criteria", "")
+    criteria = body.get("criteria", "")
     
 
     
@@ -438,8 +443,8 @@ def handler(event, context):
     if comparison:
 
         
-        # guidelines = get_recent_guideline_body(criteria)
-
+        guidelines = get_combined_guidelines(criteria)
+        print(f"print: guidelines received COMP:s", guidelines)
         
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
@@ -511,21 +516,20 @@ def handler(event, context):
             logger.info("Generating response from the LLM.")
             response = get_response_evaluation(
                 llm=llm,
-                retriever=ordinary_retriever,
-                guidelines_file=guidelines
+                retriever=ordinary_retriever
             )
             print(f"print: response generated after get_response_evaluation")
             logger.info(f"User role {user_role} logged in engagement log.")
             print(f"response COMP", response)
 
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
-            try:
-                    delete_collection_by_id(session_id)
-                    print("Evaluation complete. Collection was found and deleted.")
-            except Exception as e:
-                # If an exception is raised, send an error message
-                logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
-                print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+            # try:
+            #         delete_collection_by_id(session_id)
+            #         print("Evaluation complete. Collection was found and deleted.")
+            # except Exception as e:
+            #     # If an exception is raised, send an error message
+            #     logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+            #     print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
         except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {

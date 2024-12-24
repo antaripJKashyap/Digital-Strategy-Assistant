@@ -664,7 +664,7 @@ export class ApiGatewayStack extends cdk.Stack {
       {
         parameterName: `/${id}/DSA/BedrockLLMId`,
         description: "Parameter containing the Bedrock LLM ID",
-        stringValue: "meta.llama3-70b-instruct-v1:0",
+        stringValue: "us.meta.llama3-2-90b-instruct-v1:0",
       }
     );
     const embeddingModelParameter = new ssm.StringParameter(
@@ -696,7 +696,7 @@ export class ApiGatewayStack extends cdk.Stack {
       `${id}-TextGenFunction`,
       {
         code: lambda.DockerImageCode.fromImageAsset("./text_generation"),
-        memorySize: 512,
+        memorySize: 4096,
         timeout: cdk.Duration.seconds(300),
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-TextGenFunction`,
@@ -728,19 +728,45 @@ export class ApiGatewayStack extends cdk.Stack {
     // Custom policy statement for Bedrock access
     const bedrockPolicyStatement = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: ["bedrock:InvokeModel", "bedrock:InvokeEndpoint"],
+      actions: ["bedrock:InvokeModel", "bedrock:InvokeEndpoint","bedrock:CreateInferenceProfile",
+        "bedrock:GetInferenceProfile",
+        "bedrock:ListInferenceProfiles",
+        "bedrock:DeleteInferenceProfile",
+        "bedrock:TagResource",
+        "bedrock:UntagResource",
+        "bedrock:ListTagsForResource"],
       resources: [
         "arn:aws:bedrock:" +
           this.region +
-          "::foundation-model/meta.llama3-70b-instruct-v1:0",
+          "::foundation-model/us.meta.llama3-2-90b-instruct-v1:0",
         "arn:aws:bedrock:" +
           this.region +
           "::foundation-model/amazon.titan-embed-text-v2:0",
+          "arn:aws:bedrock:ca-central-1::foundation-model/*",
+          "arn:aws:bedrock:us-west-2::foundation-model/*",
+          "arn:aws:bedrock:us-east-1::foundation-model/*",
+          // Allow access to all inference profiles in ca-central-1, us-west-2, and us-east-1
+          "arn:aws:bedrock:ca-central-1:*:inference-profile/*",
+          "arn:aws:bedrock:us-west-2:*:inference-profile/*",
+          "arn:aws:bedrock:us-east-1:*:inference-profile/*",
       ],
     });
 
+    // const inferencePolicyStatement = new iam.PolicyStatement({
+    //   effect: iam.Effect.ALLOW,
+    //   actions: ["bedrock:InvokeModel*", "bedrock:InvokeEndpoint"],
+    //   resources: [
+    //     // Add resources for us-west-2
+    //     "arn:aws:bedrock:ca-central-1:992382606468:inference-profile/*",
+    //     "arn:aws:bedrock:us-east-1::foundation-model/*",
+    //     "arn:aws:bedrock:us-west-2::foundation-model/*",
+    //     "arn:aws:bedrock:ca-central-1::foundation-model/*",
+    //   ],
+    // });
+
     // Attach the custom Bedrock policy to Lambda function
     textGenFunc.addToRolePolicy(bedrockPolicyStatement);
+    // textGenFunc.addToRolePolicy(inferencePolicyStatement);
 
     // Grant access to Secret Manager
     textGenFunc.addToRolePolicy(
@@ -992,7 +1018,7 @@ export class ApiGatewayStack extends cdk.Stack {
       })
     );
     comparisonDataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
-
+    // comparisonDataIngestFunction.addToRolePolicy(inferencePolicyStatement);
     // Grant access to Secret Manager
     comparisonDataIngestFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -1128,6 +1154,7 @@ export class ApiGatewayStack extends cdk.Stack {
     );
 
     dataIngestFunction.addToRolePolicy(bedrockPolicyStatement);
+    // dataIngestFunction.addToRolePolicy(inferencePolicyStatement);
 
     dataIngestFunction.addEventSource(
       new lambdaEventSources.S3EventSource(dataIngestionBucket, {
