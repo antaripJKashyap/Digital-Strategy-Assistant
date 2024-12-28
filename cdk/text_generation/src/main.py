@@ -222,7 +222,7 @@ def get_combined_guidelines(criteria):
         query = """
         SELECT header, body
         FROM guidelines
-        WHERE criteria_name = %s
+        WHERE criteria_name = ANY(%s)
         ORDER BY timestamp DESC;
         """
 
@@ -231,10 +231,9 @@ def get_combined_guidelines(criteria):
         results = cur.fetchall()
 
         # Combine header and body for each guideline
-        combined = ", ".join([f"{row[0]} + {row[1]}" for row in results])
-
-        # Return the combined string
-        return combined
+        # combined = ", ".join([f"{row[0]} + {row[1]}" for row in results])
+        
+        return results
 
     except Exception as e:
         logger.error(f"Error fetching guidelines: {e}")
@@ -245,7 +244,6 @@ def get_combined_guidelines(criteria):
         if cur:
             cur.close()
         logger.info("Database connection closed.")
-
 
 def get_prompt_for_role(user_role):
     connection = connect_to_db()
@@ -442,7 +440,7 @@ def handler(event, context):
         
     if comparison:
 
-        
+        print(f"criteria COMP", criteria)
         guidelines = get_combined_guidelines(criteria)
         print(f"print: guidelines received COMP:s", guidelines)
         
