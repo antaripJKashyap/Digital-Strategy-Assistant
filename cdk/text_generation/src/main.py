@@ -199,16 +199,15 @@ def log_user_engagement(
         if cur:
             cur.close()
 
-def get_combined_guidelines(criteria):
+def get_combined_guidelines(criteria_list):
     """
-    Fetch and combine the headers and bodies of all guidelines matching the criteria name.
+    Fetch and organize headers and bodies of all guidelines matching the given criteria names.
 
     Args:
-        criteria (str): The criteria name to search for in the guidelines table.
+        criteria_list (list): A list of criteria names to search for in the guidelines table.
 
     Returns:
-        str: A single string combining headers and bodies of all matching guidelines, 
-             or an empty string if no guidelines are found.
+        str: A JSON-formatted string organizing headers and bodies under their respective criteria names.
     """
     connection = connect_to_db()
     if connection is None:
@@ -218,32 +217,85 @@ def get_combined_guidelines(criteria):
     try:
         cur = connection.cursor()
 
-        # Define the SQL query
+        # Define the SQL query with IN clause
         query = """
-        SELECT header, body
+        SELECT criteria_name, header, body
         FROM guidelines
         WHERE criteria_name = ANY(%s)
-        ORDER BY timestamp DESC;
+        ORDER BY criteria_name, timestamp DESC;
         """
 
-        # Execute the query with the criteria parameter
-        cur.execute(query, (criteria,))
+        # Execute the query with the criteria list as a parameter
+        cur.execute(query, (criteria_list,))
         results = cur.fetchall()
 
-        # Combine header and body for each guideline
-        # combined = ", ".join([f"{row[0]} + {row[1]}" for row in results])
-        
-        return results
+        # Organize results into a dictionary
+        guidelines_dict = {}
+        for criteria_name, header, body in results:
+            if criteria_name not in guidelines_dict:
+                guidelines_dict[criteria_name] = []
+            # Combine header and body in the desired format
+            guidelines_dict[criteria_name].append(f"{header}: {body}")
+
+        # Convert the dictionary to JSON format
+        return json.dumps(guidelines_dict, indent=4)
 
     except Exception as e:
         logger.error(f"Error fetching guidelines: {e}")
-        connection.rollback()
         return ""
 
     finally:
         if cur:
             cur.close()
-        logger.info("Database connection closed.")
+        if connection:
+            connection.close()
+
+############################### working code for getting guidelines
+# def get_combined_guidelines(criteria):
+#     """
+#     Fetch and combine the headers and bodies of all guidelines matching the criteria name.
+
+#     Args:
+#         criteria (str): The criteria name to search for in the guidelines table.
+
+#     Returns:
+#         str: A single string combining headers and bodies of all matching guidelines, 
+#              or an empty string if no guidelines are found.
+#     """
+#     connection = connect_to_db()
+#     if connection is None:
+#         logger.error("No database connection available.")
+#         return ""
+
+#     try:
+#         cur = connection.cursor()
+
+#         # Define the SQL query
+#         query = """
+#         SELECT header, body
+#         FROM guidelines
+#         WHERE criteria_name = ANY(%s)
+#         ORDER BY timestamp DESC;
+#         """
+
+#         # Execute the query with the criteria parameter
+#         cur.execute(query, (criteria,))
+#         results = cur.fetchall()
+
+#         # Combine header and body for each guideline
+#         # combined = ", ".join([f"{row[0]} + {row[1]}" for row in results])
+        
+#         return results
+
+#     except Exception as e:
+#         logger.error(f"Error fetching guidelines: {e}")
+#         connection.rollback()
+#         return ""
+
+#     finally:
+#         if cur:
+#             cur.close()
+#         logger.info("Database connection closed.")
 
 def get_prompt_for_role(user_role):
     connection = connect_to_db()
@@ -322,18 +374,18 @@ def delete_collection_by_id(session_id):
         }
 
     try:
-        session = session_id
+        
         print(f"Deleting collection with ID: {session_id}")
         cur = connection_comparison.cursor()
             # Construct and execute the DELETE query
-        query = f"""
+        query = """
             DELETE FROM langchain_pg_embedding 
-            WHERE collection_id = {session};
+            WHERE collection_id = %s;
         """
         
         print(f"Executing query: {query} with collection_id: {session_id}")
         logger.debug(f"Executing query: {query} with collection_id: {session_id}")
-        cur.execute(query)
+        cur.execute(query, (session_id,))
             
             # Commit the transaction
         connection_comparison.commit()
@@ -440,7 +492,7 @@ def handler(event, context):
         
     if comparison:
 
-        print(f"criteria COMP", criteria)
+        print(f"session_id COMP 787r9843r84390834908390839084309", session_id)
         guidelines = get_combined_guidelines(criteria)
         print(f"print: guidelines received COMP:s", guidelines)
         
@@ -514,20 +566,21 @@ def handler(event, context):
             logger.info("Generating response from the LLM.")
             response = get_response_evaluation(
                 llm=llm,
-                retriever=ordinary_retriever
+                retriever=ordinary_retriever,
+                guidelines_file=guidelines
             )
             print(f"print: response generated after get_response_evaluation")
             logger.info(f"User role {user_role} logged in engagement log.")
             print(f"response COMP", response)
 
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
-            # try:
-            #         delete_collection_by_id(session_id)
-            #         print("Evaluation complete. Collection was found and deleted.")
-            # except Exception as e:
-            #     # If an exception is raised, send an error message
-            #     logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
-            #     print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+            try:
+                delete_collection_by_id(session_id)
+                print("Evaluation complete. Collection was found and deleted.")
+            except Exception as e:
+                # If an exception is raised, send an error message
+                logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+                print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
         except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {

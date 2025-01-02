@@ -516,8 +516,8 @@ def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, An
 def get_response_evaluation(
     llm: ChatBedrock,
     retriever,
+    guidelines_file,
     s3_bucket: str = "text-extraction-data-dls",
-    guidelines_file: str = "dsa_guidelines.json"
     
 ) -> dict:
     """
@@ -532,20 +532,22 @@ def get_response_evaluation(
     Returns:
         dict: Parsed evaluation results.
     """
-    s3 = boto3.client("s3")
+    # s3 = boto3.client("s3")
     
-    # Load the guidelines from S3
-    try:
-        obj = s3.get_object(Bucket=s3_bucket, Key=guidelines_file)
-        guidelines_data = json.loads(obj["Body"].read().decode("utf-8"))
-    except Exception as e:
-        raise ValueError(f"Failed to fetch or parse guidelines: {e}")
-    
+    # # Load the guidelines from S3
+    # try:
+    #     obj = s3.get_object(Bucket=s3_bucket, Key=guidelines_file)
+    #     guidelines_data = json.loads(obj["Body"].read().decode("utf-8"))
+    # except Exception as e:
+    #     raise ValueError(f"Failed to fetch or parse guidelines: {e}")
+    if isinstance(guidelines_file, str):
+        guidelines_file = json.loads(guidelines_file)
+
     evaluation_results = {}
 
     print(f"guidelines_file: {guidelines_file}")
 
-    for key, value in guidelines_data.items():
+    for key, value in guidelines_file.items():
         # Format the query string based on the guideline key and values
         value_str = " ".join(value) if isinstance(value, list) else str(value)
         query = f"{key}: {value_str}"
