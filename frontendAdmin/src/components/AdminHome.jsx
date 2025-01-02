@@ -10,6 +10,7 @@ import Sidebar from "./Sidebar.jsx";
 import Header from "./Header.jsx";
 import PostAuthHeader from "./PostAuthHeader.jsx";
 import History from "./history/History.jsx";
+import AllMessages from "./allMessages/AllMessages.jsx";
 import Category_creation from "./categories/Category_creation.jsx";
 import Edit_Category from "./categories/Edit_Category.jsx";
 import { toast, ToastContainer } from "react-toastify";
@@ -83,6 +84,8 @@ const AdminHome = () => {
           return <Feedback />;
         case "guidelines":
           return <Guidelines />;
+        case "allMessages":
+            return <AllMessages />;
         default:
           return <Analytics />;
       }

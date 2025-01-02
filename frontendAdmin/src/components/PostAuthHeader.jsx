@@ -20,6 +20,8 @@ const PostAuthHeader = ({ page }) => {
         return "Edit Category";
       case "guidelines":
         return "Guidelines";
+      case "allMessages":
+          return "All Messages";
       default:
         return "Administrator Dashboard";
     }

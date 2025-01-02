@@ -45,6 +45,11 @@ const menuItems = [
     label: "Guidelines",
     icon: ScrollText,
   },
+  {
+    id: "allMessages",
+    label: "Get Chat History",
+    icon: ScrollText,
+  },
 ];
 
 export default function Component( {selectedPage, setSelectedPage} ) {
