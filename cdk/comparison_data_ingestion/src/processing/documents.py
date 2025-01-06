@@ -6,6 +6,7 @@ from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_experimental.text_splitter import SemanticChunker
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.indexes import SQLRecordManager, index
 
 # from transformers import pipeline
@@ -144,7 +145,8 @@ def store_doc_chunks(
     Returns:
     List[Document]: A list of all document chunks for this document that were added to the vectorstore.
     """
-    text_splitter = SemanticChunker(embeddings)
+    #text_splitter = SemanticChunker(embeddings)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=0)
     this_doc_chunks = []
 
     for documentname in documentnames:
