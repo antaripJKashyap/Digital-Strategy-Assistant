@@ -350,6 +350,78 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     cfnNotificationFunction.overrideLogicalId("NotificationFunction");
 
+    const chatHistory = new lambda.DockerImageFunction(this, `${id}-chatHistory`, {
+      code: lambda.DockerImageCode.fromImageAsset("./chatHistory"),
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(600),
+      vpc: vpcStack.vpc, // Pass the VPC
+      functionName: `${id}-chatHistory`,
+      environment: {
+        SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
+        CHATLOGS_BUCKET: csv_bucket.bucketName,
+        REGION: this.region,
+      },
+    });
+
+     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+     const cfnSqsTrigger = chatHistory.node
+     .defaultChild as lambda.CfnFunction;
+     cfnSqsTrigger.overrideLogicalId(
+     "SQSTrigger"
+    );
+
+    csv_bucket.grantReadWrite(chatHistory);
+
+    // Add ListBucket permission explicitly
+    chatHistory.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:ListBucket"],
+        resources: [csv_bucket.bucketArn], // Access to the specific bucket
+      })
+    );
+
+    chatHistory.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:DeleteObject",
+          "s3:HeadObject",
+        ],
+        resources: [
+          `arn:aws:s3:::${csv_bucket.bucketName}/*`, // Grant access to all objects within this bucket
+        ],
+      })
+    );
+
+    // Add the S3 event source trigger to the Lambda function
+    chatHistory.addEventSource(
+      new lambdaEventSources.S3EventSource(csv_bucket, {
+        events: [
+          s3.EventType.OBJECT_CREATED,
+          s3.EventType.OBJECT_REMOVED,
+          s3.EventType.OBJECT_RESTORE_COMPLETED,
+        ],
+      })
+    );
+
+    // Grant access to Secret Manager
+    chatHistory.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          //Secrets Manager
+          "secretsmanager:GetSecretValue",
+        ],
+        resources: [
+          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
+        ],
+      })
+    );
+
     const lambdaUserFunction = new lambda.Function(this, `${id}-userFunction`, {
       runtime: lambda.Runtime.NODEJS_20_X,
       code: lambda.Code.fromAsset("lambda/lib"),

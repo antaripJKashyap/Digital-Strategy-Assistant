@@ -199,6 +199,56 @@ def log_user_engagement(
         if cur:
             cur.close()
 
+# def get_combined_guidelines(criteria_list):
+#     """
+#     Fetch and organize headers and bodies of all guidelines matching the given criteria names.
+
+#     Args:
+#         criteria_list (list): A list of criteria names to search for in the guidelines table.
+
+#     Returns:
+#         str: A JSON-formatted string organizing headers and bodies under their respective criteria names.
+#     """
+#     connection = connect_to_db()
+#     if connection is None:
+#         logger.error("No database connection available.")
+#         return ""
+
+#     try:
+#         cur = connection.cursor()
+
+#         # Define the SQL query with IN clause
+#         query = """
+#         SELECT criteria_name, header, body
+#         FROM guidelines
+#         WHERE criteria_name = ANY(%s)
+#         ORDER BY criteria_name, timestamp DESC;
+#         """
+
+#         # Execute the query with the criteria list as a parameter
+#         cur.execute(query, (criteria_list,))
+#         results = cur.fetchall()
+
+#         # Organize results into a dictionary
+#         guidelines_dict = {}
+#         for criteria_name, header, body in results:
+#             if criteria_name not in guidelines_dict:
+#                 guidelines_dict[criteria_name] = []
+#             # Combine header and body in the desired format
+#             guidelines_dict[criteria_name].append(f"{header}: {body}")
+
+#         # Convert the dictionary to JSON format
+#         return json.dumps(guidelines_dict, indent=4)
+
+#     except Exception as e:
+#         logger.error(f"Error fetching guidelines: {e}")
+#         return ""
+
+#     finally:
+#         if cur:
+#             cur.close()
+#         if connection:
+#             connection.close()
 def get_combined_guidelines(criteria_list):
     """
     Fetch and organize headers and bodies of all guidelines matching the given criteria names.
@@ -207,12 +257,12 @@ def get_combined_guidelines(criteria_list):
         criteria_list (list): A list of criteria names to search for in the guidelines table.
 
     Returns:
-        str: A JSON-formatted string organizing headers and bodies under their respective criteria names.
+        dict: A dictionary organizing headers and bodies under their respective criteria names.
     """
     connection = connect_to_db()
     if connection is None:
         logger.error("No database connection available.")
-        return ""
+        return {}
 
     try:
         cur = connection.cursor()
@@ -237,12 +287,12 @@ def get_combined_guidelines(criteria_list):
             # Combine header and body in the desired format
             guidelines_dict[criteria_name].append(f"{header}: {body}")
 
-        # Convert the dictionary to JSON format
-        return json.dumps(guidelines_dict, indent=4)
+        # Return the dictionary
+        return guidelines_dict
 
     except Exception as e:
         logger.error(f"Error fetching guidelines: {e}")
-        return ""
+        return {}
 
     finally:
         if cur:
@@ -250,52 +300,6 @@ def get_combined_guidelines(criteria_list):
         if connection:
             connection.close()
 
-############################### working code for getting guidelines
-# def get_combined_guidelines(criteria):
-#     """
-#     Fetch and combine the headers and bodies of all guidelines matching the criteria name.
-
-#     Args:
-#         criteria (str): The criteria name to search for in the guidelines table.
-
-#     Returns:
-#         str: A single string combining headers and bodies of all matching guidelines, 
-#              or an empty string if no guidelines are found.
-#     """
-#     connection = connect_to_db()
-#     if connection is None:
-#         logger.error("No database connection available.")
-#         return ""
-
-#     try:
-#         cur = connection.cursor()
-
-#         # Define the SQL query
-#         query = """
-#         SELECT header, body
-#         FROM guidelines
-#         WHERE criteria_name = ANY(%s)
-#         ORDER BY timestamp DESC;
-#         """
-
-#         # Execute the query with the criteria parameter
-#         cur.execute(query, (criteria,))
-#         results = cur.fetchall()
-
-#         # Combine header and body for each guideline
-#         # combined = ", ".join([f"{row[0]} + {row[1]}" for row in results])
-        
-#         return results
-
-#     except Exception as e:
-#         logger.error(f"Error fetching guidelines: {e}")
-#         connection.rollback()
-#         return ""
-
-#     finally:
-#         if cur:
-#             cur.close()
-#         logger.info("Database connection closed.")
 
 def get_prompt_for_role(user_role):
     connection = connect_to_db()
@@ -494,7 +498,7 @@ def handler(event, context):
 
         print(f"session_id COMP 787r9843r84390834908390839084309", session_id)
         guidelines = get_combined_guidelines(criteria)
-        print(f"print: guidelines received COMP:s", guidelines)
+        print(f"print: guidelines received COMP:s", type(guidelines))
         
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
