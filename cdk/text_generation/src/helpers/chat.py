@@ -4,7 +4,9 @@ from langchain_aws import ChatBedrock
 from langchain_aws import BedrockLLM
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.output_parsers import StrOutputParser
 from langchain.chains import create_retrieval_chain
+from langchain_core.runnables import RunnablePassthrough
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.pydantic_v1 import BaseModel, Field
@@ -508,7 +510,9 @@ def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, An
 #     return parsed_response
 
 def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+    context = "\n\n".join(doc.page_content for doc in docs)
+    print(f"Context being sent to the LLM: {context}")
+    return context
 
 def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
     """
@@ -551,7 +555,7 @@ def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
 
     rag_chain = (
     {
-        "context": retriever | format_docs,
+        "context": retriever,
         "guidelines": RunnablePassthrough(),
     }
     | prompt
@@ -563,7 +567,8 @@ def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
     for master_key, master_value in guidelines_file.items():
         for guideline in master_value:
             try:
-                response = rag_chain.invoke({"guidelines": guideline})
+                response = rag_chain.invoke(guideline)
+                print(f"Retriever's output = {retriever.invoke(guideline)}")
                 evaluation_results[guideline.split(":")[0]] = response
             except Exception as e:
                 evaluation_results[guideline.split(":")[0]] = f"Error during evaluation: {e}"

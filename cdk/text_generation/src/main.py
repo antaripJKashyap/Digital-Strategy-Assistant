@@ -504,14 +504,14 @@ def handler(event, context):
         # Try obtaining vectorstore config for the user uploaded document vectorstore
         try:
             logger.info("Retrieving vectorstore config.")
-            db_secret = get_secret(DB_SECRET_NAME)
+            db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
             print(f"print: getting secret COMP")
             vectorstore_config_dict = {
                 'collection_name': session_id,
                 'dbname': db_secret["dbname"],
                 'user': db_secret["username"],
                 'password': db_secret["password"],
-                'host': RDS_PROXY_ENDPOINT,
+                'host': RDS_PROXY_COMP_ENDPOINT,
                 'port': db_secret["port"]
             }
         except Exception as e:
