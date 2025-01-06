@@ -549,16 +549,6 @@ def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
         input_variables=["context", "guidelines"],
     )
 
-    rag_chain = RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        chain_type="stuff",
-        chain_type_kwargs={
-            "prompt": prompt,
-            "question_key": "guidelines",  # so it knows to look for "guidelines" as the query
-        },
-    )
-
     rag_chain = (
     {
         "context": retriever | format_docs,
