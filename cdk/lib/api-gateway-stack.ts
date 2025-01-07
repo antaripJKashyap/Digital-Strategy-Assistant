@@ -13,7 +13,6 @@ import {
   LayerVersion,
   Runtime,
 } from "aws-cdk-lib/aws-lambda";
-//import { VpcStack } from './vpc-stack';
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import { CfnJson } from "aws-cdk-lib";
 import { VpcStack } from "./vpc-stack";

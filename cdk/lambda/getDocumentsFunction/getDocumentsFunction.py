@@ -20,33 +20,41 @@ BUCKET = os.environ["BUCKET"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 
+# AWS Clients
+secrets_manager_client = boto3.client('secretsmanager')
+# Global variables for caching
+connection = None
+db_secret = None
+
 def get_secret():
-    # secretsmanager client to get db credentials
-    sm_client = boto3.client("secretsmanager")
-    response = sm_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
-    secret = json.loads(response)
-    return secret
+    global db_secret
+    if not db_secret:
+        response = secrets_manager_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
+        db_secret = json.loads(response)
+    return db_secret
 
 def connect_to_db():
-    try:
-        db_secret = get_secret()
-        connection_params = {
-            'dbname': db_secret["dbname"],
-            'user': db_secret["username"],
-            'password': db_secret["password"],
-            'host': RDS_PROXY_ENDPOINT,
-            'port': db_secret["port"]
-        }
-        connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-        connection = psycopg2.connect(connection_string)
-        logger.info("Connected to the database!")
-        return connection
-    except Exception as e:
-        logger.error(f"Failed to connect to database: {e}")
-        if connection:
-            connection.rollback()
-            connection.close()
-        return None
+    global connection
+    if connection is None or connection.closed:
+        try:
+            secret = get_secret()
+            connection_params = {
+                'dbname': secret["dbname"],
+                'user': secret["username"],
+                'password': secret["password"],
+                'host': RDS_PROXY_ENDPOINT,
+                'port': secret["port"]
+            }
+            connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
+            connection = psycopg2.connect(connection_string)
+            logger.info("Connected to the database!")
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            if connection:
+                connection.rollback()
+                connection.close()
+            raise
+    return connection
 
 def list_documents_in_s3_prefix(bucket, prefix):
     documents = []
@@ -101,7 +109,7 @@ def get_document_metadata_from_db(category_id, document_name, document_type):
         cur.execute(query, (category_id, document_name, document_type))
         result = cur.fetchone()
         cur.close()
-        connection.close()
+        
 
         if result:
             return result[0]
@@ -113,9 +121,7 @@ def get_document_metadata_from_db(category_id, document_name, document_type):
         logger.error(f"Error retrieving metadata for {document_name}.{document_type}: {e}")
         if cur:
             cur.close()
-        if connection:
-            connection.rollback()
-            connection.close()
+        connection.rollback()
         return None
 
 @logger.inject_lambda_context
