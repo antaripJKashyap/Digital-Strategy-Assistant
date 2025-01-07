@@ -574,7 +574,7 @@ export class ApiGatewayStack extends cdk.Stack {
         functionName: `${id}-TextGenFunction`,
         environment: {
           SM_DB_CREDENTIALS: db.secretPathUser.secretName,
-          RDS_PROXY_ENDPOINT: db.rdsProxyEndpointAdmin,
+          RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
           REGION: this.region,
           BEDROCK_LLM_PARAM: bedrockLLMParameter.parameterName,
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
