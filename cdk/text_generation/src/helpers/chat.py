@@ -155,9 +155,11 @@ def get_response(
         "The response should always include follow-up quesions which are related to the Digital Learning Strategy and the user's role."
         "Give links in the response if present in the documents."
         "Example format how to format links in the response:"
-        "If the user asks where to learn about the Digital Learning Strategy, the response should be 'You can learn more about the Digital Learning Strategy at https://www2.gov.bc.ca/gov/content?id=2E522682E64045FD8B3C2A99F894668C.'."
-        "Only give links if it exists in the documents. Do not make up links."
+        "If the user asks where to learn about the Digital Learning Strategy, the response should be 'You can learn more about the Digital Learning Strategy at https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy .'"
+        "Only give links if it exists in the documents. Do not make up links. Do not end links with a period."
         "Never give follow-up questions not related to the Digital Learning Strategy and the user's role."
+        "This is the link for Digital Learning Strategy home page: https://www2.gov.bc.ca/gov/content/education-training/post-secondary-education/institution-resources-administration/digital-learning-strategy "
+        "NEVER ADD A '.' AT THE END OF THE LINKS"
         "documents"
         "{context}"
         ""
@@ -248,7 +250,8 @@ def get_llm_output(response: str) -> dict:
 
     # Function to format URLs as Markdown links
     def markdown_link_replacer(match):
-        url = match.group(0)  # Capture the full matched URL
+        # url = match.group(0)  # Capture the full matched URL
+        url = match.group(0).rstrip('.')
         return f"[{url}]({url})"  # Use the full URL in both display text and hyperlink
 
     # Replace all URLs in the main content with Markdown hyperlinks

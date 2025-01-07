@@ -14,6 +14,7 @@ import { VpcStack } from './vpc-stack';
 export class DatabaseStack extends Stack {
   public readonly dbInstance: rds.DatabaseInstance;
   public readonly secretPathAdminName: string;
+  public readonly rdsProxyEndpointAdmin: string;
   public readonly secretPathUser: secretsmanager.Secret;
   public readonly secretPathTableCreator: secretsmanager.Secret;
   public readonly rdsProxyEndpoint: string;
@@ -70,6 +71,8 @@ export class DatabaseStack extends Stack {
         },
       }
     );
+
+    
     const parameterGroup = new rds.ParameterGroup(this, `rdsParameterGroup`, {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_16_3,
@@ -160,6 +163,20 @@ export class DatabaseStack extends Stack {
       requireTLS: false,
     });
 
+    const secretPathAdmin = secretmanager.Secret.fromSecretNameV2(
+      this,
+      "AdminSecret",
+      this.secretPathAdminName
+    );
+
+    const rdsProxyAdmin = this.dbInstance.addProxy(id + "-proxy-admin", {
+      secrets: [secretPathAdmin],
+      vpc: vpcStack.vpc,
+      role: rdsProxyRole,
+      securityGroups: this.dbInstance.connections.securityGroups,
+      requireTLS: false,
+    });
+
     // Workaround for bug where TargetGroupName is not set but required
     let targetGroup = rdsProxy.node.children.find((child: any) => {
       return child instanceof rds.CfnDBProxyTargetGroup;
@@ -178,6 +195,7 @@ export class DatabaseStack extends Stack {
 
     this.dbInstance.grantConnect(rdsProxyRole);
     this.rdsProxyEndpoint = rdsProxy.endpoint;
+    this.rdsProxyEndpointAdmin = rdsProxyAdmin.endpoint;
     this.rdsProxyEndpointTableCreator = rdsProxyTableCreator.endpoint;
   }
 }
