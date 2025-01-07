@@ -67,7 +67,7 @@ def parse_s3_file_path(document_key):
     # Assuming the file path is of the format: {category_id}/{document_name}.{document_type}
     try:
         category_id, documentname_with_ext = document_key.split('/')
-        document_name, document_type = documentname_with_ext.split('.')
+        document_name, document_type = documentname_with_ext.rsplit('.', 1)  # Split on the last period
         return category_id, document_name, document_type
     except Exception as e:
         logger.error(f"Error parsing S3 document path: {e}")

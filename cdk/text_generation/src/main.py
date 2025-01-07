@@ -152,20 +152,20 @@ def get_prompt_for_role(user_role):
         cur = connection.cursor()
         logger.info("Connected to RDS instance!")
 
-        # Validate the role
-        valid_roles = ["public", "educator", "admin"]
-        if user_role not in valid_roles:
-            logger.error(f"Invalid user_role: {user_role}")
-            return None
+        # Define a list of allowed role values (whitelist)
+        VALID_ROLES = ["public", "educator", "admin"]  # add all valid column names
+        if user_role not in VALID_ROLES:
+            raise ValueError(f"Invalid role specified: {user_role}")
 
-        # Query to fetch the most recent prompt for the specified role
-        query = f"""
-            SELECT {user_role}
+        query = """
+            SELECT {}
             FROM prompts
-            WHERE {user_role} IS NOT NULL
+            WHERE {} IS NOT NULL
             ORDER BY time_created DESC NULLS LAST
             LIMIT 1;
-        """
+        """.format(psycopg2.extensions.quote_ident(user_role, cur),
+                psycopg2.extensions.quote_ident(user_role, cur))
+
         cur.execute(query)
         result = cur.fetchone()
         logger.info(f"Query result for role {user_role}: {result}")
