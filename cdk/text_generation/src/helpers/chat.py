@@ -129,7 +129,7 @@ def get_bedrock_llm(
             model_kwargs=dict(temperature=temperature),
             guardrails={
                 'guardrailIdentifier': guardrailId,
-                'guardrailVersion': '1.0',
+                'guardrailVersion': 'DRAFT',
                 'trace': True
             }
         )
