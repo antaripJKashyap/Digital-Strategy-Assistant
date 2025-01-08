@@ -326,17 +326,85 @@ def get_llm_output(response: str) -> dict:
 
 
 
-def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, Any]:
+# def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, Any]:
+#     """
+#     Parses the output of get_response_evaluation to return llm_output and options.
+
+#     Args:
+#         evaluation_output (dict): The dictionary output of get_response_evaluation.
+#             It contains keys like 'response' or 'evaluation' and associated feedback.
+
+#     Returns:
+#         dict: A dictionary containing:
+#             - llm_output: Concatenated and cleaned content of all LLM outputs without newlines.
+#             - options: A list of follow-up questions (empty if none are available).
+#     """
+#     main_content = []
+#     options = []
+
+#     # Iterate over the evaluation output dictionary
+#     for key, value in evaluation_output.items():
+#         if isinstance(value, str):
+#             # Process string values
+#             main_content.append(value.strip())
+#         elif isinstance(value, list):
+#             # Assume lists are for options or follow-ups
+#             options.extend(value)
+#         elif isinstance(value, dict):
+#             # Recursively parse nested dictionaries
+#             nested_content = parse_evaluation_response(value)
+#             main_content.append(nested_content.get("llm_output", ""))
+#             options.extend(nested_content.get("options", []))
+
+#     # Concatenate all main content into a single string
+#     content_str = " ".join(main_content)
+
+#     # Replace URLs with Markdown links
+#     content_str = re.sub(
+#         r"https?://[^\s]+",
+#         lambda match: f"[{match.group(0)}]({match.group(0)})",
+#         content_str
+#     )
+
+#     # Remove all newlines and extra whitespace
+#     content_str = re.sub(r"\s+", " ", content_str).replace("\n", " ").strip()
+
+#     return {
+#         "llm_output": content_str,
+#         "options": options
+#     }
+#####^^^^^^ working
+
+
+def format_to_markdown(evaluation_results: dict) -> str:
     """
-    Parses the output of get_response_evaluation to return llm_output and options.
+    Converts the evaluation results dictionary into markdown format.
+
+    Args:
+        evaluation_results (dict): A dictionary where keys are headers and values are body content.
+
+    Returns:
+        str: A string in markdown format.
+    """
+    markdown_output = []
+
+    for header, body in evaluation_results.items():
+        # Format the header as bold and add the body text in the same row
+        markdown_output.append(f"**{header}:** {body}")
+    
+    return "\n".join(markdown_output)
+
+
+def parse_evaluation_response(evaluation_output: dict) -> dict:
+    """
+    Parses the output of get_response_evaluation to return markdown-ready content.
 
     Args:
         evaluation_output (dict): The dictionary output of get_response_evaluation.
-            It contains keys like 'response' or 'evaluation' and associated feedback.
 
     Returns:
         dict: A dictionary containing:
-            - llm_output: Concatenated and cleaned content of all LLM outputs without newlines.
+            - markdown_output: Rendered markdown content for the evaluation results.
             - options: A list of follow-up questions (empty if none are available).
     """
     main_content = []
@@ -346,33 +414,25 @@ def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, An
     for key, value in evaluation_output.items():
         if isinstance(value, str):
             # Process string values
-            main_content.append(value.strip())
+            main_content.append((key, value.strip()))
         elif isinstance(value, list):
             # Assume lists are for options or follow-ups
             options.extend(value)
         elif isinstance(value, dict):
             # Recursively parse nested dictionaries
             nested_content = parse_evaluation_response(value)
-            main_content.append(nested_content.get("llm_output", ""))
+            main_content.extend(nested_content.get("main_content", []))
             options.extend(nested_content.get("options", []))
 
-    # Concatenate all main content into a single string
-    content_str = " ".join(main_content)
-
-    # Replace URLs with Markdown links
-    content_str = re.sub(
-        r"https?://[^\s]+",
-        lambda match: f"[{match.group(0)}]({match.group(0)})",
-        content_str
-    )
-
-    # Remove all newlines and extra whitespace
-    content_str = re.sub(r"\s+", " ", content_str).replace("\n", " ").strip()
+    # Generate markdown content
+    markdown_ready = {key: value for key, value in main_content}
+    markdown_output = format_to_markdown(markdown_ready)
 
     return {
-        "llm_output": content_str,
-        "options": options
+        "llm_output": markdown_output,
+        "options": options,
     }
+
 
 
 def format_docs(docs):
@@ -434,5 +494,6 @@ def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
                 evaluation_results[guideline.split(":")[0]] = response
             except Exception as e:
                 evaluation_results[guideline.split(":")[0]] = f"Error during evaluation: {e}"
-
+                
+    print(f"evaluation results output:", evaluation_results)
     return parse_evaluation_response(evaluation_results)
