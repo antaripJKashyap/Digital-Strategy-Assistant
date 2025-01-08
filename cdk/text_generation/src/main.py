@@ -388,12 +388,12 @@ def delete_collection_by_id(session_id):
         """
         
         print(f"Executing query: {query} with collection_id: {session_id}")
-        logger.debug(f"Executing query: {query} with collection_id: {session_id}")
+        print(f"Executing query: {query} with collection_id: {session_id}")
         cur.execute(query, (session_id,))
             
-            # Commit the transaction
+        # Commit the transaction
         connection_comparison.commit()
-        logger.info(f"Collection with ID {session_id} deleted successfully.")
+        print(f"Collection with ID {session_id} deleted successfully.")
         return True
 
     except Exception as e:
