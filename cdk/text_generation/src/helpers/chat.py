@@ -63,6 +63,7 @@ def create_dynamodb_history_table(table_name: str) -> bool:
         table.meta.client.get_waiter("table_exists").wait(TableName=table_name)
 
 def get_guardrails():
+    bedrock = boto3.client('bedrock')  # Add this line to define the bedrock client
     response = bedrock.create_guardrail(
     name='comprehensive-guardrail-' + datetime.now().strftime("%Y%m%d-%H%M"),
     description='Guardrail to prevent financial advice, offensive content, and exposure of PII.',
@@ -323,79 +324,7 @@ def get_llm_output(response: str) -> dict:
         "options": questions
     }
 
-# def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, any]:
-#     """
-#     Parses the output of get_response_evaluation to return llm_output and options.
 
-#     Args:
-#         evaluation_output (dict): The dictionary output of get_response_evaluation.
-#             It contains keys like 'type', 'content', 'options', and 'user_role'.
-
-#     Returns:
-#         dict: A dictionary containing:
-#             - llm_output: Concatenated content of all LLM outputs.
-#             - options: A list of follow-up questions (empty in this case).
-#     """
-#     content = evaluation_output.get("content", {})  # Extract the 'content' key
-#     options = evaluation_output.get("options", [])  # Extract the 'options' key
-
-#     # Concatenate all content values into a single string
-#     main_content = "\n\n".join([f"{key}: {value}" for key, value in content.items()])
-
-#     # Replace URLs in the content with Markdown links
-#     def markdown_link_replacer(match):
-#         url = match.group(0)
-#         return f"[{url}]({url})"
-
-#     main_content = re.sub(r"https?://[^\s]+", markdown_link_replacer, main_content)
-
-#     return {
-#         "llm_output": main_content.strip(),
-#         "options": options
-#     }
-#################2nd try
-# def parse_evaluation_response(evaluation_output: Dict[str, any]) -> Dict[str, any]:
-#     """
-#     Parses the output of get_response_evaluation to return llm_output and options.
-
-#     Args:
-#         evaluation_output (dict): The dictionary output of get_response_evaluation.
-#             It contains keys like 'response' or 'evaluation' and associated feedback.
-
-#     Returns:
-#         dict: A dictionary containing:
-#             - llm_output: Concatenated content of all LLM outputs.
-#             - options: A list of follow-up questions (empty if none are available).
-#     """
-#     # Initialize variables
-#     main_content = []
-#     options = []
-
-#     # Handle content structure (assuming a dictionary with strings as keys/values)
-#     for key, value in evaluation_output.items():
-#         if isinstance(value, str):
-#             main_content.append(f"{key}: {value}")
-#         elif isinstance(value, list):
-#             # If value is a list (e.g., options), append it directly to options
-#             options.extend(value)
-    
-#     # Concatenate all content into a single string
-#     main_content = "\n\n".join(main_content)
-
-#     # Replace URLs with Markdown links in the content
-#     main_content = re.sub(
-#         r"https?://[^\s]+",
-#         lambda match: f"[{match.group(0)}]({match.group(0)})",
-#         main_content
-#     )
-
-#     return {
-#         "llm_output": main_content.strip(),
-#         "options": options
-#     }
-
-
-############3rd try
 
 def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -444,6 +373,7 @@ def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, An
         "llm_output": content_str,
         "options": options
     }
+
 
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
@@ -505,4 +435,4 @@ def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
             except Exception as e:
                 evaluation_results[guideline.split(":")[0]] = f"Error during evaluation: {e}"
 
-    return evaluation_results
+    return parse_evaluation_response(evaluation_results)

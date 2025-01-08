@@ -580,7 +580,7 @@ def handler(event, context):
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
             try:
                 delete_collection_by_id(session_id)
-                print("Evaluation complete. Collection was found and deleted.")
+                # print("Evaluation complete. Collection was found and deleted.")
             except Exception as e:
                 # If an exception is raised, send an error message
                 logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
