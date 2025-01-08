@@ -759,6 +759,8 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    
+
     /**
      *
      * Create Lambda with container image for text generation workflow in RAG pipeline
@@ -784,6 +786,20 @@ export class ApiGatewayStack extends cdk.Stack {
         },
       }
     );
+
+    textGenFunc.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "bedrock:CreateGuardrail", // Permission to create guardrails
+          "bedrock:ListGuardrails",  // (Optional) To list existing guardrails
+          "bedrock:InvokeGuardrail",
+          "bedrock:ApplyGuardrail"  // (Optional) To invoke the guardrail for filtering
+        ],
+        resources: ["arn:aws:bedrock:"+this.region+":"+this.account+":guardrail/*"], // Replace with specific resource ARNs if available
+      })
+    );
+  
 
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnTextGenDockerFunc = textGenFunc.node
@@ -822,6 +838,9 @@ export class ApiGatewayStack extends cdk.Stack {
     //     "arn:aws:bedrock:ca-central-1::foundation-model/*",
     //   ],
     // });
+
+
+    
 
     // Attach the custom Bedrock policy to Lambda function
     textGenFunc.addToRolePolicy(bedrockPolicyStatement);
