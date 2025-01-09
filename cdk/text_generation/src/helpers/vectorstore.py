@@ -33,7 +33,7 @@ def get_vectorstore_retriever(
     )
 
     retriever = vectorstore.as_retriever()
-
+    print(f"exiting get_vectorstore")
     # Contextualize question and create history-aware retriever
     contextualize_q_system_prompt = (
         "Given a chat history and the latest user question "
@@ -42,6 +42,8 @@ def get_vectorstore_retriever(
         "without the chat history. Do NOT answer the question, "
         "just reformulate it if needed and otherwise return it as is."
     )
+
+    print(f"before from_messages")
     contextualize_q_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", contextualize_q_system_prompt),
@@ -49,9 +51,11 @@ def get_vectorstore_retriever(
             ("human", "{input}"),
         ]
     )
+    print(f"after from_messages")
     history_aware_retriever = create_history_aware_retriever(
         llm, retriever, contextualize_q_prompt
     )
+    print(f"exiting get_vectorstore_retriever")
 
     return history_aware_retriever
 

@@ -21,6 +21,7 @@ def update_vectorstore(
     None
     """
     # bucket = "DSA-data-ingestion-bucket"
+    print(f"vectorstore_config_dict", vectorstore_config_dict)
     store_category_data(
         bucket=bucket,
         category_id=category_id,

@@ -49,6 +49,7 @@ def get_vectorstore(
             connection=connection_string,
             use_jsonb=True
         )
+        print(f"vectorstore in get_vectorstore", vectorstore)
 
         logger.info("VectorStore initialized")
         return vectorstore, connection_string
@@ -82,7 +83,7 @@ def store_category_data(
         host=vectorstore_config_dict['host'],
         port=int(vectorstore_config_dict['port'])
     )
-    print("vector_store",vectorstore)
+    print("vector_store in store category data",vectorstore)
     if vectorstore:
         # define record manager
         namespace = f"pgvector/{vectorstore_config_dict['collection_name']}"

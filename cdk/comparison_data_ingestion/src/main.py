@@ -127,6 +127,7 @@ def update_vectorstore_from_s3(bucket, session_id):
     }
 
     try:
+        print(f"session_id Comparison data ingestion", session_id)
         update_vectorstore(
             bucket=bucket,
             category_id=session_id,

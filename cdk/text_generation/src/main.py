@@ -496,7 +496,7 @@ def handler(event, context):
         
     if comparison:
 
-        print(f"session_id COMP 787r9843r84390834908390839084309", session_id)
+        print(f"session_id Comparison", session_id)
         guidelines = get_combined_guidelines(criteria)
         print(f"print: guidelines received COMP:s", type(guidelines))
         
@@ -505,7 +505,7 @@ def handler(event, context):
         try:
             logger.info("Retrieving vectorstore config.")
             db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
-            print(f"print: getting secret COMP")
+            
             vectorstore_config_dict = {
                 'collection_name': session_id,
                 'dbname': db_secret["dbname"],
@@ -514,6 +514,8 @@ def handler(event, context):
                 'host': RDS_PROXY_COMP_ENDPOINT,
                 'port': db_secret["port"]
             }
+            print(f"session_id:", session_id)
+            print(f"print: vectorstore_config_dict COMP", vectorstore_config_dict)
         except Exception as e:
             logger.error(f"Error retrieving vectorstore config: {e}")
             return {
@@ -748,6 +750,7 @@ def handler(event, context):
     
     try:
         logger.info("Generating response from the LLM.")
+        print(f"before get_response")
         response = get_response(
             query=student_query,
             llm=llm,

@@ -223,7 +223,7 @@ def get_response(
         ""
         "assistant"
     )
-    
+    print(f"inside get_response before chatprompttemplate")
     qa_prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
@@ -233,7 +233,7 @@ def get_response(
     )
     question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
     rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-
+    print(f"before dynamodb chatmessagehistory")
     conversational_rag_chain = RunnableWithMessageHistory(
         rag_chain,
         lambda session_id: DynamoDBChatMessageHistory(
@@ -244,8 +244,10 @@ def get_response(
         history_messages_key="chat_history",
         output_messages_key="answer",
     )
+    print(f"after dynamodb chatmessagehistory")
     
     # Generate the response until it's not empty
+    print(f"before generate_response")
     response = ""
     while not response:
         response = generate_response(
@@ -253,8 +255,10 @@ def get_response(
             query,
             session_id
         )
+    print(f"after generate_response")
 
     response_data = get_llm_output(response)
+    print(f"after get_llm_output")
     return {
         "llm_output": response_data.get("llm_output"),
         "options": response_data.get("options")
