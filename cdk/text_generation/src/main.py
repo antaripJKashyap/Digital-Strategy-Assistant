@@ -388,7 +388,6 @@ def delete_collection_by_id(session_id):
         """
         
         print(f"Executing query: {query} with collection_id: {session_id}")
-        print(f"Executing query: {query} with collection_id: {session_id}")
         cur.execute(query, (session_id,))
             
         # Commit the transaction
@@ -496,16 +495,12 @@ def handler(event, context):
         
     if comparison:
 
-        print(f"session_id COMP 787r9843r84390834908390839084309", session_id)
         guidelines = get_combined_guidelines(criteria)
-        print(f"print: guidelines received COMP:s", type(guidelines))
-        
         logger.info(f"Comparison document received: {comparison}")
         # Try obtaining vectorstore config for the user uploaded document vectorstore
         try:
             logger.info("Retrieving vectorstore config.")
             db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
-            print(f"print: getting secret COMP")
             vectorstore_config_dict = {
                 'collection_name': session_id,
                 'dbname': db_secret["dbname"],
@@ -529,7 +524,6 @@ def handler(event, context):
         try:
             logger.info("Creating Bedrock LLM instance.")
             llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=True)
-            print(f"print: llm created COMP")
         except Exception as e:
             logger.error(f"Error getting LLM from Bedrock: {e}")
             return {
@@ -545,13 +539,11 @@ def handler(event, context):
         # Try obtaining the ordinary retriever given this vectorstore config dict
         try:
             logger.info("Creating ordinary retriever for user uploaded vectorstore.")
-            print(f"print: creating ordinary retriever for user uploaded vectorstore COMP")
             ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
                 llm=llm,
                 vectorstore_config_dict=vectorstore_config_dict,
                 embeddings=embeddings
             )
-            print(f"print: ordinary retriever created COMP")
         except Exception as e:
             logger.error(f"Error creating ordinary retriever for user uploaded vectorstore: {e}")
             return {
@@ -573,17 +565,12 @@ def handler(event, context):
                 retriever=ordinary_retriever,
                 guidelines_file=guidelines
             )
-            print(f"print: response generated after get_response_evaluation")
             logger.info(f"User role {user_role} logged in engagement log.")
-            print(f"response COMP", response)
 
             # Delete the collection from the vectorstore after the embeddings have been used for evaluation
             try:
                 delete_collection_by_id(session_id)
-                # print("Evaluation complete. Collection was found and deleted.")
             except Exception as e:
-                # If an exception is raised, send an error message
-                logger.info(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
                 print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
         except Exception as e:
              logger.error(f"Error getting response: {e}")
