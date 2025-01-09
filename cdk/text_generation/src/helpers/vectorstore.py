@@ -82,4 +82,6 @@ def get_vectorstore_retriever_ordinary(
         port=int(vectorstore_config_dict['port'])
     )
 
-    return vectorstore.as_retriever(search_kwargs={'k': 3}), vectorstore
+    print(f"Collection name INSIDE get_vectorstore_retriever_ordinary: {vectorstore_config_dict['collection_name']}")
+
+    return vectorstore.as_retriever(search_kwargs={'k': 4}), vectorstore
