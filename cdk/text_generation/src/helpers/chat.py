@@ -393,10 +393,10 @@ def format_to_markdown(evaluation_results: dict) -> str:
     markdown_output = []
 
     for header, body in evaluation_results.items():
-        # Format the header as bold and add the body text in the same row
-        markdown_output.append(f"**{header}:** {body}")
+        # Add a blank line before each heading for better spacing
+        markdown_output.append(f"\n**{header}:** {body}")
     
-    return "\n".join(markdown_output)
+    return "\n".join(markdown_output).strip()
 
 
 def parse_evaluation_response(evaluation_output: dict) -> dict:

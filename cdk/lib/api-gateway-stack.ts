@@ -46,9 +46,12 @@ export class ApiGatewayStack extends cdk.Stack {
   private eventApi: appsync.GraphqlApi;
   public getEndpointUrl = () => this.api.url;
   private downloadMessagesApi: appsync.GraphqlApi;
+  private compTextGenApi: appsync.GraphqlApi;
   public getUserPoolId = () => this.userPool.userPoolId;
   public getUserPoolClientId = () => this.appClient.userPoolClientId;
   public getEventApiUrl = () => this.eventApi.graphqlUrl;
+  public getDownloadMessagesApiUrl = () => this.downloadMessagesApi.graphqlUrl;
+  public getCompTextGenApiUrl = () => this.compTextGenApi.graphqlUrl;
   public getIdentityPoolId = () => this.identityPool.ref;
   public addLayer = (name: string, layer: LayerVersion) =>
     (this.layerList[name] = layer);
@@ -79,6 +82,14 @@ export class ApiGatewayStack extends cdk.Stack {
     // Create FIFO SQS Queue
     const csvQueue = new sqs.Queue(this, `${id}-CsvQueue`, {
       queueName: `${id}-csv-queue.fifo`,
+      fifo: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      visibilityTimeout: cdk.Duration.seconds(900),
+    });
+
+    // Create FIFO SQS Queue
+    const compTextGenQueue = new sqs.Queue(this, `${id}-CompTextGenQueue`, {
+      queueName: `${id}-CompTextGen-queue.fifo`,
       fifo: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       visibilityTimeout: cdk.Duration.seconds(900),
@@ -288,6 +299,20 @@ export class ApiGatewayStack extends cdk.Stack {
       }
     );
 
+    this.compTextGenApi = new appsync.GraphqlApi(this, `${id}-CompTextGenApi`, {
+      name: `${id}-CompTextGenApi`,
+      definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
+      authorizationConfig: {
+        defaultAuthorization: {
+          authorizationType: appsync.AuthorizationType.LAMBDA,
+          lambdaAuthorizerConfig: {
+            handler: authHandler,
+          },
+        },
+      },
+      xrayEnabled: true,
+    });
+
     const notificationFunction = new lambda.Function(
       this,
       `${id}-NotificationFunction`,
@@ -318,6 +343,8 @@ export class ApiGatewayStack extends cdk.Stack {
         actions: ["appsync:GraphQL"],
         resources: [
           `arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}/*`,
+          `arn:aws:appsync:${this.region}:${this.account}:apis/${this.downloadMessagesApi.apiId}/*`,
+          `arn:aws:appsync:${this.region}:${this.account}:apis/${this.compTextGenApi.apiId}/*`,
         ],
       })
     );
@@ -328,10 +355,35 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}/*`,
     });
 
+    notificationFunction.addPermission("AppSyncInvokePermission", {
+      principal: new iam.ServicePrincipal("appsync.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.downloadMessagesApi.apiId}/*`,
+    });
+
+    notificationFunction.addPermission("AppSyncInvokePermission", {
+      principal: new iam.ServicePrincipal("appsync.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.compTextGenApi.apiId}/*`,
+    });
+
     const notificationLambdaDataSource = this.eventApi.addLambdaDataSource(
       "NotificationLambdaDataSource",
       notificationFunction
     );
+
+
+    const compTextGenLambdaDataSource = this.compTextGenApi.addLambdaDataSource(
+      "CompTextGenLambdaDataSource",
+      notificationFunction
+    );
+
+    compTextGenLambdaDataSource.createResolver("ResolverCompTextGenApi", {
+      typeName: "Mutation",
+      fieldName: "compTextGen",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
 
     notificationLambdaDataSource.createResolver("ResolverEventApi", {
       typeName: "Mutation",
@@ -966,6 +1018,34 @@ export class ApiGatewayStack extends cdk.Stack {
 
     // Add the permission to the Lambda function's policy to allow API Gateway access
     csvFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+
+
+    // First Lambda Function (S3 Ingestion)
+    const compTextGenFunction = new lambda.Function(this, `${id}-CompTextGenFunction`, {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "compsqs.handler",
+      memorySize: 512,
+      code: lambda.Code.fromAsset("lambda/sqs"),
+      timeout: cdk.Duration.seconds(900),
+      environment: {
+        SQS_QUEUE_URL: compTextGenQueue.queueUrl,
+      },
+      vpc: vpcStack.vpc,
+      role: coglambdaRole,
+    });
+
+    compTextGenQueue.grantSendMessages(csvFunction);
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfncompTextGenFunction = compTextGenFunction.node.defaultChild as lambda.CfnFunction;
+    cfncompTextGenFunction.overrideLogicalId("compTextGenFunction");
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    compTextGenFunction.addPermission("AllowApiGatewayInvoke", {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,

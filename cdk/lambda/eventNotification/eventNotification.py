@@ -2,11 +2,9 @@ import json
 import os
 import boto3
 
-APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
-APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
 
 def lambda_handler(event, context):
-#working##########################
+
     print(f"Event Received: {json.dumps(event)}")
 
     try:
