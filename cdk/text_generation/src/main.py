@@ -14,7 +14,7 @@ from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-
+COMP_TEXT_GEN_QUEUE_URL = os.environ["COMP_TEXT_GEN_QUEUE_URL"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 DB_COMP_SECRET_NAME = os.environ["SM_DB_COMP_CREDENTIALS"]
 REGION = os.environ["REGION"]
@@ -199,56 +199,6 @@ def log_user_engagement(
         if cur:
             cur.close()
 
-# def get_combined_guidelines(criteria_list):
-#     """
-#     Fetch and organize headers and bodies of all guidelines matching the given criteria names.
-
-#     Args:
-#         criteria_list (list): A list of criteria names to search for in the guidelines table.
-
-#     Returns:
-#         str: A JSON-formatted string organizing headers and bodies under their respective criteria names.
-#     """
-#     connection = connect_to_db()
-#     if connection is None:
-#         logger.error("No database connection available.")
-#         return ""
-
-#     try:
-#         cur = connection.cursor()
-
-#         # Define the SQL query with IN clause
-#         query = """
-#         SELECT criteria_name, header, body
-#         FROM guidelines
-#         WHERE criteria_name = ANY(%s)
-#         ORDER BY criteria_name, timestamp DESC;
-#         """
-
-#         # Execute the query with the criteria list as a parameter
-#         cur.execute(query, (criteria_list,))
-#         results = cur.fetchall()
-
-#         # Organize results into a dictionary
-#         guidelines_dict = {}
-#         for criteria_name, header, body in results:
-#             if criteria_name not in guidelines_dict:
-#                 guidelines_dict[criteria_name] = []
-#             # Combine header and body in the desired format
-#             guidelines_dict[criteria_name].append(f"{header}: {body}")
-
-#         # Convert the dictionary to JSON format
-#         return json.dumps(guidelines_dict, indent=4)
-
-#     except Exception as e:
-#         logger.error(f"Error fetching guidelines: {e}")
-#         return ""
-
-#     finally:
-#         if cur:
-#             cur.close()
-#         if connection:
-#             connection.close()
 def get_combined_guidelines(criteria_list):
     """
     Fetch and organize headers and bodies of all guidelines matching the given criteria names.
