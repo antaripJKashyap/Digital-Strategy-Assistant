@@ -8,7 +8,6 @@ from helpers.helper import get_vectorstore
 
 
 def get_vectorstore_retriever_ordinary(
-    llm,
     vectorstore_config_dict: Dict[str, str],
     embeddings#: BedrockEmbeddings
 ) -> VectorStoreRetriever:
@@ -16,7 +15,6 @@ def get_vectorstore_retriever_ordinary(
     Retrieve the vectorstore and directly return it.
 
     Args:
-    llm: The language model instance used to generate the response.
     vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore, including parameters like collection name, database name, user, password, host, and port.
     embeddings (BedrockEmbeddings): The embeddings instance used to process the documents.
 
