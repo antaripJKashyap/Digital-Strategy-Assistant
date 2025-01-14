@@ -234,8 +234,10 @@ def get_combined_guidelines(criteria_list):
 
 
 def handler(event, context):
-    logger.info("Comparison Text Generation Lambda function is called!")
+    print("Comparison Text Generation Lambda function is called!")
     initialize_constants()
+    user_uploaded_vectorstore = None
+    
     for record in event['Records']:
         message_body = json.loads(record['body'])
         session_id = message_body['session_id']
@@ -289,7 +291,6 @@ def handler(event, context):
         try:
             logger.info("Creating ordinary retriever for user uploaded vectorstore.")
             ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
-                llm=llm,
                 vectorstore_config_dict=vectorstore_config_dict,
                 embeddings=embeddings
             )
@@ -314,14 +315,15 @@ def handler(event, context):
                 retriever=ordinary_retriever,
                 guidelines_file=guidelines
             )
-            logger.info(f"User role {user_role} logged in engagement log.")
+            print(f"User role {user_role} logged in engagement log.")
             print(f"response from llm", response)
             invoke_event_notification(session_id, response.get("llm_output", "LLM failed to create response"))
-            # Delete the collection from the vectorstore after the embeddings have been used for evaluation
-            # try:
-            #     delete_collection_by_id(session_id)
-            # except Exception as e:
-            #     print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+            # Delete the collection from the user_uploaded_vectorstore after the embeddings have been used for evaluation
+            if user_uploaded_vectorstore:
+                user_uploaded_vectorstore.delete_collection()
+                print("User uploaded vector store collection deleted after evaluation was generated successfully.")
+            else:
+                print("User uploaded vector store collection not found! Could not delete it as a result.")
         except Exception as e:
              logger.error(f"Error getting response: {e}")
              return {
