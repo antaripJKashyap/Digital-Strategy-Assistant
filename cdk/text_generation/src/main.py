@@ -3,6 +3,7 @@ import json
 import boto3
 import logging
 import psycopg2
+import hashlib
 import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
@@ -24,6 +25,7 @@ BEDROCK_LLM_PARAM = os.environ["BEDROCK_LLM_PARAM"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
 TABLE_NAME_PARAM = os.environ["TABLE_NAME_PARAM"]
 # AWS Clients
+sqs = boto3.client('sqs')
 secrets_manager_client = boto3.client("secretsmanager")
 ssm_client = boto3.client("ssm", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
@@ -445,119 +447,156 @@ def handler(event, context):
         
     if comparison:
 
-        print(f"session_id Comparison", session_id)
-        guidelines = get_combined_guidelines(criteria)
-        logger.info(f"Comparison document received: {comparison}")
-        # Try obtaining vectorstore config for the user uploaded document vectorstore
         try:
-            logger.info("Retrieving vectorstore config.")
-            db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
+            message_body = {
+                'session_id': session_id,
+                'user_role': user_role,
+                'criteria': criteria
+            }
+            message_deduplication_id = hashlib.md5(json.dumps(message_body).encode('utf-8')).hexdigest()
+            sqs.send_message(
+                QueueUrl=os.environ["COMP_TEXT_GEN_QUEUE_URL"],
+                MessageBody=json.dumps(message_body),
+                MessageGroupId=session_id,  # Add MessageGroupId for FIFO queue
+                MessageDeduplicationId=message_deduplication_id
+            )
+            return {
+                'statusCode': 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps({'session_id': session_id})
+            }
+        except Exception as e:
+            logger.error(f"Error sending message to SQS: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error sending message to SQS')
+            }
+
+
+        # print(f"session_id Comparison", session_id)
+        # guidelines = get_combined_guidelines(criteria)
+        # logger.info(f"Comparison document received: {comparison}")
+        # # Try obtaining vectorstore config for the user uploaded document vectorstore
+        # try:
+        #     logger.info("Retrieving vectorstore config.")
+        #     db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
             
-            vectorstore_config_dict = {
-                'collection_name': session_id,
-                'dbname': db_secret["dbname"],
-                'user': db_secret["username"],
-                'password': db_secret["password"],
-                'host': RDS_PROXY_COMP_ENDPOINT,
-                'port': db_secret["port"]
-            }
-            print(f"session_id:", session_id)
-            print(f"print: vectorstore_config_dict COMP", vectorstore_config_dict)
-        except Exception as e:
-            logger.error(f"Error retrieving vectorstore config: {e}")
-            return {
-                'statusCode': 500,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-                'body': json.dumps('Error retrieving user uploaded document vectorstore config')
-            }
-        try:
-            logger.info("Creating Bedrock LLM instance.")
-            llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=True)
-        except Exception as e:
-            logger.error(f"Error getting LLM from Bedrock: {e}")
-            return {
-                'statusCode': 500,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-                'body': json.dumps('Error getting LLM from Bedrock')
-            }
-        # Try obtaining the ordinary retriever given this vectorstore config dict
-        try:
-            logger.info("Creating ordinary retriever for user uploaded vectorstore.")
-            ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
-                llm=llm,
-                vectorstore_config_dict=vectorstore_config_dict,
-                embeddings=embeddings
-            )
-        except Exception as e:
-            logger.error(f"Error creating ordinary retriever for user uploaded vectorstore: {e}")
-            return {
-                'statusCode': 500,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-                'body': json.dumps('Error creating ordinary retriever for user uploaded vectorstore')
-            }
+        #     vectorstore_config_dict = {
+        #         'collection_name': session_id,
+        #         'dbname': db_secret["dbname"],
+        #         'user': db_secret["username"],
+        #         'password': db_secret["password"],
+        #         'host': RDS_PROXY_COMP_ENDPOINT,
+        #         'port': db_secret["port"]
+        #     }
+        #     print(f"session_id:", session_id)
+        #     print(f"print: vectorstore_config_dict COMP", vectorstore_config_dict)
+        # except Exception as e:
+        #     logger.error(f"Error retrieving vectorstore config: {e}")
+        #     return {
+        #         'statusCode': 500,
+        #         "headers": {
+        #             "Content-Type": "application/json",
+        #             "Access-Control-Allow-Headers": "*",
+        #             "Access-Control-Allow-Origin": "*",
+        #             "Access-Control-Allow-Methods": "*",
+        #         },
+        #         'body': json.dumps('Error retrieving user uploaded document vectorstore config')
+        #     }
+        # try:
+        #     logger.info("Creating Bedrock LLM instance.")
+        #     llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=True)
+        # except Exception as e:
+        #     logger.error(f"Error getting LLM from Bedrock: {e}")
+        #     return {
+        #         'statusCode': 500,
+        #         "headers": {
+        #             "Content-Type": "application/json",
+        #             "Access-Control-Allow-Headers": "*",
+        #             "Access-Control-Allow-Origin": "*",
+        #             "Access-Control-Allow-Methods": "*",
+        #         },
+        #         'body': json.dumps('Error getting LLM from Bedrock')
+        #     }
+        # # Try obtaining the ordinary retriever given this vectorstore config dict
+        # try:
+        #     logger.info("Creating ordinary retriever for user uploaded vectorstore.")
+        #     ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
+        #         llm=llm,
+        #         vectorstore_config_dict=vectorstore_config_dict,
+        #         embeddings=embeddings
+        #     )
+        # except Exception as e:
+        #     logger.error(f"Error creating ordinary retriever for user uploaded vectorstore: {e}")
+        #     return {
+        #         'statusCode': 500,
+        #         "headers": {
+        #             "Content-Type": "application/json",
+        #             "Access-Control-Allow-Headers": "*",
+        #             "Access-Control-Allow-Origin": "*",
+        #             "Access-Control-Allow-Methods": "*",
+        #         },
+        #         'body': json.dumps('Error creating ordinary retriever for user uploaded vectorstore')
+        #     }
 
-        # Try getting an evaluation result from the LLM
-        try:
-            logger.info("Generating response from the LLM.")
-            response = get_response_evaluation(
-                llm=llm,
-                retriever=ordinary_retriever,
-                guidelines_file=guidelines
-            )
-            logger.info(f"User role {user_role} logged in engagement log.")
+        # # Try getting an evaluation result from the LLM
+        # try:
+        #     logger.info("Generating response from the LLM.")
+        #     response = get_response_evaluation(
+        #         llm=llm,
+        #         retriever=ordinary_retriever,
+        #         guidelines_file=guidelines
+        #     )
+        #     logger.info(f"User role {user_role} logged in engagement log.")
 
-            # Delete the collection from the vectorstore after the embeddings have been used for evaluation
-            try:
-                delete_collection_by_id(session_id)
-            except Exception as e:
-                print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
-        except Exception as e:
-             logger.error(f"Error getting response: {e}")
-             return {
-                    'statusCode': 500,
-                    "headers": {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Headers": "*",
-                        "Access-Control-Allow-Origin": "*",
-                        "Access-Control-Allow-Methods": "*",
-                    },
-                    'body': json.dumps('Error getting response')
-                }
+        #     # Delete the collection from the vectorstore after the embeddings have been used for evaluation
+        #     try:
+        #         delete_collection_by_id(session_id)
+        #     except Exception as e:
+        #         print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+        # except Exception as e:
+        #      logger.error(f"Error getting response: {e}")
+        #      return {
+        #             'statusCode': 500,
+        #             "headers": {
+        #                 "Content-Type": "application/json",
+        #                 "Access-Control-Allow-Headers": "*",
+        #                 "Access-Control-Allow-Origin": "*",
+        #                 "Access-Control-Allow-Methods": "*",
+        #             },
+        #             'body': json.dumps('Error getting response')
+        #         }
         
-        logger.info("Returning the generated evaluation.")
+        # logger.info("Returning the generated evaluation.")
 
-        # This part below might have to be fixed
-        # If LLM did generate a response, return it
-        return {
-            "statusCode": 200,
-            "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "*",
-                },
-            "body": json.dumps({
-                "type": "ai",
-                "content": response.get("llm_output", "LLM failed to create response"),
-                "options": [],
-                "user_role": user_role
-            })
-        }
+        # # This part below might have to be fixed
+        # # If LLM did generate a response, return it
+        # return {
+        #     "statusCode": 200,
+        #     "headers": {
+        #             "Content-Type": "application/json",
+        #             "Access-Control-Allow-Headers": "*",
+        #             "Access-Control-Allow-Origin": "*",
+        #             "Access-Control-Allow-Methods": "*",
+        #         },
+        #     "body": json.dumps({
+        #         "type": "ai",
+        #         "content": response.get("llm_output", "LLM failed to create response"),
+        #         "options": [],
+        #         "user_role": user_role
+        #     })
+        # }
         
     
     logger.info("Fetching prompts from the database.")

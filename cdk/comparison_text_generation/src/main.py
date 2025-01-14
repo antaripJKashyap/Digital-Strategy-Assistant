@@ -3,16 +3,16 @@ import json
 import boto3
 import logging
 import psycopg2
+import httpx
 import uuid, datetime
 from langchain_aws import BedrockEmbeddings
-
-from helpers.vectorstore import get_vectorstore_retriever, get_vectorstore_retriever_ordinary
-from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response, get_response_evaluation
+from helpers.vectorstore import get_vectorstore_retriever_ordinary
+from helpers.chat import get_bedrock_llm, get_response_evaluation
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-
+APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
 COMP_TEXT_GEN_QUEUE_URL = os.environ["COMP_TEXT_GEN_QUEUE_URL"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 DB_COMP_SECRET_NAME = os.environ["SM_DB_COMP_CREDENTIALS"]
@@ -36,6 +36,48 @@ EMBEDDING_MODEL_ID = None
 TABLE_NAME = None
 # Cached embeddings instance
 embeddings = None
+
+def invoke_event_notification(session_id, message):
+    """
+    Publish a notification event to AppSync via HTTPX (directly to the AppSync API).
+    """
+    try:
+        query = """
+        mutation sendNotification($message: String!, $sessionId: String!) {
+            sendNotification(message: $message, sessionId: $sessionId) {
+                message
+                sessionId
+            }
+        }
+        """
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "API_KEY"
+        }
+
+        payload = {
+            "query": query,
+            "variables": {
+                "message": message,
+                "sessionId": session_id
+            }
+        }
+
+        # Send the request to AppSync
+        with httpx.Client() as client:
+            response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
+            response_data = response.json()
+
+            logging.info(f"AppSync Response: {json.dumps(response_data, indent=2)}")
+            if response.status_code != 200 or "errors" in response_data:
+                raise Exception(f"Failed to send notification: {response_data}")
+
+            print(f"Notification sent successfully: {response_data}")
+            return response_data["data"]["sendNotification"]
+
+    except Exception as e:
+        logging.error(f"Error publishing event to AppSync: {str(e)}")
+        raise
 
 def get_secret(secret_name, expect_json=True):
     global db_secret
@@ -91,7 +133,7 @@ def initialize_constants():
             region_name=REGION,
         )
     
-    create_dynamodb_history_table(TABLE_NAME)
+    # create_dynamodb_history_table(TABLE_NAME)
 
 def connect_to_db():
     global connection
@@ -194,5 +236,121 @@ def get_combined_guidelines(criteria_list):
 def handler(event, context):
     logger.info("Comparison Text Generation Lambda function is called!")
     initialize_constants()
+    for record in event['Records']:
+        message_body = json.loads(record['body'])
+        session_id = message_body['session_id']
+        user_role = message_body['user_role']
+        criteria = message_body['criteria']
 
-    print("Inside new lambda")
+        print(f"Processing message for session_id: {session_id}, user_role: {user_role}, criteria: {criteria}")
+        try:
+            guidelines = get_combined_guidelines(criteria)
+            logger.info("Retrieving vectorstore config.")
+            db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
+            
+            vectorstore_config_dict = {
+                'collection_name': session_id,
+                'dbname': db_secret["dbname"],
+                'user': db_secret["username"],
+                'password': db_secret["password"],
+                'host': RDS_PROXY_COMP_ENDPOINT,
+                'port': db_secret["port"]
+            }
+            print(f"session_id:", session_id)
+            print(f"print: vectorstore_config_dict COMP", vectorstore_config_dict)
+        except Exception as e:
+            logger.error(f"Error retrieving vectorstore config: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error retrieving user uploaded document vectorstore config')
+            }
+        try:
+            logger.info("Creating Bedrock LLM instance.")
+            llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=True)
+        except Exception as e:
+            logger.error(f"Error getting LLM from Bedrock: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error getting LLM from Bedrock')
+            }
+        # Try obtaining the ordinary retriever given this vectorstore config dict
+        try:
+            logger.info("Creating ordinary retriever for user uploaded vectorstore.")
+            ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
+                llm=llm,
+                vectorstore_config_dict=vectorstore_config_dict,
+                embeddings=embeddings
+            )
+        except Exception as e:
+            logger.error(f"Error creating ordinary retriever for user uploaded vectorstore: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error creating ordinary retriever for user uploaded vectorstore')
+            }
+
+        # Try getting an evaluation result from the LLM
+        try:
+            logger.info("Generating response from the LLM.")
+            response = get_response_evaluation(
+                llm=llm,
+                retriever=ordinary_retriever,
+                guidelines_file=guidelines
+            )
+            logger.info(f"User role {user_role} logged in engagement log.")
+            print(f"response from llm", response)
+            invoke_event_notification(session_id, response.get("llm_output", "LLM failed to create response"))
+            # Delete the collection from the vectorstore after the embeddings have been used for evaluation
+            # try:
+            #     delete_collection_by_id(session_id)
+            # except Exception as e:
+            #     print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
+        except Exception as e:
+             logger.error(f"Error getting response: {e}")
+             return {
+                    'statusCode': 500,
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Headers": "*",
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "*",
+                    },
+                    'body': json.dumps('Error getting response')
+                }
+        
+        logger.info("Returning the generated evaluation.")
+
+        # This part below might have to be fixed
+        # If LLM did generate a response, return it
+        return {
+            "statusCode": 200,
+            "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+            "body": json.dumps({
+                "type": "ai",
+                "content": response.get("llm_output", "LLM failed to create response"),
+                "options": [],
+                "user_role": user_role
+            })
+        }

@@ -831,6 +831,7 @@ export class ApiGatewayStack extends cdk.Stack {
           EMBEDDING_MODEL_PARAM: embeddingModelParameter.parameterName,
           TABLE_NAME_PARAM: tableNameParameter.parameterName,
           COMP_TEXT_GEN_QUEUE_URL: compTextGenQueue.queueUrl,
+          APPSYNC_API_URL: this.compTextGenApi.graphqlUrl,
         },
       }
     );
@@ -1119,8 +1120,9 @@ export class ApiGatewayStack extends cdk.Stack {
       role: coglambdaRole,
     });
 
-    compTextGenQueue.grantSendMessages(compTextGenFunction);
-
+    // compTextGenQueue.grantSendMessages(compTextGenFunction);
+    compTextGenQueue.grantConsumeMessages(documentCompFunc);
+    compTextGenQueue.grantSendMessages(textGenFunc);
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfncompTextGenFunction = compTextGenFunction.node.defaultChild as lambda.CfnFunction;
     cfncompTextGenFunction.overrideLogicalId("compTextGenFunction");

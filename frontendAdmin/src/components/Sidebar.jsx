@@ -6,6 +6,7 @@ import {
   FileText,
   MessageCircle,
   ScrollText,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -48,7 +49,7 @@ const menuItems = [
   {
     id: "allMessages",
     label: "Get Chat History",
-    icon: ScrollText,
+    icon: MessageSquare,
   },
 ];
 
