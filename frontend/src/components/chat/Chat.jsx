@@ -91,33 +91,6 @@ const Chat = ({ setPage }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const constructTextgenWebSocketUrl = () => {
-    const tempUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL; // AppSync endpoint for textgen
-    if (!tempUrl) {
-      throw new Error("Environment variable NEXT_PUBLIC_APPSYNC_API_URL is missing.");
-    }
-  
-    const apiUrl = tempUrl.replace("https://", "wss://"); // Switch to WebSocket protocol
-    const urlObj = new URL(apiUrl);
-    const modifiedHost = urlObj.hostname.replace(
-      "appsync-api",
-      "appsync-realtime-api"
-    );
-    urlObj.hostname = modifiedHost;
-  
-    const host = new URL(tempUrl).hostname;
-    const header = {
-      host: host,
-      Authorization: "API_KEY=", // Replace with actual API key logic
-    };
-  
-    const encodedHeader = btoa(JSON.stringify(header)); // Base64 encode header
-    const payload = "e30="; // Empty JSON payload for AppSync subscriptions
-  
-    return `${urlObj.toString()}?header=${encodedHeader}&payload=${payload}`;
-  };
-  
-  
   const sendMessage = async (
     content,
     isOption = false,
@@ -149,78 +122,6 @@ const Chat = ({ setPage }) => {
             user_role: getUserRole([...currentMessages, userMessage]),
           };
 
-          if (isComparison) {
-            // Use the textgen-specific WebSocket URL
-            const wsUrl = constructTextgenWebSocketUrl();
-            let ws = null;
-      
-            try {
-              ws = new WebSocket(wsUrl, "graphql-ws");
-      
-              await new Promise((resolve, reject) => {
-                ws.onopen = () => {
-                  console.log("WebSocket connection established");
-      
-                  // Initialize WebSocket connection
-                  ws.send(JSON.stringify({ type: "connection_init" }));
-      
-                  // Subscribe to the textgen query
-                  const subscriptionMessage = {
-                    id: session,
-                    type: "start",
-                    payload: {
-                      data: `{"query":"subscription OnNotify($sessionId: String!) { onNotify(sessionId: $sessionId) { message sessionId } }","variables":{"sessionId":"${session}"}}`,
-                      extensions: {
-                        authorization: {
-                          Authorization: "API_KEY=", // Replace with your API key logic
-                          host: new URL(process.env.NEXT_PUBLIC_APPSYNC_API_URL)
-                            .hostname,
-                        },
-                      },
-                    },
-                  };
-                  ws.send(JSON.stringify(subscriptionMessage));
-                  resolve();
-                };
-      
-                ws.onmessage = (event) => {
-                  const message = JSON.parse(event.data);
-                  console.log("Received WebSocket message:", message);
-      
-                  if (message.type === "data" && message.payload?.data?.onNotify) {
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        Type: "ai",
-                        Content: message.payload.data.onNotify.message,
-                      },
-                    ]);
-                    resolve();
-                  }
-                };
-      
-                ws.onerror = (error) => {
-                  console.error("WebSocket error:", error);
-                  toast.error("Failed to get a response via WebSocket.");
-                  reject(error);
-                };
-      
-                ws.onclose = () => {
-                  console.log("WebSocket connection closed");
-                };
-      
-                setTimeout(() => {
-                  reject(new Error("WebSocket connection timeout"));
-                }, 180000);
-              });
-            } catch (error) {
-              console.error("Error in WebSocket subscription:", error);
-            } finally {
-              if (ws) ws.close();
-              setIsLoading(false);
-            }
-    }
-  else {
       const response = await fetch(
         `${
           process.env.NEXT_PUBLIC_API_ENDPOINT
@@ -252,7 +153,6 @@ const Chat = ({ setPage }) => {
           user_role: data.user_role,
         },
       ]);
-      }
     } catch (error) {
       console.error("Error sending message:", error.message);
       toast.error(error.message);
