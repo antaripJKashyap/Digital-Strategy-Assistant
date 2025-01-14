@@ -83,7 +83,6 @@ def store_category_data(
     )
     print("vector_store in store category data",vectorstore)
 
-    # Process all files in the "documents" folder
     process_documents(
         bucket=bucket,
         category_id=category_id,
