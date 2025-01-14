@@ -4,8 +4,6 @@ from typing import Dict, Optional
 import psycopg2
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
-from langchain.indexes import SQLRecordManager
-
 from processing.documents import process_documents
 s3 = boto3.client('s3')
 
@@ -84,23 +82,11 @@ def store_category_data(
         port=int(vectorstore_config_dict['port'])
     )
     print("vector_store in store category data",vectorstore)
-    if vectorstore:
-        # define record manager
-        namespace = f"pgvector/{vectorstore_config_dict['collection_name']}"
-        record_manager = SQLRecordManager(
-            namespace, db_url=connection_string
-        )
-        record_manager.create_schema()
-
-    if not vectorstore:
-        logger.error("VectorStore could not be initialized")
-        return
 
     # Process all files in the "documents" folder
     process_documents(
         bucket=bucket,
         category_id=category_id,
         vectorstore=vectorstore,
-        embeddings=embeddings,
-        record_manager=record_manager
+        embeddings=embeddings
     )
