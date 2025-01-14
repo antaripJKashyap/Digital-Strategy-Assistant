@@ -189,8 +189,7 @@ def process_documents(
     bucket: str,
     category_id: str, 
     vectorstore: PGVector, 
-    embeddings: BedrockEmbeddings,
-    record_manager: SQLRecordManager
+    embeddings: BedrockEmbeddings
 ) -> None:
     """
     Process and add text documents from an S3 bucket to the vectorstore.
@@ -200,7 +199,6 @@ def process_documents(
     category_id (str): The category ID folder in the S3 bucket.
     vectorstore (PGVector): The vectorstore instance.
     embeddings (BedrockEmbeddings): The embeddings instance.
-    record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
     print("start processing document")
     paginator = s3.get_paginator('list_objects_v2')
@@ -231,21 +229,6 @@ def process_documents(
         logger.error(f"Error processing documents: {e}")
         raise
     
-    if all_doc_chunks:  # Check if there are any documents to index
-        idx = index(
-            all_doc_chunks, 
-            record_manager, 
-            vectorstore, 
-            cleanup="full",
-            source_id_key="source"
-        )
-        logger.info(f"Indexing updates: \n {idx}")
-    else:
-        idx = index(
-            [], 
-            record_manager, 
-            vectorstore, 
-            cleanup="full",
-            source_id_key="source"
-        )
-        logger.info("No documents found for indexing.")
+    if all_doc_chunks:  # If there are new document chunks, add them to the vectorstore
+        added_docs_ids = vectorstore.add_documents(all_doc_chunks)
+        print(f"{len(added_docs_ids)} document chunks added with ids = {added_docs_ids}")
