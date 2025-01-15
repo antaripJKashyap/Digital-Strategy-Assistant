@@ -962,12 +962,13 @@ export class ApiGatewayStack extends cdk.Stack {
       ],
     });
 
+
+
     // const inferencePolicyStatement = new iam.PolicyStatement({
     //   effect: iam.Effect.ALLOW,
     //   actions: ["bedrock:InvokeModel*", "bedrock:InvokeEndpoint"],
     //   resources: [
     //     // Add resources for us-west-2
-    //     "arn:aws:bedrock:ca-central-1:992382606468:inference-profile/*",
     //     "arn:aws:bedrock:us-east-1::foundation-model/*",
     //     "arn:aws:bedrock:us-west-2::foundation-model/*",
     //     "arn:aws:bedrock:ca-central-1::foundation-model/*",

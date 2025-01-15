@@ -654,6 +654,7 @@ def handler(event, context):
     try:
         logger.info("Creating Bedrock LLM instance.")
         llm = get_bedrock_llm(BEDROCK_LLM_ID)
+        
     except Exception as e:
         logger.error(f"Error getting LLM from Bedrock: {e}")
         return {
