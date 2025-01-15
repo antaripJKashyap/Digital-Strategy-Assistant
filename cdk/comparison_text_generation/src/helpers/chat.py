@@ -15,10 +15,37 @@ from typing import Dict, Any
 class LLM_evaluation(BaseModel):
     response: str = Field(description="Assessment of the user's document.")
 
+import boto3
+from datetime import datetime
+
 def get_guardrails():
-        bedrock = boto3.client('bedrock')  # Add this line to define the bedrock client
-        response = bedrock.create_guardrail(
-        name='comprehensive-guardrail-' + datetime.now().strftime("%Y%m%d-%H%M"),
+    bedrock = boto3.client('bedrock')
+    guardrail_name = 'comprehensive-guardrail'
+
+    # Check if a guardrail with the desired name already exists
+    existing_guardrail_id = None
+    next_token = None
+
+    while True:
+        response = bedrock.list_guardrails(
+            maxResults=100,
+            nextToken=next_token
+        )
+        for guardrail in response.get('guardrails', []):
+            if guardrail['name'] == guardrail_name:
+                existing_guardrail_id = guardrail['id']
+                break
+        next_token = response.get('nextToken')
+        if not next_token or existing_guardrail_id:
+            break
+
+    if existing_guardrail_id:
+        print(f"Guardrail '{guardrail_name}' already exists with ID: {existing_guardrail_id}")
+        return existing_guardrail_id
+
+    # If the guardrail does not exist, create a new one
+    response = bedrock.create_guardrail(
+        name=guardrail_name,
         description='Guardrail to prevent financial advice, offensive content, and exposure of PII.',
         topicPolicyConfig={
             'topicsConfig': [
@@ -54,10 +81,11 @@ def get_guardrails():
         },
         blockedInputMessaging='Sorry, I cannot respond to that.',
         blockedOutputsMessaging='Sorry, I cannot respond to that.'
-        )
-            
-        return response['guardrailId']
-        
+    )
+
+    new_guardrail_id = response['guardrailId']
+    print(f"Created new guardrail '{guardrail_name}' with ID: {new_guardrail_id}")
+    return new_guardrail_id
 
 def get_bedrock_llm(
     bedrock_llm_id: str,
