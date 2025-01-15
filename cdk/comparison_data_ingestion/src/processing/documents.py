@@ -115,7 +115,6 @@ def process_documents(
                             }
                         )
                         docs.append(new_doc)
-                        doc_id_counter += 1
 
                     doc_pdf.close()
                 finally:
