@@ -7,48 +7,15 @@ from langchain_postgres import PGVector
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-
-# from transformers import pipeline
-
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize the S3 client
 s3 = boto3.client('s3')
-# BUCKET_NAME = "DSA-data-ingestion-bucket"
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 
 print('EMBEDDING_BUCKET_NAME', EMBEDDING_BUCKET_NAME)
-
-# Initialize the offensive content classifier
-# offensive_classifier = pipeline("text-classification", model="cardiffnlp/twitter-roberta-base-offensive")
-
-def extract_txt(
-    bucket: str,
-    document_key: str
-) -> str:
-    """
-    Extract text from a file stored in an S3 bucket.
-    
-    Args:
-    bucket (str): The name of the S3 bucket.
-    file_key (str): The key of the file in the S3 bucket.
-    
-    Returns:
-    str: The extracted text.
-    """
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_fileobj(bucket, document_key, tmp_file)
-        tmp_file_path = tmp_file.name
-
-    try:
-        with open(tmp_file_path, 'r', encoding='utf-8') as file:
-            text = file.read()
-    finally:
-        os.remove(tmp_file_path)
-
-    return text
                 
 def process_documents(
     bucket: str,
