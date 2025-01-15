@@ -104,7 +104,6 @@ def process_documents(
                             continue
 
                         # Create a Document object for each page
-                        # You can add more metadata: e.g. "topic", "location", etc.
                         new_doc = Document(
                             page_content=page_text,
                             metadata={
