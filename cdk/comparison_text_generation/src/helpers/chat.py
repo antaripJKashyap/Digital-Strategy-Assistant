@@ -21,17 +21,22 @@ def get_guardrails():
     next_token = None
 
     while True:
-        response = bedrock.list_guardrails(
-            maxResults=100,
-            nextToken=next_token
-        )
+        # Prepare parameters for the list_guardrails call
+        params = {'maxResults': 100}
+        if next_token:
+            params['nextToken'] = next_token
+
+        response = bedrock.list_guardrails(**params)
+
         for guardrail in response.get('guardrails', []):
             if guardrail['name'] == guardrail_name:
                 existing_guardrail_id = guardrail['id']
                 break
-        next_token = response.get('nextToken')
-        if not next_token or existing_guardrail_id:
+
+        if existing_guardrail_id or 'nextToken' not in response:
             break
+
+        next_token = response.get('nextToken')
 
     if existing_guardrail_id:
         print(f"Guardrail '{guardrail_name}' already exists with ID: {existing_guardrail_id}")
