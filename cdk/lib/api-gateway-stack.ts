@@ -840,12 +840,14 @@ export class ApiGatewayStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
-          "bedrock:CreateGuardrail", // Permission to create guardrails
+          "bedrock:CreateGuardrail",
+          "bedrock:CreateGuardrailVersion",
+          "bedrock:DeleteGuardrail", // Permission to create guardrails
           "bedrock:ListGuardrails",  // (Optional) To list existing guardrails
           "bedrock:InvokeGuardrail",
           "bedrock:ApplyGuardrail"  // (Optional) To invoke the guardrail for filtering
         ],
-        resources: ["arn:aws:bedrock:"+this.region+":"+this.account+":guardrail/*"], // Replace with specific resource ARNs if available
+        resources: ["*"], // Replace with specific resource ARNs if available
       })
     );
 
