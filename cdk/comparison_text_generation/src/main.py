@@ -325,6 +325,8 @@ def handler(event, context):
             else:
                 print("User uploaded vector store collection not found! Could not delete it as a result.")
         except Exception as e:
+             # Deleting this vectorstore collection if there was an error generating an LLM response.
+             user_uploaded_vectorstore.delete_collection()
              logger.error(f"Error getting response: {e}")
              return {
                     'statusCode': 500,
