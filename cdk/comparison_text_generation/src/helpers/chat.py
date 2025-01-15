@@ -12,12 +12,6 @@ from langchain_community.chat_message_histories import DynamoDBChatMessageHistor
 from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import Dict, Any
 
-class LLM_evaluation(BaseModel):
-    response: str = Field(description="Assessment of the user's document.")
-
-import boto3
-from datetime import datetime
-
 def get_guardrails():
     bedrock = boto3.client('bedrock')
     guardrail_name = 'comprehensive-guardrail'
