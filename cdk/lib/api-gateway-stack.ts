@@ -635,6 +635,7 @@ export class ApiGatewayStack extends cdk.Stack {
           "dynamodb:DescribeTable",
           "dynamodb:PutItem",
           "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
         ],
         resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/*`],
       })
