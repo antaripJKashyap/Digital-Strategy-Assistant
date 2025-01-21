@@ -8,7 +8,7 @@ import secrets
 DB_SECRET_NAME = os.environ["DB_SECRET_NAME"]
 DB_USER_SECRET_NAME = os.environ["DB_USER_SECRET_NAME"]
 DB_PROXY = os.environ["DB_PROXY"]
-print(psycopg2.__version__)
+
 
 
 def getDbSecret():

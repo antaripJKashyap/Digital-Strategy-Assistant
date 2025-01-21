@@ -17,8 +17,6 @@ s3 = boto3.client('s3')
 # BUCKET_NAME = "DSA-data-ingestion-bucket"
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 
-print('EMBEDDING_BUCKET_NAME',EMBEDDING_BUCKET_NAME)
-
 def extract_txt(
     bucket: str,
     document_key: str
@@ -183,14 +181,13 @@ def process_documents(
     embeddings (BedrockEmbeddings): The embeddings instance.
     record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
     """
-    print("start processing document")
+
     paginator = s3.get_paginator('list_objects_v2')
     page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category_id}/")
     all_doc_chunks = []
     
     try:
         for page in page_iterator:
-            print("checking paginator  003")
             if "Contents" not in page:
                 continue  # Skip pages without any content (e.g., if the bucket is empty)
             for document in page['Contents']:
