@@ -3,6 +3,7 @@ import Header from "../Header";
 import MainMessage from "./MainMessage";
 import OptionMessage from "./OptionMessage";
 import UserMessage from "./UserMessage";
+import "./TypingIndicator.css";
 import Footer from "../Footer";
 import {
   LuSendHorizonal,
@@ -19,11 +20,20 @@ import SyllabusComparisonModal from "./SyllabusComparison";
 import { processAndUploadFiles } from "./Utility";
 import { getUserRole } from "./Utility";
 import { TbLayersDifference } from "react-icons/tb";
+
+
+// "Processing document..." animation
+const TypingIndicatorProcessing = () => (
+  <div className="processing-container">
+    <span className="processing-text">Processing document...</span>
+  </div>
+);
 const Chat = ({ setPage }) => {
   const [fingerprint, setFingerprint] = useState("");
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [documentProcessing, setDocumentProcessing] = useState(false);
   const [messageInput, setMessageInput] = useState("");
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const messagesEndRef = useRef(null);
@@ -35,6 +45,7 @@ const Chat = ({ setPage }) => {
   const [textSyllabus, setTextSyllabus] = useState("");
   const [syllabusFiles, setSyllabusFiles] = useState([]);
   const [selectedCriteria, setSelectedCriteria] = useState([]);
+  const [isEvaluationActive, setIsEvaluationActive] = useState(false);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -47,6 +58,8 @@ const Chat = ({ setPage }) => {
     ],
     user_role: "",
   };
+
+  
 
   const handleFeedbackSubmit = async () => {
     if (!feedback.rating || isSendingFeedback) return;
@@ -122,17 +135,20 @@ const Chat = ({ setPage }) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
     const currentMessages = [...messages];
     const userRole = getUserRole(currentMessages);
+    
     if (!isOption && currentMessages.length === 1) {
       toast.error("Please select one of the options first!");
       return;
     }
+  
     setMessageInput("");
     setIsLoading(true);
+    
     try {
       const userMessage = { Type: "human", Content: content };
       setMessages((prev) => [...prev, userMessage]);
-
-      // Prepare the request body conditionally
+  
+      // Prepare request body
       const requestBody = isComparison
         ? {
             comparison: true,
@@ -144,11 +160,10 @@ const Chat = ({ setPage }) => {
             message_content: content,
             user_role: getUserRole([...currentMessages, userMessage]),
           };
-
+  
+      // Start with regular fetch
       const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_ENDPOINT
-        }user/text_generation?session_id=${encodeURIComponent(
+        `${process.env.NEXT_PUBLIC_API_ENDPOINT}user/text_generation?session_id=${encodeURIComponent(
           session
         )}&user_info=${encodeURIComponent(fingerprint)}`,
         {
@@ -159,91 +174,87 @@ const Chat = ({ setPage }) => {
           body: JSON.stringify(requestBody),
         }
       );
-
+  
       if (!response.ok) {
         const error = await response.json();
-        console.log("response", error);
-        throw new Error(error || `HTTP error! status: ${response.status}`);
+        throw new Error(error.message || "Failed to send message");
       }
-
-      const data = await response.json();
-
-      // setMessages((prev) => [
-      //   ...prev,
-      //   {
-      //     Type: "ai",
-      //     Content: data.content,
-      //     Options: data.options || [],
-      //     user_role: data.user_role,
-      //   },
-      // ]);
-
+  
+      // Handle comparison responses differently
       if (isComparison) {
-      const wsUrl = constructCompTextGenWebSocketUrl();
-      const ws = new WebSocket(wsUrl, "graphql-ws");
-
-      await new Promise((resolve, reject) => {
-        ws.onopen = () => {
-          console.log("WebSocket connection established");
-
-          const initMessage = { type: "connection_init" };
-          console.log("Sent:", initMessage); // Print sent message
-          ws.send(JSON.stringify(initMessage));
-
-          const subscriptionMessage = {
-            id: session,
-            type: "start",
-            payload: {
-              data: `{"query":"subscription OnNotify($sessionId: String!) { onNotify(sessionId: $sessionId) { message sessionId } }","variables":{"sessionId":"${session}"}}`,
-              extensions: {
-                authorization: {
-                  Authorization: "API_KEY=",
-                  host: new URL(process.env.NEXT_PUBLIC_APPSYNC_API_URL)
-                    .hostname,
-                },
-              },
-            },
+        setIsEvaluationActive(true); 
+        let evaluationBuffer = "";
+        const wsUrl = constructCompTextGenWebSocketUrl();
+        const ws = new WebSocket(wsUrl, "graphql-ws");
+  
+        await new Promise((resolve, reject) => {
+          // WebSocket connection setup
+          ws.onopen = () => {
+            ws.send(JSON.stringify({ type: "connection_init" }));
+            ws.send(JSON.stringify({
+              id: session,
+              type: "start",
+              payload: {
+                data: JSON.stringify({
+                  query: `subscription OnNotify($sessionId: String!) {
+                    onNotify(sessionId: $sessionId) {
+                      message
+                      sessionId
+                    }
+                  }`,
+                  variables: { sessionId: session }
+                }),
+                extensions: {
+                  authorization: {
+                    Authorization: "API_KEY=",
+                    host: new URL(process.env.NEXT_PUBLIC_APPSYNC_API_URL).hostname,
+                  }
+                }
+              }
+            }));
           };
-          console.log("Sent:", subscriptionMessage); // Print sent message
-          ws.send(JSON.stringify(subscriptionMessage));
-        };
-
-        ws.onmessage = (event) => {
-          const message = JSON.parse(event.data);
-          console.log("Received:", message); // Print received message
-
-          if (message.type === "data" && message.payload?.data?.onNotify) {
-            resolve(message);
-            const receivedMessage = message.payload.data.onNotify.message;
-
-
-            setMessages((prev) => [
-              ...prev,
-              { Type: "ai", Content: receivedMessage },
-            ]);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
-          reject(error);
-        };
-
-        setTimeout(() => {
-          reject(new Error("WebSocket connection timeout"));
-        }, 180000);
-      });
-
-      
-
-
-      ws.onclose = () => {
-        console.log("WebSocket connection closed");
-      };
-       // Exit early to avoid rendering "I am the best"
-    
-
+  
+          // Handle incoming messages
+          ws.onmessage = (event) => {
+            const messageData = JSON.parse(event.data);
+            if (messageData.type === "data" && messageData.payload?.data?.onNotify) {
+              const receivedMessage = messageData.payload.data.onNotify.message;
+              
+              if (receivedMessage === "EVALUATION_COMPLETE") {
+                resolve(true);
+                return;
+              }
+  
+              evaluationBuffer += evaluationBuffer ? `\n\n${receivedMessage}` : receivedMessage;
+  
+              setMessages(prev => {
+                const lastMessage = prev[prev.length - 1];
+                return lastMessage?.Type === "ai" && lastMessage?.isCombined
+                  ? [
+                      ...prev.slice(0, -1),
+                      { ...lastMessage, Content: evaluationBuffer }
+                    ]
+                  : [...prev, { Type: "ai", Content: evaluationBuffer, isCombined: true }];
+              });
+            }
+          };
+  
+          // Error handling
+          ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            reject(error);
+          };
+  
+          // Timeout handling
+          setTimeout(() => {
+            reject(new Error("Evaluation timeout after 3 minutes"));
+          }, 180000);
+        });
+        setIsEvaluationActive(false);
+        ws.close();
       } else {
+        // Handle non-comparison responses
+        const data = await response.json();
         setMessages((prev) => [
           ...prev,
           {
@@ -254,9 +265,16 @@ const Chat = ({ setPage }) => {
           },
         ]);
       }
-
     } catch (error) {
-      console.error("Error sending message:", error.message);
+      console.error("Error sending message:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          Type: "ai",
+          Content: `Error: ${error.message}`,
+          isError: true
+        }
+      ]);
       toast.error(error.message);
     } finally {
       setIsLoading(false);
@@ -427,6 +445,7 @@ const Chat = ({ setPage }) => {
                 }
               />
             ))}
+            
 
           {/* Add "Compare Materials" option if the role is Educator/Admin */}
           {isEduOrAdminRole && index > 0 && (
@@ -454,6 +473,8 @@ const Chat = ({ setPage }) => {
     }
     return null;
   };
+
+  
   const constructWebSocketUrl = () => {
     const tempUrl = process.env.NEXT_PUBLIC_GRAPHQL_WS_URL;
     const apiUrl = tempUrl.replace("https://", "wss://");
@@ -483,6 +504,7 @@ const Chat = ({ setPage }) => {
     try {
       // First set loading state to disable message input
       setIsLoading(true);
+      setDocumentProcessing(true);
 
       // Add user message immediately
       setMessages((prev) => [
@@ -531,6 +553,7 @@ const Chat = ({ setPage }) => {
           console.log("Received:", message); // Print received message
 
           if (message.type === "data" && message.payload?.data?.onNotify) {
+            setDocumentProcessing(false);
             resolve(message);
           }
         };
@@ -588,7 +611,13 @@ const Chat = ({ setPage }) => {
         <div className="flex-grow overflow-y-auto pt-8 flex flex-col">
           <div className="flex-grow px-8 flex flex-col overflow-y-auto">
             {messages.map((message, index) => renderMessage(message, index))}
-            {(isLoading || isCreatingSession) && <TypingIndicator />}
+            {(isLoading || isCreatingSession) && (
+            documentProcessing ? (
+              <TypingIndicatorProcessing />
+            ) : (
+              <TypingIndicator />
+            )
+          )}
             {showFeedback && (
               <FeedbackComponent
                 feedback={feedback}

@@ -37,91 +37,46 @@ TABLE_NAME = None
 # Cached embeddings instance
 embeddings = None
 
-# def invoke_event_notification(session_id, message):
-#     """
-#     Publish a notification event to AppSync via HTTPX (directly to the AppSync API).
-#     """
-#     try:
-#         query = """
-#         mutation sendNotification($message: String!, $sessionId: String!) {
-#             sendNotification(message: $message, sessionId: $sessionId) {
-#                 message
-#                 sessionId
-#             }
-#         }
-#         """
-#         headers = {
-#             "Content-Type": "application/json",
-#             "Authorization": "API_KEY"
-#         }
-
-#         payload = {
-#             "query": query,
-#             "variables": {
-#                 "message": message,
-#                 "sessionId": session_id
-#             }
-#         }
-
-#         # Send the request to AppSync
-#         with httpx.Client() as client:
-#             response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
-#             response_data = response.json()
-
-#             logging.info(f"AppSync Response: {json.dumps(response_data, indent=2)}")
-#             if response.status_code != 200 or "errors" in response_data:
-#                 raise Exception(f"Failed to send notification: {response_data}")
-
-#             print(f"Notification sent successfully: {response_data}")
-#             return response_data["data"]["sendNotification"]
-
-#     except Exception as e:
-#         logging.error(f"Error publishing event to AppSync: {str(e)}")
-#         raise
-
-
-def invoke_event_notification_stream(session_id, full_message):
+def invoke_event_notification(session_id, message):
     """
-    Publish streaming notification events to AppSync via HTTPX (directly to the AppSync API).
-    Args:
-        session_id (str): The session identifier for the WebSocket connection.
-        full_message (str): The full message to be streamed as chunks.
+    Publish a notification event to AppSync via HTTPX (directly to the AppSync API).
     """
-    try:    
+    try:
         query = """
-            mutation sendNotification($message: String!, $sessionId: String!) {
-                sendNotification(message: $message, sessionId: $sessionId) {
-                    message
-                    sessionId
-                }
+        mutation sendNotification($message: String!, $sessionId: String!) {
+            sendNotification(message: $message, sessionId: $sessionId) {
+                message
+                sessionId
             }
-            """
+        }
+        """
         headers = {
             "Content-Type": "application/json",
-            "Authorization": "API_KEY",  # Replace with your actual AppSync API key or token
+            "Authorization": "API_KEY"
+        }
+
+        payload = {
+            "query": query,
+            "variables": {
+                "message": message,
+                "sessionId": session_id
             }
-            # Define the chunk size for streaming (e.g., 200 characters)
-        chunk_size = 200
-        chunks = [full_message[i:i + chunk_size] for i in range(0, len(full_message), chunk_size)]
-        # Stream each chunk
-        for chunk in chunks:
-            payload = {
-                "query": query,
-                "variables": {
-                    "message": chunk,
-                    "sessionId": session_id
-                }
-            }
-            # Send the chunk to AppSync
-            with httpx.Client() as client:
-                response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
-                response_data = response.json()
-                logging.info(f"AppSync Response: {json.dumps(response_data, indent=2)}")
-                if response.status_code != 200 or "errors" in response_data:
-                    raise Exception(f"Failed to send notification: {response_data}")
-                print(f"Chunk sent successfully: {chunk}")
+        }
+
+        # Send the request to AppSync
+        with httpx.Client() as client:
+            response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
+            response_data = response.json()
+
+            logging.info(f"AppSync Response: {json.dumps(response_data, indent=2)}")
+            if response.status_code != 200 or "errors" in response_data:
+                raise Exception(f"Failed to send notification: {response_data}")
+
+            print(f"Notification sent successfully: {response_data}")
+            return response_data["data"]["sendNotification"]
+
     except Exception as e:
-        logging.error(f"Error streaming event to AppSync: {str(e)}")
+        logging.error(f"Error publishing event to AppSync: {str(e)}")
         raise
 
 def get_secret(secret_name, expect_json=True):
@@ -329,7 +284,7 @@ def handler(event, context):
                     "Access-Control-Allow-Headers": "*",
                     "Access-Control-Allow-Origin": "*",
                     "Access-Control-Allow-Methods": "*",
-                },  
+                },
                 'body': json.dumps('Error getting LLM from Bedrock')
             }
         # Try obtaining the ordinary retriever given this vectorstore config dict
@@ -354,17 +309,51 @@ def handler(event, context):
 
         # Try getting an evaluation result from the LLM
         try:
-            logger.info("Generating response from the LLM.")
-            response = get_response_evaluation(
-                llm=llm,
-                retriever=ordinary_retriever,
-                guidelines_file=guidelines
-            )
+            # logger.info("Generating response from the LLM.")
+            # response = get_response_evaluation(
+            #     llm=llm,
+            #     retriever=ordinary_retriever,
+            #     guidelines_file=guidelines
+            # )
+            # print(f"User role {user_role} logged in engagement log.")
+            # print(f"response from llm", response)
+            # invoke_event_notification(session_id, response.get("llm_output", "LLM failed to create response"))
+            # invoke_event_notification(session_id, response)
 
 
-            for chunk in response:
-                print(chunk, end="", flush=True)  # Print the chunk to the console/log
-                invoke_event_notification_stream(session_id, chunk)
+            all_responses = []
+            try:
+                # Process each guideline evaluation individually
+                for individual_response in get_response_evaluation(
+                    llm=llm,
+                    retriever=ordinary_retriever,
+                    guidelines_file=guidelines
+                ):
+                    print(f"Processed guideline response:", individual_response)
+                    
+                    # Send immediate notification for each guideline
+                    invoke_event_notification(session_id, individual_response["llm_output"])  # Send just the markdown
+                    
+                    # Store for final response
+                    all_responses.append(individual_response)
+
+            except Exception as e:
+                # Handle per-guideline errors without stopping
+                error_msg = {
+                    "llm_output": f"🚨 Processing error: {str(e)}",
+                    "options": []
+                }
+                invoke_event_notification(session_id, error_msg["llm_output"])
+                all_responses.append(error_msg)
+
+            finally:
+                # Always send completion message and clean up
+                completion_msg = {
+                "llm_output": "EVALUATION_COMPLETE",
+                "options": []
+                }
+                invoke_event_notification(session_id, completion_msg)
+                
             # Delete the collection from the user_uploaded_vectorstore after the embeddings have been used for evaluation
             if user_uploaded_vectorstore:
                 user_uploaded_vectorstore.delete_collection()
