@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import Header from "../Header";
+import ReactMarkdown from "react-markdown";
 import MainMessage from "./MainMessage";
 import OptionMessage from "./OptionMessage";
 import UserMessage from "./UserMessage";
@@ -127,15 +128,12 @@ const Chat = ({ setPage }) => {
     return `${urlObj.toString()}?header=${encodedHeader}&payload=${payload}`;
   };
 
-  const sendMessage = async (
-    content,
-    isOption = false,
-    isComparison = false
-  ) => {
+  const sendMessage = async (content, isOption = false, isComparison = false) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
+  
     const currentMessages = [...messages];
     const userRole = getUserRole(currentMessages);
-    
+  
     if (!isOption && currentMessages.length === 1) {
       toast.error("Please select one of the options first!");
       return;
@@ -143,7 +141,7 @@ const Chat = ({ setPage }) => {
   
     setMessageInput("");
     setIsLoading(true);
-    
+  
     try {
       const userMessage = { Type: "human", Content: content };
       setMessages((prev) => [...prev, userMessage]);
@@ -161,7 +159,7 @@ const Chat = ({ setPage }) => {
             user_role: getUserRole([...currentMessages, userMessage]),
           };
   
-      // Start with regular fetch
+      // Send the fetch request
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_ENDPOINT}user/text_generation?session_id=${encodeURIComponent(
           session
@@ -180,38 +178,40 @@ const Chat = ({ setPage }) => {
         throw new Error(error.message || "Failed to send message");
       }
   
-      // Handle comparison responses differently
+      // Handle comparison responses
       if (isComparison) {
-        setIsEvaluationActive(true); 
+        setIsEvaluationActive(true);
         let evaluationBuffer = "";
         const wsUrl = constructCompTextGenWebSocketUrl();
         const ws = new WebSocket(wsUrl, "graphql-ws");
   
-        await new Promise((resolve, reject) => {
-          // WebSocket connection setup
+        const evaluationPromise = new Promise((resolve) => {
           ws.onopen = () => {
             ws.send(JSON.stringify({ type: "connection_init" }));
-            ws.send(JSON.stringify({
-              id: session,
-              type: "start",
-              payload: {
-                data: JSON.stringify({
-                  query: `subscription OnNotify($sessionId: String!) {
-                    onNotify(sessionId: $sessionId) {
-                      message
-                      sessionId
-                    }
-                  }`,
-                  variables: { sessionId: session }
-                }),
-                extensions: {
-                  authorization: {
-                    Authorization: "API_KEY=",
-                    host: new URL(process.env.NEXT_PUBLIC_APPSYNC_API_URL).hostname,
-                  }
-                }
-              }
-            }));
+            ws.send(
+              JSON.stringify({
+                id: session,
+                type: "start",
+                payload: {
+                  data: JSON.stringify({
+                    query: `subscription OnNotify($sessionId: String!) {
+                      onNotify(sessionId: $sessionId) {
+                        message
+                        sessionId
+                      }
+                    }`,
+                    variables: { sessionId: session },
+                  }),
+                  extensions: {
+                    authorization: {
+                      Authorization: "API_KEY=",
+                      host: new URL(process.env.NEXT_PUBLIC_APPSYNC_API_URL)
+                        .hostname,
+                    },
+                  },
+                },
+              })
+            );
           };
   
           // Handle incoming messages
@@ -219,39 +219,44 @@ const Chat = ({ setPage }) => {
             const messageData = JSON.parse(event.data);
             if (messageData.type === "data" && messageData.payload?.data?.onNotify) {
               const receivedMessage = messageData.payload.data.onNotify.message;
-              
+  
               if (receivedMessage === "EVALUATION_COMPLETE") {
-                resolve(true);
+                ws.close(); // Close WebSocket on completion
+                setIsLoading(false);
+                resolve(true); // Resolve the promise
                 return;
               }
   
               evaluationBuffer += evaluationBuffer ? `\n\n${receivedMessage}` : receivedMessage;
   
-              setMessages(prev => {
+              setMessages((prev) => {
                 const lastMessage = prev[prev.length - 1];
                 return lastMessage?.Type === "ai" && lastMessage?.isCombined
                   ? [
                       ...prev.slice(0, -1),
-                      { ...lastMessage, Content: evaluationBuffer }
+                      { ...lastMessage, Content: evaluationBuffer },
                     ]
                   : [...prev, { Type: "ai", Content: evaluationBuffer, isCombined: true }];
               });
             }
           };
   
-          // Error handling
+          // Handle WebSocket errors
           ws.onerror = (error) => {
             console.error("WebSocket error:", error);
-            reject(error);
+            ws.close();
+            setIsLoading(false);
+            resolve(false); // Resolve without rejecting on error
           };
-  
-          // Timeout handling
-          setTimeout(() => {
-            reject(new Error("Evaluation timeout after 3 minutes"));
-          }, 180000);
         });
+  
+        // Timeout after 3 minutes if evaluation does not complete
+        await Promise.race([
+          evaluationPromise,
+          new Promise((resolve) => setTimeout(() => resolve(false), 180000)),
+        ]);
+  
         setIsEvaluationActive(false);
-        ws.close();
       } else {
         // Handle non-comparison responses
         const data = await response.json();
@@ -272,14 +277,16 @@ const Chat = ({ setPage }) => {
         {
           Type: "ai",
           Content: `Error: ${error.message}`,
-          isError: true
-        }
+          isError: true,
+        },
       ]);
       toast.error(error.message);
     } finally {
       setIsLoading(false);
     }
   };
+  
+  
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -425,15 +432,15 @@ const Chat = ({ setPage }) => {
       return <UserMessage key={index} text={message.Content} />;
     } else if (message.Type === "ai") {
       const userRole = getUserRole(messages);
-
+  
       const isEduOrAdminRole =
         userRole.toLowerCase().includes("educator") ||
         userRole.toLowerCase().includes("admin");
-
+  
       return (
         <React.Fragment key={index}>
-          <MainMessage text={message.Content} />
-
+          <MainMessage text={message.Content} />  {/* Ensure this handles markdown */}
+  
           {/* Render existing options */}
           {message.Options &&
             message.Options.map((option, optIndex) => (
@@ -445,8 +452,7 @@ const Chat = ({ setPage }) => {
                 }
               />
             ))}
-            
-
+  
           {/* Add "Compare Materials" option if the role is Educator/Admin */}
           {isEduOrAdminRole && index > 0 && (
             <OptionMessage
@@ -456,7 +462,7 @@ const Chat = ({ setPage }) => {
               onClick={() => setShowSyllabusModal(true)}
             />
           )}
-
+  
           {/* Existing "My task is done" option */}
           {index >= 4 &&
             !message.Content.includes(
@@ -473,6 +479,7 @@ const Chat = ({ setPage }) => {
     }
     return null;
   };
+  
 
   
   const constructWebSocketUrl = () => {
@@ -553,7 +560,6 @@ const Chat = ({ setPage }) => {
           console.log("Received:", message); // Print received message
 
           if (message.type === "data" && message.payload?.data?.onNotify) {
-            setDocumentProcessing(false);
             resolve(message);
           }
         };
@@ -583,13 +589,14 @@ const Chat = ({ setPage }) => {
       });
 
       // Send message for comparison after WebSocket connection
+      setDocumentProcessing(false);
       await sendMessage(
         "I've uploaded course files for comparison",
         true,
         true
       );
       console.log("Sent: 'I've uploaded course files for comparison'"); // Print sent message
-
+      
       // Reset state
       setTextSyllabus("");
       setSyllabusFiles([]);
@@ -603,6 +610,8 @@ const Chat = ({ setPage }) => {
       setIsLoading(false);
     }
   };
+  
+
 
   return (
     <div>

@@ -1,3 +1,47 @@
+.main-message {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.main-message h1, .main-message h2, .main-message h3 {
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.main-message li {
+  margin-bottom: 8px;
+  padding-left: 0.5rem;
+}
+.main-message ul,
+.main-message ol {
+  margin: 8px 0;
+  padding-left: 1.25rem;
+}
+
+.main-message p {
+  margin: 8px 0;
+}
+
+.main-message ul {
+  list-style-type: disc;
+  padding-left: 1rem;
+  margin: 8px 0;
+}
+
+.main-message li {
+  margin-bottom: 6px;
+  display: list-item;
+  padding-left: 0.5rem;
+}
+
+.list-disc,
+.list-decimal {
+  padding-left: 1rem;
+  margin: 8px 0;
+}
+
+
+
 .processing-container {
   display: flex;
   justify-content: center;

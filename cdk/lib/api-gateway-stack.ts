@@ -789,7 +789,7 @@ export class ApiGatewayStack extends cdk.Stack {
       {
         parameterName: `/${id}/DSA/BedrockLLMId`,
         description: "Parameter containing the Bedrock LLM ID",
-        stringValue: "us.meta.llama3-3-70b-instruct-v1:0",
+        stringValue: "us.meta.llama3-2-90b-instruct-v1:0",
       }
     );
     const embeddingModelParameter = new ssm.StringParameter(

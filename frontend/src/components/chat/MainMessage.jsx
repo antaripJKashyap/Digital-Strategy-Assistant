@@ -16,7 +16,6 @@ const MainMessage = ({ text }) => {
   };
 
   const handleSpeak = () => {
-    // If already speaking, stop
     if (isSpeaking) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -24,14 +23,9 @@ const MainMessage = ({ text }) => {
     }
 
     const msg = new SpeechSynthesisUtterance(text);
-    
-    // Add event listeners to track speaking state
     msg.onstart = () => setIsSpeaking(true);
     msg.onend = () => setIsSpeaking(false);
-    
-    // Store reference to allow potential manual cancellation
     speechSynthesisRef.current = msg;
-    
     window.speechSynthesis.speak(msg);
   };
 
@@ -46,22 +40,36 @@ const MainMessage = ({ text }) => {
           height={40}
         />
         <Markdown
-          className="text-md"
-          components={{
-            a: ({ href, children }) => (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline"
-              >
-                {children}
-              </a>
-            ),
-          }}
-        >
-          {text}
-        </Markdown>
+        className="main-message text-md"
+        components={{
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:underline"
+            >
+              {children}
+            </a>
+          ),
+          ul: ({ children }) => (
+            <ul className="list-disc main-message">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="list-decimal main-message">{children}</ol>
+          ),
+          li: ({ children }) => {
+            // Remove any duplicate dash or number prefix
+            const cleanText = typeof children === "string"
+              ? children.replace(/^[-•]\s+/, "").replace(/^\d+\.\s*/, "")
+              : children;
+
+            return <li className="main-message">{cleanText}</li>;
+          },
+        }}
+      >
+        {text}
+      </Markdown>
       </div>
       <div className="flex space-x-4 mt-2 ml-2">
         <button
