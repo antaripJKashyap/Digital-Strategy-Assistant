@@ -138,51 +138,16 @@ def format_to_markdown(evaluation_results: dict) -> str:
     return "\n".join(markdown_output).strip()
 
 
-# def parse_evaluation_response(evaluation_output: dict) -> dict:
-#     """
-#     Parses the output of get_response_evaluation to return markdown-ready content.
-
-#     Args:
-#         evaluation_output (dict): The dictionary output of get_response_evaluation.
-
-#     Returns:
-#         dict: A dictionary containing:
-#             - markdown_output: Rendered markdown content for the evaluation results.
-#             - options: A list of follow-up questions (empty if none are available).
-#     """
-#     main_content = []
-#     options = []
-
-#     # # Iterate over the evaluation output dictionary
-#     for key, value in evaluation_output.items():
-#         if isinstance(value, str):
-#             # Process string values
-#             main_content.append((key, value.strip()))
-#         elif isinstance(value, list):
-#             # Assume lists are for options or follow-ups
-#             options.extend(value)
-#         elif isinstance(value, dict):
-#             # Recursively parse nested dictionaries
-#             nested_content = parse_evaluation_response(value)
-#             main_content.extend(nested_content.get("main_content", []))
-#             options.extend(nested_content.get("options", []))
-
-#     # Generate markdown content
-#     markdown_ready = {key: value for key, value in main_content}
-#     markdown_output = format_to_markdown(markdown_ready)
-
-#     return {
-#         "llm_output": markdown_output.strip(),
-#         "options": options,
-#     }
-    
 def parse_single_evaluation(response: str, guideline_name: str) -> dict:
-    """Parses individual guideline response into markdown format."""
+    # Add bullet points to each line of the response
+    formatted_response = "\n".join(
+    line.strip() for line in response.split("\n")
+    )
+
     return {
-        "llm_output": f"**{guideline_name}:** {response.strip()}",
+        "llm_output": f"**{guideline_name}:**\n{formatted_response}",
         "options": []
     }
-
 
 
 

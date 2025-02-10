@@ -2,6 +2,7 @@ import os
 import json
 import boto3
 import logging
+import time
 import psycopg2
 import httpx
 import uuid, datetime
@@ -239,6 +240,7 @@ def handler(event, context):
     user_uploaded_vectorstore = None
     
     for record in event['Records']:
+        start_time = time.time()
         message_body = json.loads(record['body'])
         session_id = message_body['session_id']
         user_role = message_body['user_role']
@@ -274,7 +276,7 @@ def handler(event, context):
             }
         try:
             logger.info("Creating Bedrock LLM instance.")
-            llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=True)
+            llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=False)
         except Exception as e:
             logger.error(f"Error getting LLM from Bedrock: {e}")
             return {
@@ -309,17 +311,6 @@ def handler(event, context):
 
         # Try getting an evaluation result from the LLM
         try:
-            # logger.info("Generating response from the LLM.")
-            # response = get_response_evaluation(
-            #     llm=llm,
-            #     retriever=ordinary_retriever,
-            #     guidelines_file=guidelines
-            # )
-            # print(f"User role {user_role} logged in engagement log.")
-            # print(f"response from llm", response)
-            # invoke_event_notification(session_id, response.get("llm_output", "LLM failed to create response"))
-            # invoke_event_notification(session_id, response)
-
 
             all_responses = []
             try:
@@ -348,9 +339,12 @@ def handler(event, context):
 
             finally:
                 # Always send completion message and clean up
+                end_time = time.time()
+                duration = end_time - start_time
+                time_taken_msg = f"Time taken for evaluation: {duration:.2f} seconds."
                 completion_msg = {
-                "llm_output": "EVALUATION_COMPLETE",
-                "options": []
+                    "llm_output": "EVALUATION_COMPLETE\n\n" + time_taken_msg,
+                    "options": []
                 }
                 invoke_event_notification(session_id, completion_msg)
                 
