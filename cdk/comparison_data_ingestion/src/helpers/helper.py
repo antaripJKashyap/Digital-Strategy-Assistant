@@ -61,7 +61,7 @@ def store_category_data(
     category_id: str,
     vectorstore_config_dict: Dict[str, str], 
     embeddings: BedrockEmbeddings
-) -> None:
+) -> str:
     """
     Store course data from an S3 bucket into the vectorstore.
     
@@ -83,9 +83,10 @@ def store_category_data(
     )
     print("vector_store in store category data",vectorstore)
 
-    process_documents(
+    message = process_documents(
         bucket=bucket,
         category_id=category_id,
-        vectorstore=vectorstore,
-        embeddings=embeddings
+        vectorstore=vectorstore
     )
+
+    return message
