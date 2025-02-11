@@ -12,84 +12,9 @@ from langchain_community.chat_message_histories import DynamoDBChatMessageHistor
 from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import Dict, Any
 
-def get_guardrails():
-    bedrock = boto3.client('bedrock')
-    guardrail_name = 'comprehensive-guardrail'
-
-    # Check if a guardrail with the desired name already exists
-    existing_guardrail_id = None
-    next_token = None
-
-    while True:
-        # Prepare parameters for the list_guardrails call
-        params = {'maxResults': 100}
-        if next_token:
-            params['nextToken'] = next_token
-
-        response = bedrock.list_guardrails(**params)
-
-        for guardrail in response.get('guardrails', []):
-            if guardrail['name'] == guardrail_name:
-                existing_guardrail_id = guardrail['id']
-                break
-
-        if existing_guardrail_id or 'nextToken' not in response:
-            break
-
-        next_token = response.get('nextToken')
-
-    if existing_guardrail_id:
-        print(f"Guardrail '{guardrail_name}' already exists with ID: {existing_guardrail_id}")
-        return existing_guardrail_id
-
-    # If the guardrail does not exist, create a new one
-    response = bedrock.create_guardrail(
-        name=guardrail_name,
-        description='Guardrail to prevent financial advice, offensive content, and exposure of PII.',
-        topicPolicyConfig={
-            'topicsConfig': [
-                {
-                    'name': 'FinancialAdvice',
-                    'definition': 'Providing personalized financial guidance or investment recommendations.',
-                    'examples': [
-                        'Which mutual fund should I invest in for retirement?',
-                        'Can you advise on the best way to reduce my debt?'
-                    ],
-                    'type': 'DENY'
-                },
-                {
-                    'name': 'OffensiveContent',
-                    'definition': 'Content that includes hate speech, discriminatory remarks, explicit material, or language intended to offend individuals or groups.',
-                    'examples': [
-                        'Tell me a joke about [a specific race or religion].',
-                        'Share an offensive meme targeting [a specific group].'
-                    ],
-                    'type': 'DENY'
-                }
-            ]
-        },
-        sensitiveInformationPolicyConfig={
-            'piiEntitiesConfig': [
-                {'type': 'EMAIL', 'action': 'ANONYMIZE'},
-                {'type': 'PHONE', 'action': 'ANONYMIZE'},
-                {'type': 'NAME', 'action': 'ANONYMIZE'},
-                {'type': 'US_SOCIAL_SECURITY_NUMBER', 'action': 'BLOCK'},
-                {'type': 'US_BANK_ACCOUNT_NUMBER', 'action': 'BLOCK'},
-                {'type': 'CREDIT_DEBIT_CARD_NUMBER', 'action': 'BLOCK'}
-            ]
-        },
-        blockedInputMessaging='Sorry, I cannot respond to that.',
-        blockedOutputsMessaging='Sorry, I cannot respond to that.'
-    )
-
-    new_guardrail_id = response['guardrailId']
-    print(f"Created new guardrail '{guardrail_name}' with ID: {new_guardrail_id}")
-    return new_guardrail_id
-
 def get_bedrock_llm(
     bedrock_llm_id: str,
-    temperature: float = 0,
-    enable_guardrails: bool = False
+    temperature: float = 0
 ) -> ChatBedrock:
     """
     Retrieve a Bedrock LLM instance based on the provided model ID.
@@ -102,18 +27,6 @@ def get_bedrock_llm(
     Returns:
     ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    if enable_guardrails:
-        guardrailId = get_guardrails()
-        return ChatBedrock(
-            model_id=bedrock_llm_id,
-            model_kwargs=dict(temperature=temperature),
-            guardrails={
-                'guardrailIdentifier': guardrailId,
-                'guardrailVersion': 'DRAFT',
-                'trace': True
-            }
-        )
-    
     return ChatBedrock(
         model_id=bedrock_llm_id,
         model_kwargs=dict(temperature=temperature),
