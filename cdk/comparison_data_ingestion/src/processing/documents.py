@@ -16,54 +16,39 @@ s3 = boto3.client('s3')
 bedrock_client = boto3.client(service_name='bedrock')
 bedrock_runtime_client = boto3.client(service_name='bedrock-runtime')
 
-def parse_guardrail_response(response: dict) -> dict:
+def setup_guardrail() -> tuple[str, str]:
     """
-    Parses the guardrail response to determine if any guardrails were triggered.
-    """
-    if response.get("action") == "NONE":
-        return {"triggered": False}
-
-    for assessment in response.get("assessments", []):
-        if "sensitiveInformationPolicy" in assessment:
-            pii_entities = assessment["sensitiveInformationPolicy"].get("piiEntities", [])
-            if any(entity.get("action") in ["BLOCKED", "ANONYMIZED"] for entity in pii_entities):
-                return {
-                    "triggered": True,
-                    "type": "SensitiveInformation",
-                    "details": {"entities": pii_entities}
-                }
-        if "contentPolicy" in assessment:
-            filters = assessment["contentPolicy"].get("filters", [])
-            for f in filters:
-                if f.get("action") == "BLOCKED" and f.get("type") in [
-                    "INSULTS", "HATE", "SEXUAL", "VIOLENCE", "MISCONDUCT", "PROMPT_ATTACK"
-                ]:
-                    return {"triggered": True, "type": "OffensiveContent", "details": {}}
-    for output in response.get("outputs", []):
-        if "financial advice" in output.get("text", "").lower():
-            return {"triggered": True, "type": "FinancialAdvice", "details": {}}
-    return {"triggered": True, "type": "RestrictedContent", "details": {}}
-
-def setup_guardrail() -> str:
-    """
-    Ensures the guardrail exists and returns its ID.
-    Creates the guardrail and a version if it doesn't exist.
+    Returns (guardrail_id, version) after ensuring a valid published guardrail exists.
     """
     guardrail_name = "comprehensive-guardrails"
     guardrail_id = None
+    guardrail_version = None
 
-    # Check existing guardrails
-    response = bedrock_client.list_guardrails()
-    for guardrail in response.get('guardrails', []):
-        if guardrail['name'] == guardrail_name:
-            guardrail_id = guardrail['id']
+    # Check existing guardrails and delete any in DRAFT state
+    paginator = bedrock_client.get_paginator('list_guardrails')
+    for page in paginator.paginate():
+        for guardrail in page.get('guardrails', []):
+            if guardrail['name'] == guardrail_name:
+                guardrail_id = guardrail['id']
+                guardrail_version = guardrail.get('version', 'DRAFT')
+                logger.info(f"Found guardrail name={guardrail_name}, version={guardrail_version}, id={guardrail_id}")
+                
+                # Delete guardrail if in DRAFT to avoid version quota issues
+                if guardrail_version == "DRAFT":
+                    logger.info(f"Deleting DRAFT guardrail {guardrail_id}")
+                    bedrock_client.delete_guardrail(guardrailIdentifier=guardrail_id)
+                    guardrail_id = None
+                    guardrail_version = None
+                break
+        if guardrail_id:
             break
 
-    # Create guardrail if not found
+    # Create new guardrail if not found or was deleted
     if not guardrail_id:
+        logger.info(f"Creating new guardrail: {guardrail_name}")
         response = bedrock_client.create_guardrail(
             name=guardrail_name,
-            description='Guardrail to prevent financial advice, offensive content, and exposure of PII.',
+            description='Block financial advice and PII',
             topicPolicyConfig={
                 'topicsConfig': [
                     {
@@ -88,8 +73,8 @@ def setup_guardrail() -> str:
             },
             sensitiveInformationPolicyConfig={
                 'piiEntitiesConfig': [
-                    {'type': 'EMAIL', 'action': 'ANONYMIZE'},
-                    {'type': 'PHONE', 'action': 'ANONYMIZE'},
+                    {'type': 'EMAIL', 'action': 'BLOCK'},
+                    {'type': 'PHONE', 'action': 'BLOCK'},
                     {'type': 'NAME', 'action': 'ANONYMIZE'}
                 ]
             },
@@ -97,27 +82,29 @@ def setup_guardrail() -> str:
             blockedOutputsMessaging='Sorry, I cannot respond to that.'
         )
         guardrail_id = response['guardrailId']
-        # Create initial version ("1")
-        bedrock_client.create_guardrail_version(
+        logger.info(f"Created new guardrail: {guardrail_id}")
+        
+        # Publish the initial version
+        version_response = bedrock_client.create_guardrail_version(
             guardrailIdentifier=guardrail_id,
-            description='comprehensive-guardrails',
+            description='Published version',
             clientRequestToken=str(uuid.uuid4())
         )
-    return guardrail_id
+        guardrail_version = version_response['version']
+        logger.info(f"Published guardrail version: {guardrail_version}")
+
+    return guardrail_id, guardrail_version
 
 def process_documents(
     bucket: str,
     category_id: str, 
-    vectorstore: PGVector, 
-    embeddings: BedrockEmbeddings
+    vectorstore: PGVector
 ) -> str:
-    """
-    Process and add text documents from an S3 bucket to the vectorstore after checking guardrails.
-    Returns a success message or an error message if a guardrail is triggered.
-    """
     logger.info("Starting document processing...")
-    guardrail_id = setup_guardrail()
-    guardrail_version = "1" # The first version guardrail_name
+
+    guardrail_id, guardrail_version = setup_guardrail()  
+    if not guardrail_version.isdigit():
+        raise ValueError(f"Invalid guardrail version: {guardrail_version}")
 
     # Collect all document keys to process
     document_keys = []
@@ -140,13 +127,15 @@ def process_documents(
 
     for document_key in document_keys:
         logger.info(f"Processing document: {document_key}")
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            s3.download_file(bucket, document_key, tmp_file.name)
-            tmp_path = tmp_file.name
-
+        tmp_path = None
         try:
+            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+                s3.download_file(bucket, document_key, tmp_path)
+
             doc_pdf = pymupdf.open(tmp_path)
             doc_id = str(uuid.uuid4())
+            
             for page_idx, page in enumerate(doc_pdf, start=1):
                 page_text = page.get_text().strip()
                 if not page_text:
@@ -158,25 +147,49 @@ def process_documents(
                         guardrailIdentifier=guardrail_id,
                         guardrailVersion=guardrail_version,
                         source="INPUT",
-                        content=[{"text": {"text": page_text, "qualifiers": ["grounding_source"]}}]
+                        content=[{"text": {
+                            "text": page_text,
+                            "qualifiers": ["guard_content"]}
+                        }]
                     )
-                    guardrail_info = parse_guardrail_response(response)
-                    if guardrail_info.get("triggered"):
-                        error_type = guardrail_info["type"]
-                        if error_type == "FinancialAdvice":
-                            error_message = "Sorry, I cannot process your document(s) because I've detected financial advice in them."
-                        elif error_type == "OffensiveContent":
-                            error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
-                        elif error_type == "SensitiveInformation":
-                            error_message = "Sorry, I cannot process your document(s) because I've detected sensitive (personally identifiable) information in them."
-                        else:
-                            error_message = f"Sorry, I cannot process your document(s) because I've detected {error_type.lower()} in them."
+                    
+                    # Guardrail response handling
+                    if response.get('action') == 'GUARDRAIL_INTERVENED':
+                        error_message = None
+                        # Check assessments in priority order
+                        for assessment in response.get('assessments', []):
+                            # 1. Check for financial advice and 2. offensive content
+                            if 'topicPolicy' in assessment:
+                                for topic in assessment['topicPolicy'].get('topics', []):
+                                    if topic.get('name') == 'FinancialAdvice' and topic.get('action') == 'BLOCKED':
+                                        error_message = "Sorry, I cannot process your document(s) because I've detected financial advice in them."
+                                        break
+
+                                    elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
+                                        error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
+                                        break
+                                if error_message:
+                                    break
+
+                            # 3. Check for PII
+                            if not error_message and 'sensitiveInformationPolicy' in assessment:
+                                for pii in assessment['sensitiveInformationPolicy'].get('piiEntities', []):
+                                    if pii.get('action') in ['BLOCKED', 'ANONYMIZED']:
+                                        error_message = "Sorry, I cannot process your document(s) because I've detected sensitive (personally identifiable) information in them."
+                                        break
+                                if error_message:
+                                    break
+
+                        # If no specific error found but guardrail intervened
+                        if not error_message:
+                            error_message = "Sorry, I cannot process your document(s) due to restricted content."
+
+                        # Cleanup and return
                         doc_pdf.close()
-                        os.remove(tmp_path)
                         return error_message
+
                 except Exception as e:
                     logger.error(f"Error applying guardrail: {e}")
-                    os.remove(tmp_path)
                     raise
 
                 # Create document if no guardrail triggered
@@ -189,13 +202,17 @@ def process_documents(
                         "category_id": category_id,
                     }
                 ))
+            
             doc_pdf.close()
+            
         except Exception as e:
             logger.error(f"Error processing document {document_key}: {e}")
-            os.remove(tmp_path)
             raise
         finally:
-            os.remove(tmp_path)
+            # Safe cleanup: Only delete if file exists
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
+                logger.debug(f"Cleaned up temp file: {tmp_path}")
 
     # If no errors, add to vectorstore and delete S3 objects
     if all_docs:
@@ -204,4 +221,5 @@ def process_documents(
     for key in document_keys:
         s3.delete_object(Bucket=bucket, Key=key)
         logger.info(f"Deleted {key} from S3.")
+    
     return "SUCCESS"
