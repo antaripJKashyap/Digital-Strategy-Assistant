@@ -128,7 +128,7 @@ def update_vectorstore_from_s3(bucket, session_id):
 
     try:
         print(f"session_id Comparison data ingestion", session_id)
-        update_vectorstore(
+        message = update_vectorstore(
             bucket=bucket,
             category_id=session_id,
             vectorstore_config_dict=vectorstore_config_dict,
@@ -136,7 +136,11 @@ def update_vectorstore_from_s3(bucket, session_id):
         )
         print(f"Updating vectorstore for session: {session_id}")
         print(f"session_id for sending to AppSync: {session_id}")
-        invoke_event_notification(session_id, "Embeddings created successfully")
+        if message == "SUCCESS":
+            invoke_event_notification(session_id, "Embeddings created successfully")
+
+        else:
+            message # <- KANISH: This is the personalized guardrail message due to which embeddings haven't been created and stored. You will have to show this to the user.
     except Exception as e:
         logger.error(f"Error updating vectorstore for session {session_id}: {e}")
         raise
