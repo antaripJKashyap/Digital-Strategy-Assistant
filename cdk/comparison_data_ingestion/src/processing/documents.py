@@ -12,8 +12,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Initialize the clients
-EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
-
 s3 = boto3.client('s3')
 bedrock_client = boto3.client(service_name='bedrock')
 bedrock_runtime_client = boto3.client(service_name='bedrock-runtime')
