@@ -1,5 +1,4 @@
 from typing import Dict
-
 from helpers.helper import store_category_data
 
 def update_vectorstore(
@@ -7,7 +6,7 @@ def update_vectorstore(
     category_id: str,
     vectorstore_config_dict: Dict[str, str],
     embeddings#: BedrockEmbeddings
-) -> None:
+) -> str:
     """
     Update the vectorstore with embeddings for all documents and images in the S3 bucket.
 
@@ -22,9 +21,11 @@ def update_vectorstore(
     """
     # bucket = "DSA-data-ingestion-bucket"
     print(f"vectorstore_config_dict", vectorstore_config_dict)
-    store_category_data(
+    message = store_category_data(
         bucket=bucket,
         category_id=category_id,
         vectorstore_config_dict=vectorstore_config_dict,
         embeddings=embeddings
     )
+
+    return message
