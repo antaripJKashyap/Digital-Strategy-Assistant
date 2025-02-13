@@ -16,36 +16,28 @@ s3 = boto3.client('s3')
 bedrock_client = boto3.client(service_name='bedrock')
 bedrock_runtime_client = boto3.client(service_name='bedrock-runtime')
 
-def setup_guardrail() -> tuple[str, str]:
+def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
     """
     Returns (guardrail_id, version) after ensuring a valid published guardrail exists.
     """
-    guardrail_name = "comprehensive-guardrails"
+    guardrail_name = guardrail_name
+    guardrail_name_exists = False
     guardrail_id = None
     guardrail_version = None
 
-    # Check existing guardrails and delete any in DRAFT state
+    # Check if a guardrail with the name 'guardrail_name' exists
     paginator = bedrock_client.get_paginator('list_guardrails')
     for page in paginator.paginate():
         for guardrail in page.get('guardrails', []):
             if guardrail['name'] == guardrail_name:
-                guardrail_id = guardrail['id']
-                guardrail_version = guardrail.get('version', 'DRAFT')
                 logger.info(f"Found guardrail name={guardrail_name}, version={guardrail_version}, id={guardrail_id}")
-                
-                # Delete guardrail if in DRAFT to avoid version quota issues
-                if guardrail_version == "DRAFT":
-                    logger.info(f"Deleting DRAFT guardrail {guardrail_id}")
-                    bedrock_client.delete_guardrail(guardrailIdentifier=guardrail_id)
-                    guardrail_id = None
-                    guardrail_version = None
-                break
-        if guardrail_id:
-            break
+                guardrail_id = guardrail['id']
+                guardrail_version = guardrail.get('version')
+                guardrail_name_exists = True
 
-    # Create new guardrail if not found or was deleted
-    if not guardrail_id:
-        logger.info(f"Creating new guardrail: {guardrail_name}")
+    # If not 'guardrail_name_exists', then create a new guardrail with the name 'guardrail_name' and publish it
+    if not guardrail_name_exists:
+        logger.info(f"Creating new guardrail\nName: {guardrail_name}")
         response = bedrock_client.create_guardrail(
             name=guardrail_name,
             description='Block financial advice and PII',
@@ -82,7 +74,7 @@ def setup_guardrail() -> tuple[str, str]:
             blockedOutputsMessaging='Sorry, I cannot respond to that.'
         )
         guardrail_id = response['guardrailId']
-        logger.info(f"Created new guardrail: {guardrail_id}")
+        logger.info(f"ID: {guardrail_id}")
         
         # Publish the initial version
         version_response = bedrock_client.create_guardrail_version(
@@ -91,8 +83,9 @@ def setup_guardrail() -> tuple[str, str]:
             clientRequestToken=str(uuid.uuid4())
         )
         guardrail_version = version_response['version']
-        logger.info(f"Published guardrail version: {guardrail_version}")
+        logger.info(f"Version: {guardrail_version}")
 
+    print(f"\n\nReturning guardrail with name = {guardrail_name}, id = {guardrail_id}, version = {guardrail_version}.")
     return guardrail_id, guardrail_version
 
 def process_documents(
@@ -102,7 +95,7 @@ def process_documents(
 ) -> str:
     logger.info("Starting document processing...")
 
-    guardrail_id, guardrail_version = setup_guardrail()  
+    guardrail_id, guardrail_version = setup_guardrail(guardrail_name='comprehensive-guardrails')  
     if not guardrail_version.isdigit():
         raise ValueError(f"Invalid guardrail version: {guardrail_version}")
 
