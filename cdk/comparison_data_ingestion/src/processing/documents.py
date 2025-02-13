@@ -100,9 +100,7 @@ def process_documents(
 ) -> str:
     logger.info("Starting document processing...")
 
-    guardrail_id, guardrail_version = setup_guardrail(guardrail_name='comprehensive-guardrails')  
-    if not guardrail_version.isdigit():
-        raise ValueError(f"Invalid guardrail version: {guardrail_version}")
+    guardrail_id, guardrail_version = setup_guardrail(guardrail_name='comprehensive-guardrails')
 
     # Collect all document keys to process
     document_keys = []
