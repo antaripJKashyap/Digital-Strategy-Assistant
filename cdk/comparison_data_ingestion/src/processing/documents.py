@@ -180,8 +180,15 @@ def process_documents(
                         if not error_message:
                             error_message = "Sorry, I cannot process your document(s) due to restricted content."
 
-                        # Cleanup and return
+                        # Cleanup
                         doc_pdf.close()
+
+                        # Delete all documents because the user will have to re-upload them
+                        for key in document_keys:
+                            s3.delete_object(Bucket=bucket, Key=key)
+                            logger.info(f"Deleted {key} from S3.")
+
+                        # Return the personalized guardrail-based error_message
                         return error_message
 
                 except Exception as e:
