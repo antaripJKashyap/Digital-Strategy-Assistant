@@ -1,4 +1,4 @@
-import os, tempfile, logging, uuid
+import os, tempfile, logging, uuid, time
 from io import BytesIO
 from typing import List, Optional, Dict
 import boto3, pymupdf
@@ -73,6 +73,11 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
             blockedInputMessaging='Sorry, I cannot respond to that.',
             blockedOutputsMessaging='Sorry, I cannot respond to that.'
         )
+        
+        # Wait for 5 seconds so that the guardrails's status changes from 'CREATING' to 'READY'
+        logger.info("Waiting for 5 seconds so that the created guardrail's status changes to 'READY'...")
+        time.sleep(5)
+        
         guardrail_id = response['guardrailId']
         logger.info(f"ID: {guardrail_id}")
         
