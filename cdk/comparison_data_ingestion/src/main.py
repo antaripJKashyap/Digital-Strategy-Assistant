@@ -140,7 +140,7 @@ def update_vectorstore_from_s3(bucket, session_id):
             invoke_event_notification(session_id, "Embeddings created successfully")
 
         else:
-            message # <- KANISH: This is the personalized guardrail message due to which embeddings haven't been created and stored. You will have to show this to the user.
+            invoke_event_notification(session_id, message) # <- KANISH: This is the personalized guardrail message due to which embeddings haven't been created and stored. You will have to show this to the user.
     except Exception as e:
         logger.error(f"Error updating vectorstore for session {session_id}: {e}")
         raise

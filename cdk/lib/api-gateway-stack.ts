@@ -789,7 +789,7 @@ export class ApiGatewayStack extends cdk.Stack {
       {
         parameterName: `/${id}/DSA/BedrockLLMId`,
         description: "Parameter containing the Bedrock LLM ID",
-        stringValue: "us.meta.llama3-2-90b-instruct-v1:0",
+        stringValue: "us.meta.llama3-2-11b-instruct-v1:0",
       }
     );
     const embeddingModelParameter = new ssm.StringParameter(
@@ -1198,6 +1198,20 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
       }
     );
 
+    comparisonDataIngestFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "bedrock:CreateGuardrail",
+          "bedrock:CreateGuardrailVersion",
+          "bedrock:DeleteGuardrail", // Permission to create guardrails
+          "bedrock:ListGuardrails",  // (Optional) To list existing guardrails
+          "bedrock:InvokeGuardrail",
+          "bedrock:ApplyGuardrail"  // (Optional) To invoke the guardrail for filtering
+        ],
+        resources: ["*"], // Replace with specific resource ARNs if available
+      })
+    );
     // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
     const cfnComparisonLambdaDockerFunction = comparisonDataIngestFunction.node
       .defaultChild as lambda.CfnFunction;

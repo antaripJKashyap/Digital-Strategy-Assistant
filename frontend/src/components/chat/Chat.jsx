@@ -534,7 +534,7 @@ const Chat = ({ setPage }) => {
           console.log("WebSocket connection established");
 
           const initMessage = { type: "connection_init" };
-          console.log("Sent:", initMessage); // Print sent message
+          console.log("Sent:", initMessage);
           ws.send(JSON.stringify(initMessage));
 
           const subscriptionMessage = {
@@ -551,16 +551,27 @@ const Chat = ({ setPage }) => {
               },
             },
           };
-          console.log("Sent:", subscriptionMessage); // Print sent message
+          console.log("Sent:", subscriptionMessage);
           ws.send(JSON.stringify(subscriptionMessage));
         };
 
         ws.onmessage = (event) => {
           const message = JSON.parse(event.data);
-          console.log("Received:", message); // Print received message
+          console.log("Received:", message);
 
           if (message.type === "data" && message.payload?.data?.onNotify) {
-            resolve(message);
+            const receivedMessage = message.payload.data.onNotify.message;
+            
+            if (receivedMessage === "Embeddings created successfully") {
+              resolve(message);
+            } else {
+              // Add non-embedding messages as AI responses
+              setMessages((prev) => [
+                ...prev,
+                { Type: "ai", Content: receivedMessage }
+              ]);
+              setDocumentProcessing(false);
+            }
           }
         };
 
@@ -573,6 +584,8 @@ const Chat = ({ setPage }) => {
           reject(new Error("WebSocket connection timeout"));
         }, 180000);
       });
+
+      // Only remove user message if embeddings were successfully created
       setMessages((prev) => {
         const index = [...prev]
           .reverse()
@@ -595,7 +608,7 @@ const Chat = ({ setPage }) => {
         true,
         true
       );
-      console.log("Sent: 'I've uploaded course files for comparison'"); // Print sent message
+      console.log("Sent: 'I've uploaded course files for comparison'");
       
       // Reset state
       setTextSyllabus("");
@@ -610,8 +623,6 @@ const Chat = ({ setPage }) => {
       setIsLoading(false);
     }
   };
-  
-
 
   return (
     <div>
