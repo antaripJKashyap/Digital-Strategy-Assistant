@@ -403,14 +403,15 @@ export class ApiGatewayStack extends cdk.Stack {
       .defaultChild as lambda.CfnFunction;
     cfnNotificationFunction.overrideLogicalId("NotificationFunction");
 
-    const chatHistory = new lambda.DockerImageFunction(this, `${id}-chatHistory`, {
+    const chatHistory = new lambda.DockerImageFunction(this, `${id}-getChatHistory`, {
       code: lambda.DockerImageCode.fromImageAsset("./chatHistory"),
       memorySize: 512,
       timeout: cdk.Duration.seconds(600),
       vpc: vpcStack.vpc, // Pass the VPC
-      functionName: `${id}-chatHistory`,
+      functionName: `${id}-getChatHistory`,
       environment: {
         SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+        TABLE_NAME: "DynamoDB-Conversation-Table",
         RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
         CHATLOGS_BUCKET: csv_bucket.bucketName,
         REGION: this.region,
@@ -418,14 +419,26 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
      // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
-     const cfnSqsTrigger = chatHistory.node
-     .defaultChild as lambda.CfnFunction;
-     cfnSqsTrigger.overrideLogicalId(
-     "SQSTrigger"
-    );
+     const cfnGetChatHistory = chatHistory.node
+      .defaultChild as lambda.CfnFunction;
+      cfnGetChatHistory.overrideLogicalId("getChatHistory");
 
+      // Add the permission to the Lambda function's policy to allow API Gateway access
+    chatHistory.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
     csv_bucket.grantReadWrite(chatHistory);
-
+    
+    chatHistory.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["dynamodb:Query"],
+        resources: [
+          `arn:aws:dynamodb:${this.region}:${this.account}:table/DynamoDB-Conversation-Table`,
+        ],
+      })
+    );
     // Add ListBucket permission explicitly
     chatHistory.addToRolePolicy(
       new iam.PolicyStatement({
