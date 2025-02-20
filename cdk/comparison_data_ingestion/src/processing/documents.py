@@ -5,7 +5,6 @@ import boto3, pymupdf
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
