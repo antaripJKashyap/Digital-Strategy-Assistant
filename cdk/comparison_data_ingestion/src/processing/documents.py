@@ -19,8 +19,11 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
     Ensure a guardrail with a given name is created and published if it doesn't exist.
     Returns a tuple (guardrail_id, guardrail_version) for the guardrail.
     
-    :param guardrail_name: The name of the guardrail to create or retrieve.
-    :return: A tuple (guardrail_id, guardrail_version).
+    Args:
+        guardrail_name (str): The name of the guardrail to create or retrieve.
+    
+    Returns:
+        A tuple (guardrail_id (str), guardrail_version (str)).
     """
     guardrail_name = guardrail_name
     guardrail_name_exists = False
@@ -114,10 +117,10 @@ def process_documents(
        and the originals are removed from S3.
 
     Args:
-        bucket: The name of the S3 bucket containing documents to process.
-        category_id: A specific prefix in the S3 bucket indicating which 
+        bucket (str): The name of the S3 bucket containing documents to process.
+        category_id (str): A specific prefix in the S3 bucket indicating which 
                         documents to process.
-        vectorstore: An instance of PGVector for adding the processed documents.
+        vectorstore (PGVector): An instance of PGVector for adding the processed documents.
     
     Returns:
         "SUCCESS" if all documents are processed without guardrail conflicts, 
