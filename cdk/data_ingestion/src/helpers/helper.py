@@ -71,7 +71,7 @@ def store_category_data(
     embeddings: BedrockEmbeddings
 ) -> None:
     """
-    Store course data from an S3 bucket into a PGVector-backed vector store.
+    Store data from an S3 bucket into a PGVector-backed vector store.
 
     This function:
       1. Initializes a PGVector instance using the provided configuration.
