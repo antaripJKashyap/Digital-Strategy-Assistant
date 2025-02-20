@@ -8,14 +8,14 @@ def update_vectorstore(
     embeddings #: BedrockEmbeddings
 ) -> str:
     """
-    Update the vectorstore with embeddings for all documents and images in the S3 bucket.
+    Update the vectorstore with embeddings for all documents in the S3 bucket.
 
     Args:
         bucket (str): The name of the S3 bucket containing the course folders.
         category_id (str): The name of the folder within the S3 bucket.
         vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore,
             including parameters like collection name, database name, user, password, host, and port.
-        embeddings (BedrockEmbeddings): The embeddings instance used to process the documents and images.
+        embeddings (BedrockEmbeddings): The embeddings instance used to process the documents.
 
     Returns:
         str: 
