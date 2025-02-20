@@ -25,7 +25,6 @@ This script provides functionality for managing and applying AI guardrails using
 - **langchain_aws.BedrockEmbeddings**: (Imported but not used in the snippet) Typically handles embedding generation through AWS Bedrock.
 - **langchain_postgres.PGVector**: A vector store used to store document embeddings in a PostgreSQL database.
 - **langchain_core.documents.Document**: A standardized data structure representing documents in the LangChain ecosystem.
-- **langchain_text_splitters.RecursiveCharacterTextSplitter**: (Imported but not used in the snippet) A utility for splitting text into segments.
 
 ### AWS Configuration and Setup <a name="aws-configuration-and-setup"></a>
 - **boto3.client('s3')**: Initializes the AWS S3 client to list, download, and delete files in an S3 bucket.
