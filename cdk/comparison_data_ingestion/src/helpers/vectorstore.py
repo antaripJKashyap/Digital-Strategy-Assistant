@@ -18,8 +18,10 @@ def update_vectorstore(
         embeddings (BedrockEmbeddings): The embeddings instance used to process the documents and images.
 
     Returns:
-        "SUCCESS" if all documents are processed without guardrail conflicts, 
-             or an error message string if restricted content is detected.
+        str: 
+            - "SUCCESS" if documents are processed successfully without triggering 
+              guardrail conflicts. 
+            - Otherwise, an error message string if restricted content is detected.
     """
     # Call the helper function `store_category_data` to process and store data
     # for the given bucket and category using the provided embeddings and vectorstore config.
