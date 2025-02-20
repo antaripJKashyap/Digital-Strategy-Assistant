@@ -26,16 +26,16 @@ def get_vectorstore(
     Initialize and return a PGVector instance.
     
     Args:
-    collection_name (str): The name of the collection.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    dbname (str): The name of the database.
-    user (str): The database user.
-    password (str): The database password.
-    host (str): The database host.
-    port (int): The database port.
+        collection_name (str): The name of the collection.
+        embeddings (BedrockEmbeddings): The embeddings instance.
+        dbname (str): The name of the database.
+        user (str): The database user.
+        password (str): The database password.
+        host (str): The database host.
+        port (int): The database port.
     
     Returns:
-    Optional[PGVector]: The initialized PGVector instance, or None if an error occurred.
+        Optional[PGVector]: The initialized PGVector instance, or None if an error occurred.
     """
     try:
         connection_string = (
@@ -67,10 +67,10 @@ def store_category_data(
     Store course data from an S3 bucket into the vectorstore.
     
     Args:
-    bucket (str): the bucket
-    category (str): The category name/folder in the S3 bucket.
-    vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
-    embeddings (BedrockEmbeddings): The embeddings instance.
+        bucket (str): the bucket
+        category (str): The category name/folder in the S3 bucket.
+        vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore.
+        embeddings (BedrockEmbeddings): The embeddings instance.
     """
     # bucket = "DSA-data-ingestion-bucket-1"
     vectorstore, connection_string = get_vectorstore(
