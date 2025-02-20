@@ -14,7 +14,7 @@
 ---
 
 ## Script Overview <a name="script-overview"></a>
-This script provides functionality for initializing and configuring a PGVector-based vector store and then ingesting data (course documents) from an AWS S3 bucket into that vector store. It also manages metadata records in a PostgreSQL database via `langchain.indexes.SQLRecordManager`.
+This script provides functionality for initializing and configuring a PGVector-based vector store and then ingesting data (documents) from an AWS S3 bucket into that vector store. It also manages metadata records in a PostgreSQL database via `langchain.indexes.SQLRecordManager`.
 
 ### Import Libraries <a name="import-libraries"></a>
 - **logging**: For logging script activities and errors.
@@ -126,7 +126,7 @@ def store_category_data(
     embeddings: BedrockEmbeddings
 ) -> None:
     """
-    Store course data from an S3 bucket into a PGVector-backed vector store.
+    Store data from an S3 bucket into a PGVector-backed vector store.
 
     This function:
       1. Initializes a PGVector instance using the provided configuration.
