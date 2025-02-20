@@ -123,8 +123,10 @@ def process_documents(
         vectorstore (PGVector): An instance of PGVector for adding the processed documents.
     
     Returns:
-        "SUCCESS" if all documents are processed without guardrail conflicts, 
-             or an error message string if restricted content is detected.
+        str: 
+            - "SUCCESS" if documents are processed successfully without triggering 
+              guardrail conflicts. 
+            - Otherwise, an error message string if restricted content is detected.
     """
     logger.info("Starting document processing...")
 
