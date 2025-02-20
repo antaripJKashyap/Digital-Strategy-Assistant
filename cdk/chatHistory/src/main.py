@@ -8,7 +8,7 @@ import psycopg2
 from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Key
 
-# AWS Configuration
+
 S3_BUCKET = os.environ.get("CHATLOGS_BUCKET")
 DB_SECRET_NAME = os.environ.get("SM_DB_CREDENTIALS")
 RDS_PROXY_ENDPOINT = os.environ.get("RDS_PROXY_ENDPOINT")
@@ -81,29 +81,39 @@ def fetch_all_session_ids():
         return []
 
 
-def fetch_user_message_timestamps(session_id):
+def fetch_all_user_messages():
+    """ Fetch user messages along with timestamps and user roles for all sessions. """
     query = """
-        SELECT timestamp, engagement_details
+        SELECT session_id, engagement_details AS user_message, timestamp, user_role
         FROM user_engagement_log
-        WHERE session_id = %s
-        AND engagement_type = 'message creation'
-        ORDER BY timestamp ASC;
+        WHERE engagement_type = 'message creation'
+        ORDER BY session_id, timestamp ASC;
     """
     connection = connect_to_db()
     try:
         cur = connection.cursor()
-        print(f"Fetching timestamps for session {session_id} from user_engagement_log...")
-        cur.execute(query, (session_id,))
-        user_timestamps = cur.fetchall()
+        print("Fetching user messages with timestamps and roles for all sessions...")
+        cur.execute(query)
+        rows = cur.fetchall()
         cur.close()
 
-        # Debugging: Print retrieved timestamps
-        timestamp_dict = {msg[1].strip(): msg[0] for msg in user_timestamps}
-        print(f"Fetched timestamps from UEL for session {session_id}: {timestamp_dict}")
+        structured_messages = {}
+        for session_id, message, timestamp, user_role in rows:
+            message = message.strip()
+            
+            if session_id not in structured_messages:
+                structured_messages[session_id] = {}
 
-        return timestamp_dict
+            structured_messages[session_id][message] = {
+                "Timestamp": timestamp,
+                "UserRole": user_role  # Directly use user_role without mapping
+            }
+        
+        print(f" Successfully fetched timestamps and user roles for {len(structured_messages)} sessions.")
+        return structured_messages
+
     except Exception as e:
-        print(f"Database error while fetching timestamps for session {session_id}: {e}")
+        print(f" Database error while fetching user messages: {e}")
         return {}
 
 
@@ -166,19 +176,10 @@ def safe_parse_timestamp(timestamp):
 
 def fetch_chat_messages(session_id, table):
     """Fetch user & AI messages from DynamoDB for a given session_id."""
-
     try:
         logger.info(f"Fetching messages for session {session_id}")
 
-        # Query DynamoDB
         response = table.query(KeyConditionExpression=Key("SessionId").eq(session_id))
-
-        # Log raw response for debugging
-        logger.info(f"Raw DynamoDB response for session {session_id}: {json.dumps(response, indent=2)}")
-
-        # if 'Items' not in response or not response['Items']:
-        #     logger.warning(f"No messages found for session {session_id}")
-        #     return []
 
         formatted_messages = []
         
@@ -186,58 +187,57 @@ def fetch_chat_messages(session_id, table):
             history = item.get("History", [])
             
             for entry in history:
-                message_type = entry.get("type", "unknown")
-                content = entry.get("data", {}).get("content", "")
+                message_type = entry.get("type", "unknown")  # 'human' or 'ai'
+                content = entry.get("data", {}).get("content", "").strip()
                 
                 if not content:
                     continue  # Skip empty messages
 
-                # Remove unwanted prefixes from human messages
                 if message_type == "human":
                     content = clean_human_content(content)
                 
-                # Extract AI responses & possible questions
                 main_content, questions = extract_content_and_questions(content)
 
                 formatted_message = {
                     "SessionId": session_id,
-                    "UserRole": "ai" if message_type == "ai" else "user",
+                    "MessageType": "ai" if message_type == "ai" else "user",
                     "Message": main_content,
                     "Options": questions,
-                    "Timestamp": None,  # We'll merge timestamps later
+                    "Timestamp": None,  # Will be updated later
+                    "UserRole": "public"  # Placeholder, will be updated later
                 }
 
                 formatted_messages.append(formatted_message)
 
-        logger.info(f"Parsed messages (before timestamp merge) for session {session_id}: {json.dumps(formatted_messages, indent=2)}")
         return formatted_messages
 
     except Exception as e:
         logger.error(f"Error processing messages: {e}")
         return []
+
     
-def merge_chats(session_ids, table):
-    all_messages = []
-    for session_id in session_ids:
-        all_messages.extend(fetch_chat_messages(session_id, table))
-    # all_messages.sort(key=lambda x: x["Timestamp"])
-    return all_messages
-
-
 def write_to_csv(data, file_path="/tmp/chat_history.csv"):
-    header = ["SessionId", "UserRole", "Message", "Timestamp"]
+    header = ["SessionId", "UserRole", "MessageType", "Message", "Timestamp"]
     try:
         print("Writing data to CSV...")
         with open(file_path, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(header)
             for row in data:
-                writer.writerow([row["SessionId"], row["UserRole"], row["Message"], row["Timestamp"]])
+                writer.writerow([
+                    row["SessionId"],
+                    row["UserRole"],  # "public", "educator", "admin"
+                    row["MessageType"],  # "ai" or "user"
+                    row["Message"],
+                    row["Timestamp"].strftime("%Y-%m-%d %H:%M:%S") if row["Timestamp"] else "",
+                ])
+        
         print(f"CSV file saved at {file_path}")
         return file_path
     except Exception as e:
         print(f"Error writing to CSV: {e}")
         return None
+
 
 
 def upload_to_s3(file_path, bucket_name, s3_file_path):
@@ -250,23 +250,54 @@ def upload_to_s3(file_path, bucket_name, s3_file_path):
 
 
 def handler(event, context):
+    
     try:
-        query_params = event.get("queryStringParameters", {})
-        request_session_id = query_params.get("session_id", "").strip()
+        print("🔍 Fetching all user message timestamps and roles...")
+        user_timestamps = fetch_all_user_messages()
         
-        if not request_session_id:
-            print("Missing required parameter: session_id")
-            return {"statusCode": 400, "body": json.dumps({"error": "Missing session_id"})}
-        
+        print("🔍 Fetching all session IDs...")
         session_ids = fetch_all_session_ids()
-        chat_data = merge_chats(session_ids, table)
-        print("chat data", chat_data)
+
+        chat_data = []
+        for session_id in session_ids:
+            chat_messages = fetch_chat_messages(session_id, table)
+
+            session_timestamps = user_timestamps.get(session_id, {})
+
+            for message in chat_messages:
+                if message["MessageType"] == "user":
+                    user_data = session_timestamps.get(message["Message"], {})
+                    message["Timestamp"] = user_data.get("Timestamp", None)
+                    message["UserRole"] = user_data.get("UserRole", "public")
+                else:
+                    message["Timestamp"] = None  # AI messages don’t get timestamps
+
+                chat_data.append(message)
+
+        print("Merging complete. Writing data to CSV...")
         csv_path = write_to_csv(chat_data)
+
         if csv_path:
+            print("Uploading CSV to S3...")
             upload_to_s3(csv_path, S3_BUCKET, "chat_history.csv")
-            return {"statusCode": 200, "body": json.dumps({"message": "CSV uploaded successfully", "s3_path": f"s3://{S3_BUCKET}/chat_history.csv"})}
-        
-        return {"statusCode": 500, "body": json.dumps({"error": "Failed to generate CSV"})}
+            print("CSV successfully uploaded!")
+
+            return {
+                "statusCode": 200,
+                "body": json.dumps({
+                    "message": "CSV uploaded successfully",
+                    "s3_path": f"s3://{S3_BUCKET}/chat_history.csv"
+                })
+            }
+
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Failed to generate CSV"})
+        }
+
     except Exception as e:
         print(f"Lambda Error: {e}")
-        return {"statusCode": 500, "body": json.dumps({"error": "Internal Server Error"})}
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Internal Server Error"})
+        }
