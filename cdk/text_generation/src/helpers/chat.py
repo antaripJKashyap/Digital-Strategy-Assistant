@@ -62,54 +62,9 @@ def create_dynamodb_history_table(table_name: str) -> bool:
         # Wait until the table exists.
         table.meta.client.get_waiter("table_exists").wait(TableName=table_name)
 
-def get_guardrails():
-    bedrock = boto3.client('bedrock')  # Add this line to define the bedrock client
-    response = bedrock.create_guardrail(
-    name='comprehensive-guardrail-' + datetime.now().strftime("%Y%m%d-%H%M"),
-    description='Guardrail to prevent financial advice, offensive content, and exposure of PII.',
-    topicPolicyConfig={
-        'topicsConfig': [
-            {
-                'name': 'FinancialAdvice',
-                'definition': 'Providing personalized financial guidance or investment recommendations.',
-                'examples': [
-                    'Which mutual fund should I invest in for retirement?',
-                    'Can you advise on the best way to reduce my debt?'
-                ],
-                'type': 'DENY'
-            },
-            {
-                'name': 'OffensiveContent',
-                'definition': 'Content that includes hate speech, discriminatory remarks, explicit material, or language intended to offend individuals or groups.',
-                'examples': [
-                    'Tell me a joke about [a specific race or religion].',
-                    'Share an offensive meme targeting [a specific group].'
-                ],
-                'type': 'DENY'
-            }
-        ]
-    },
-    sensitiveInformationPolicyConfig={
-        'piiEntitiesConfig': [
-            {'type': 'EMAIL', 'action': 'ANONYMIZE'},
-            {'type': 'PHONE', 'action': 'ANONYMIZE'},
-            {'type': 'NAME', 'action': 'ANONYMIZE'},
-            {'type': 'US_SOCIAL_SECURITY_NUMBER', 'action': 'BLOCK'},
-            {'type': 'US_BANK_ACCOUNT_NUMBER', 'action': 'BLOCK'},
-            {'type': 'CREDIT_DEBIT_CARD_NUMBER', 'action': 'BLOCK'}
-        ]
-    },
-    blockedInputMessaging='Sorry, I cannot respond to that.',
-    blockedOutputsMessaging='Sorry, I cannot respond to that.'
-    )
-        
-    return response['guardrailId']
-    
-
 def get_bedrock_llm(
     bedrock_llm_id: str,
-    temperature: float = 0,
-    enable_guardrails: bool = False
+    temperature: float = 0
 ) -> ChatBedrock:
     """
     Retrieve a Bedrock LLM instance based on the provided model ID.
@@ -122,18 +77,6 @@ def get_bedrock_llm(
     Returns:
     ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    if enable_guardrails:
-        guardrailId = get_guardrails()
-        return ChatBedrock(
-            model_id=bedrock_llm_id,
-            model_kwargs=dict(temperature=temperature),
-            guardrails={
-                'guardrailIdentifier': guardrailId,
-                'guardrailVersion': 'DRAFT',
-                'trace': True
-            }
-        )
-    
     return ChatBedrock(
         model_id=bedrock_llm_id,
         model_kwargs=dict(temperature=temperature),
@@ -264,9 +207,6 @@ def get_response(
         "options": response_data.get("options")
     }
 
-    
-    # return get_llm_output(response)
-
 def generate_response(conversational_rag_chain: object, query: str, session_id: str) -> str:
     """
     Invokes the RAG chain to generate a response to a given query.
@@ -327,58 +267,6 @@ def get_llm_output(response: str) -> dict:
         "llm_output": main_content,
         "options": questions
     }
-
-
-
-# def parse_evaluation_response(evaluation_output: Dict[str, Any]) -> Dict[str, Any]:
-#     """
-#     Parses the output of get_response_evaluation to return llm_output and options.
-
-#     Args:
-#         evaluation_output (dict): The dictionary output of get_response_evaluation.
-#             It contains keys like 'response' or 'evaluation' and associated feedback.
-
-#     Returns:
-#         dict: A dictionary containing:
-#             - llm_output: Concatenated and cleaned content of all LLM outputs without newlines.
-#             - options: A list of follow-up questions (empty if none are available).
-#     """
-#     main_content = []
-#     options = []
-
-#     # Iterate over the evaluation output dictionary
-#     for key, value in evaluation_output.items():
-#         if isinstance(value, str):
-#             # Process string values
-#             main_content.append(value.strip())
-#         elif isinstance(value, list):
-#             # Assume lists are for options or follow-ups
-#             options.extend(value)
-#         elif isinstance(value, dict):
-#             # Recursively parse nested dictionaries
-#             nested_content = parse_evaluation_response(value)
-#             main_content.append(nested_content.get("llm_output", ""))
-#             options.extend(nested_content.get("options", []))
-
-#     # Concatenate all main content into a single string
-#     content_str = " ".join(main_content)
-
-#     # Replace URLs with Markdown links
-#     content_str = re.sub(
-#         r"https?://[^\s]+",
-#         lambda match: f"[{match.group(0)}]({match.group(0)})",
-#         content_str
-#     )
-
-#     # Remove all newlines and extra whitespace
-#     content_str = re.sub(r"\s+", " ", content_str).replace("\n", " ").strip()
-
-#     return {
-#         "llm_output": content_str,
-#         "options": options
-#     }
-#####^^^^^^ working
-
 
 def format_to_markdown(evaluation_results: dict) -> str:
     """
