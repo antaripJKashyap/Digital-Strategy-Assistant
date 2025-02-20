@@ -22,7 +22,6 @@ This script provides functionality for managing and applying AI guardrails using
 - **typing (List, Optional, Dict)**: Provides type annotations for better code clarity.
 - **boto3**: AWS SDK for Python, for interacting with AWS services like S3 and Bedrock.
 - **pymupdf**: Used to read and process PDF files.
-- **langchain_aws.BedrockEmbeddings**: (Imported but not used in the snippet) Typically handles embedding generation through AWS Bedrock.
 - **langchain_postgres.PGVector**: A vector store used to store document embeddings in a PostgreSQL database.
 - **langchain_core.documents.Document**: A standardized data structure representing documents in the LangChain ecosystem.
 
