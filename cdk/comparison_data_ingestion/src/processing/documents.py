@@ -112,12 +112,15 @@ def process_documents(
          and processing is aborted with an error message.
     5. Otherwise, successful documents are added to the vectorstore, 
        and the originals are removed from S3.
-    
-    :param bucket: The name of the S3 bucket containing documents to process.
-    :param category_id: A specific prefix in the S3 bucket indicating which 
+
+    Args:
+        bucket: The name of the S3 bucket containing documents to process.
+        category_id: A specific prefix in the S3 bucket indicating which 
                         documents to process.
-    :param vectorstore: An instance of PGVector for adding the processed documents.
-    :return: "SUCCESS" if all documents are processed without guardrail conflicts, 
+        vectorstore: An instance of PGVector for adding the processed documents.
+    
+    Returns:
+        "SUCCESS" if all documents are processed without guardrail conflicts, 
              or an error message string if restricted content is detected.
     """
     logger.info("Starting document processing...")
