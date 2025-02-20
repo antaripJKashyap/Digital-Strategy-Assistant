@@ -1,6 +1,6 @@
 import logging
 import boto3
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 import psycopg2
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
@@ -21,7 +21,7 @@ def get_vectorstore(
     password: str, 
     host: str, 
     port: int
-) -> Optional[PGVector]:
+) -> Optional[Tuple[PGVector, str]]:
     """
     Initialize and return a PGVector instance along with a connection string.
     
@@ -42,9 +42,10 @@ def get_vectorstore(
         port (int): The port number on which the database server is listening.
     
     Returns:
-        Optional[PGVector]: 
+        Optional[PGVector, str]: 
             - On success, returns (PGVector, str), where PGVector is the vector store 
               and str is the connection string.
+        Optional (str):
             - Returns None if an error occurred during initialization.
     """
     try:
