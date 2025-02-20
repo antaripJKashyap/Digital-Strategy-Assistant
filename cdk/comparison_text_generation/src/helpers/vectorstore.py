@@ -21,7 +21,6 @@ def get_vectorstore_retriever_ordinary(
     Returns:
     VectorStoreRetriever: An ordinary (non-history aware) retriever instance.
     """
-    print("inside get_vectorstore_retriever_ordinary")
     vectorstore, _ = get_vectorstore(
         collection_name=vectorstore_config_dict['collection_name'],
         embeddings=embeddings,
@@ -31,7 +30,5 @@ def get_vectorstore_retriever_ordinary(
         host=vectorstore_config_dict['host'],
         port=int(vectorstore_config_dict['port'])
     )
-
-    print(f"Collection name INSIDE get_vectorstore_retriever_ordinary: {vectorstore_config_dict['collection_name']}")
-
+    
     return vectorstore.as_retriever(search_kwargs={'k': 5}), vectorstore
