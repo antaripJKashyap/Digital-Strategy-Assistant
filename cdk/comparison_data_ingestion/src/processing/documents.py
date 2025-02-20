@@ -2,7 +2,6 @@ import os, tempfile, logging, uuid, time
 from io import BytesIO
 from typing import List, Optional, Dict
 import boto3, pymupdf
-from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
 
