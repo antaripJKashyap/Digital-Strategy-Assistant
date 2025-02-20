@@ -1,4 +1,4 @@
-# update_vectorstore.py
+# vectorstore.py
 
 ## Table of Contents <a name="table-of-contents"></a>
 - [Script Overview](#script-overview)
