@@ -17,7 +17,7 @@ This script defines a single function, `update_vectorstore`, which updates a vec
 
 ### Import Libraries <a name="import-libraries"></a>
 - **typing.Dict**: Used for providing type hints for dictionaries.
-- **helpers.helper.store_category_data**: A helper function that processes and stores data in a vector store, handling the ingestion and embedding creation.
+- **helpers.helper.store_category_data**: A helper function that processes and stores data in a vector store. It handles the ingestion and embedding creation.
 
 ### AWS Configuration and Setup <a name="aws-configuration-and-setup"></a>
 - The function expects:
