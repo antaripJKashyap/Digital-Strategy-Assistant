@@ -37,7 +37,7 @@ This script provides functionality for managing and applying AI guardrails using
 
 ### Execution Flow <a name="execution-flow"></a>
 1. **setup_guardrail** is called to confirm the presence of a Bedrock guardrail. If the guardrail does not exist, it is created and published.
-2. **process_documents** gathers the relevant documents (PDF files) from S3, applies the guardrail checks on each page, and either stores them in the vector store or halts processing (deleting the original files) if restricted content is detected.
+2. **process_documents** gathers the relevant documents (.g., PDF files) from S3, applies the guardrail checks on each page, and either stores them in the vector store or halts processing (deleting the original files) if restricted content is detected.
 
 ---
 
