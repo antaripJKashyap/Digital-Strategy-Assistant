@@ -86,7 +86,7 @@ def process_documents(
 Processes a set of documents stored in an S3 bucket under a given prefix. For each PDF file:
 1. Applies Bedrock guardrail checks to detect restricted content.
 2. If restricted content is found, deletes all documents from S3 and returns an error message.
-3. If safe, stores the documents in the `PGVector` vector store and removes them from S3.
+3. If safe, stores the documents in the `PGVector` vector store and then removes them from S3.
 
 #### Process Flow
 1. **Guardrail Setup**: Retrieves or creates a comprehensive guardrail via `setup_guardrail`.
