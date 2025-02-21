@@ -18,7 +18,7 @@ This script provides functionality for:
 1. Initializing a PGVector-based vector store (via `get_vectorstore`).
 2. Storing categorized documents from an Amazon S3 bucket into that vector store (via `store_category_data`).
 
-It uses AWS’s `boto3` for S3 operations, `BedrockEmbeddings` for generating text embeddings, and `PGVector` (a PostgreSQL-based vector storage library) for indexing those embeddings.
+It uses AWS’s `boto3` for S3 operations, `BedrockEmbeddings` for generating text embeddings, and `PGVector` (a PostgreSQL-based vector storage library) for storing those embeddings.
 
 ### Import Libraries <a name="import-libraries"></a>
 - **logging**: For logging messages at different severity levels.
