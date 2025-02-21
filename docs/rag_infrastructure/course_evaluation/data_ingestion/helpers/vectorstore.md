@@ -87,7 +87,7 @@ def update_vectorstore(
   - `bucket`: Name of the S3 bucket.
   - `category_id`: Folder or category within the S3 bucket to process.
   - `vectorstore_config_dict`: Dictionary of configuration parameters (database, host, port, user, etc.) for the vector store.
-  - `embeddings`: Embedding instance (e.g., BedrockEmbeddings) to generate vector representations of text.
+  - `embeddings`: Embedding instance (BedrockEmbeddings) to generate vector representations of text.
 - **Outputs**:
   - Returns **"SUCCESS"** or an **error message string** based on the processing outcome.
 
