@@ -23,7 +23,6 @@ This script defines a single function, `update_vectorstore`, which updates a vec
 - The function expects:
   - A bucket name (`bucket`) corresponding to an S3 bucket where documents reside.
   - A `category_id` representing the folder or category within the bucket to process.
-- AWS credentials are assumed to be configured elsewhere, typically via environment variables or AWS CLI.
 
 ### Helper Functions <a name="helper-functions"></a>
 - **store_category_data**: Performs data ingestion and embedding operations. It processes items in the specified `bucket` and `category_id` using the provided embeddings and vector store configuration.
