@@ -204,7 +204,7 @@ def fetch_chat_messages(session_id, table):
                     "Message": main_content,
                     "Options": questions,
                     "Timestamp": None,  # Will be updated later
-                    "UserRole": "public"  # Placeholder, will be updated later
+                    "UserRole": ""  # Placeholder, will be updated later
                 }
 
                 formatted_messages.append(formatted_message)
@@ -268,7 +268,7 @@ def handler(event, context):
                 if message["MessageType"] == "user":
                     user_data = session_timestamps.get(message["Message"], {})
                     message["Timestamp"] = user_data.get("Timestamp", None)
-                    message["UserRole"] = user_data.get("UserRole", "public")
+                    message["UserRole"] = user_data.get("UserRole", "")
                 else:
                     message["Timestamp"] = None  # AI messages don’t get timestamps
 
