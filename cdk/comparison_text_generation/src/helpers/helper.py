@@ -22,23 +22,21 @@ def get_vectorstore(
     Initialize and return a PGVector instance.
     
     Args:
-    collection_name (str): The name of the collection.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    dbname (str): The name of the database.
-    user (str): The database user.
-    password (str): The database password.
-    host (str): The database host.
-    port (int): The database port.
+        collection_name (str): The name of the collection.
+        embeddings (BedrockEmbeddings): The embeddings instance.
+        dbname (str): The name of the database.
+        user (str): The database user.
+        password (str): The database password.
+        host (str): The database host.
+        port (int): The database port.
     
     Returns:
-    Optional[PGVector]: The initialized PGVector instance, or None if an error occurred.
+        Optional[PGVector]: The initialized PGVector instance, or None if an error occurred.
     """
-    print("inside get_vectorstore")
     try:
         connection_string = (
             f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
         )
-        print(f"connection string inside get_vectorstore", connection_string)
         
         logger.info("Initializing the VectorStore")
         vectorstore = PGVector(
@@ -47,10 +45,7 @@ def get_vectorstore(
             connection=connection_string,
             use_jsonb=True
         )
-        print(f"vectorstore in get_vectorstore: {vectorstore}")
-
-
-
+        
         logger.info("VectorStore initialized")
         return vectorstore, connection_string
 
