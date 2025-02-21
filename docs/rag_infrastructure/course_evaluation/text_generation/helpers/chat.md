@@ -65,7 +65,7 @@ def get_bedrock_llm(
     )
 ```
 #### Purpose
-Initializes and returns a `ChatBedrock` LLM client using the specified `bedrock_llm_id`. This function centralizes LLM configuration (e.g., temperature) for easy reusability across different evaluation scripts.
+Initializes and returns a `ChatBedrock` LLM client using the specified `bedrock_llm_id`.
 
 #### Inputs and Outputs
 - **Inputs**:
@@ -97,7 +97,7 @@ def format_to_markdown(evaluation_results: dict) -> str:
     return "\n".join(markdown_output).strip()
 ```
 #### Purpose
-Transforms a dictionary of evaluation results into a Markdown-friendly string, making it simpler to display or store results in a formatted manner.
+Transforms a dictionary of evaluation results into a Markdown-friendly string, which makes it simpler to display or store results in a formatted manner.
 
 #### Process Flow
 1. Iterates over each key-value pair in `evaluation_results`.
@@ -125,7 +125,7 @@ def parse_single_evaluation(response: str, guideline_name: str) -> dict:
     }
 ```
 #### Purpose
-Parses and formats an LLM-generated response for a single guideline, preparing it for aggregation into a larger evaluation result.
+Parses and formats an LLM-generated response for a single guideline, and then prepares it for aggregation into a larger evaluation result.
 
 #### Process Flow
 1. Splits the response into lines and strips extra whitespace.
@@ -236,7 +236,7 @@ def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
     # return parse_evaluation_response(evaluation_results)
 ```
 #### Purpose
-Orchestrates the evaluation of documents against multiple guidelines. It uses a retrieval-augmented generation (RAG) chain combining:
+Orchestrates the evaluation of documents against multiple guidelines. It uses a RAG chain combining:
 
 - **Retriever**: Gathers relevant document context.
 - **PromptTemplate**: Injects context and guidelines into a custom prompt.
