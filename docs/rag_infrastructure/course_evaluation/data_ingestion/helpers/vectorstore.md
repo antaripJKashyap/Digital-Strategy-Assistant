@@ -13,7 +13,7 @@
 ---
 
 ## Script Overview <a name="script-overview"></a>
-This script defines a single function, `update_vectorstore`, which updates a vector store with embeddings for documents and images located in an AWS S3 bucket. It interacts with a helper function, `store_category_data`, to perform the underlying data storage and embedding operations.
+This script defines a single function, `update_vectorstore`, which updates a vector store with embeddings for documents located in an AWS S3 bucket. It interacts with a helper function, `store_category_data`, to perform the underlying data storage and embedding operations.
 
 ### Import Libraries <a name="import-libraries"></a>
 - **typing.Dict**: Used for providing type hints for dictionaries.
@@ -21,7 +21,7 @@ This script defines a single function, `update_vectorstore`, which updates a vec
 
 ### AWS Configuration and Setup <a name="aws-configuration-and-setup"></a>
 - The function expects:
-  - A bucket name (`bucket`) corresponding to an S3 bucket where documents and images reside.
+  - A bucket name (`bucket`) corresponding to an S3 bucket where documents reside.
   - A `category_id` representing the folder or category within the bucket to process.
 - AWS credentials are assumed to be configured elsewhere, typically via environment variables or AWS CLI.
 
@@ -34,7 +34,7 @@ This script defines a single function, `update_vectorstore`, which updates a vec
 ### Execution Flow <a name="execution-flow"></a>
 1. **Parameters**: The user supplies the S3 `bucket` name, `category_id`, vector store configuration dictionary, and an embeddings instance.
 2. **update_vectorstore**: 
-   - Calls `store_category_data` to ingest and process documents and images.
+   - Calls `store_category_data` to ingest and process documents.
    - Receives either "SUCCESS" or an error message indicating restricted content conflicts.
 3. **Output**: Returns the status message to the caller, which can then log or handle it accordingly.
 
@@ -51,14 +51,14 @@ def update_vectorstore(
     embeddings #: BedrockEmbeddings
 ) -> str:
     """
-    Update the vectorstore with embeddings for all documents and images in the S3 bucket.
+    Update the vectorstore with embeddings for all documents in the S3 bucket.
 
     Args:
         bucket (str): The name of the S3 bucket containing the course folders.
         category_id (str): The name of the folder within the S3 bucket.
         vectorstore_config_dict (Dict[str, str]): The configuration dictionary for the vectorstore,
             including parameters like collection name, database name, user, password, host, and port.
-        embeddings (BedrockEmbeddings): The embeddings instance used to process the documents and images.
+        embeddings (BedrockEmbeddings): The embeddings instance used to process the documents.
 
     Returns:
         "SUCCESS" if all documents are processed without guardrail conflicts, 
@@ -74,11 +74,11 @@ def update_vectorstore(
     return message
 ```
 #### Purpose
-- Orchestrates the update of a vector store by calling the `store_category_data` helper function, which processes documents and images from a specified `bucket` and `category_id` using the provided embeddings and vector store configuration.
+- Orchestrates the update of a vector store by calling the `store_category_data` helper function, which processes documents from a specified `bucket` and `category_id` using the provided embeddings and vector store configuration.
 
 #### Process Flow
 1. Receives the S3 bucket name, the folder/category identifier, vector store configuration, and embeddings.
-2. Calls `store_category_data` with these parameters to ingest and embed documents/images.
+2. Calls `store_category_data` with these parameters to ingest and embed documents.
 3. Returns the status message from `store_category_data`, which is either:
    - **"SUCCESS"** if the update completes without guardrail conflicts, or
    - **An error message** indicating detected restricted content.
@@ -88,7 +88,7 @@ def update_vectorstore(
   - `bucket`: Name of the S3 bucket.
   - `category_id`: Folder or category within the S3 bucket to process.
   - `vectorstore_config_dict`: Dictionary of configuration parameters (database, host, port, user, etc.) for the vector store.
-  - `embeddings`: Embedding instance (e.g., BedrockEmbeddings) to generate vector representations of text or images.
+  - `embeddings`: Embedding instance (e.g., BedrockEmbeddings) to generate vector representations of text.
 - **Outputs**:
   - Returns **"SUCCESS"** or an **error message string** based on the processing outcome.
 
