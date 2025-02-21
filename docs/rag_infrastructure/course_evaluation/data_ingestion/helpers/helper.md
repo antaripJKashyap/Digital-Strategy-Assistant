@@ -94,7 +94,7 @@ def store_category_data(
     ...
 ```
 #### Purpose
-Orchestrates the retrieval or initialization of a PGVector store from configuration details, then processes documents from the specified `bucket/category_id` path in S3, storing them in the vector store.
+Orchestrates the retrieval or initialization of a PGVector store from configuration details, then processes documents from the specified `bucket/category_id` path in S3, and finally stores them in the vector store.
 
 #### Process Flow
 1. Calls `get_vectorstore` with `vectorstore_config_dict` to obtain `(vectorstore, connection_string)`.
