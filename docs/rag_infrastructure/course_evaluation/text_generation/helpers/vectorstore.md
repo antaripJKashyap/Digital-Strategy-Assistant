@@ -15,7 +15,6 @@
 This script provides functionality to:
 1. Retrieve a vector store based on user-specified configuration parameters.
 2. Create a standard (non-history aware) retriever from that vector store.
-3. Optionally allow the user to interact with both the retriever and the raw vector store.
 
 ### Import Libraries <a name="import-libraries"></a>
 - **typing**: Provides the `Dict` type hint for function parameters.
@@ -80,7 +79,7 @@ def get_vectorstore_retriever_ordinary(
 ```
 
 #### Purpose
-Creates a straightforward vector store retriever configured to return the top 5 matching results. It also provides direct access to the underlying vector store.
+Creates a straightforward vector store retriever configured to return the top 5 matching results. It also provides direct access to the underlying vector store (the vector store is returned as well).
 
 #### Process Flow
 1. Uses the `get_vectorstore` helper to either load or initialize a vector store based on the given configuration.
@@ -94,6 +93,6 @@ Creates a straightforward vector store retriever configured to return the top 5 
 - **Outputs**:
   - A tuple `(retriever, vectorstore)`:
     - **retriever**: A `VectorStoreRetriever` configured for top-5 retrieval.
-    - **vectorstore**: The underlying vector store object itself, allowing further direct interaction if needed.
+    - **vectorstore**: The underlying vector store object itself which allows further direct interaction if needed.
 
 [🔼 Back to top](#table-of-contents)
