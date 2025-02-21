@@ -24,7 +24,7 @@ It uses AWS’s `boto3` for S3 operations, `BedrockEmbeddings` for generating te
 - **logging**: For logging messages at different severity levels.
 - **boto3**: AWS SDK for Python, used to manage S3 interactions.
 - **typing**: Provides `Dict`, `Optional`, and `Tuple` for Python type hints.
-- **psycopg2**: Postgres database adapter (referenced if needed by PGVector or direct DB logic).
+- **psycopg2**: Postgres database adapter.
 - **BedrockEmbeddings** (from `langchain_aws`): Custom embeddings wrapper to transform text into vector embeddings.
 - **PGVector** (from `langchain_postgres`): Vector store implementation that persists vectors to a Postgres database.
 - **process_documents** (from `processing.documents`): A function that processes and uploads documents to the vector store.
