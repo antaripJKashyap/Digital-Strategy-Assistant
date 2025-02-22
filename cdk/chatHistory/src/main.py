@@ -252,6 +252,8 @@ def upload_to_s3(file_path, bucket_name, s3_file_path):
 def handler(event, context):
     
     try:
+        query_params = event.get("queryStringParameters", {})
+        current_session_id = query_params.get("session_id", "")
         print("🔍 Fetching all user message timestamps and roles...")
         user_timestamps = fetch_all_user_messages()
         
@@ -279,14 +281,15 @@ def handler(event, context):
 
         if csv_path:
             print("Uploading CSV to S3...")
-            upload_to_s3(csv_path, S3_BUCKET, "chat_history.csv")
+            
+            upload_to_s3(csv_path, S3_BUCKET, f"{current_session_id}/chat_history.csv")
             print("CSV successfully uploaded!")
 
             return {
                 "statusCode": 200,
                 "body": json.dumps({
                     "message": "CSV uploaded successfully",
-                    "s3_path": f"s3://{S3_BUCKET}/chat_history.csv"
+                    "s3_path": f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv"
                 })
             }
 
