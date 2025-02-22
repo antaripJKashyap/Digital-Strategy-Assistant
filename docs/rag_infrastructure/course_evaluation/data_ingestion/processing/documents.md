@@ -14,7 +14,7 @@
 ---
 
 ## Script Overview <a name="script-overview"></a>
-This script provides functionality for managing and applying AI guardrails using AWS Bedrock. It also processes documents from an S3 bucket, checks them for restricted content (financial advice, offensive material, and PII), and, if safe, stores them in a vector store (`PGVector`) for later retrieval or indexing.
+This script provides functionality for managing and applying AI guardrails using AWS Bedrock. It also processes documents from an S3 bucket, checks them for restricted content (financial advice, offensive material, and PII), and, if safe, stores them in a vector store (`PGVector`) for later retrieval.
 
 ### Import Libraries <a name="import-libraries"></a>
 - **os, tempfile, logging, uuid, time**: Standard Python libraries for file handling, temporary file creation, logging, generating unique identifiers, and time-based operations.
@@ -37,7 +37,7 @@ This script provides functionality for managing and applying AI guardrails using
 
 ### Execution Flow <a name="execution-flow"></a>
 1. **setup_guardrail** is called to confirm the presence of a Bedrock guardrail. If the guardrail does not exist, it is created and published.
-2. **process_documents** gathers the relevant documents (PDF files) from S3, applies the guardrail checks on each page, and either stores them in the vector store or halts processing (deleting the original files) if restricted content is detected.
+2. **process_documents** gathers the relevant documents (e.g., PDF files) from S3, applies the guardrail checks on each page, and either stores them in the vector store or halts processing (deleting the original files) if restricted content is detected.
 
 ---
 
@@ -86,7 +86,7 @@ def process_documents(
 Processes a set of documents stored in an S3 bucket under a given prefix. For each PDF file:
 1. Applies Bedrock guardrail checks to detect restricted content.
 2. If restricted content is found, deletes all documents from S3 and returns an error message.
-3. If safe, stores the documents in the `PGVector` vector store and removes them from S3.
+3. If safe, stores the documents in the `PGVector` vector store and then removes them from S3.
 
 #### Process Flow
 1. **Guardrail Setup**: Retrieves or creates a comprehensive guardrail via `setup_guardrail`.
@@ -98,7 +98,7 @@ Processes a set of documents stored in an S3 bucket under a given prefix. For ea
      - If restricted content is detected:
        - Deletes all documents from S3.
        - Returns the corresponding error message.
-     - If allowed, appends the page text as a `Document` object to a list for indexing.
+     - If allowed, appends the page text as a `Document` object to a list.
 4. **Vector Store Update**: If no guardrail is triggered, all page texts are added to the vector store. The original files in S3 are then deleted.
 5. **Return Value**: Returns `"SUCCESS"` if processing completes without blockages.
 

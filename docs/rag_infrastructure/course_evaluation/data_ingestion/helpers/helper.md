@@ -18,13 +18,13 @@ This script provides functionality for:
 1. Initializing a PGVector-based vector store (via `get_vectorstore`).
 2. Storing categorized documents from an Amazon S3 bucket into that vector store (via `store_category_data`).
 
-It uses AWS’s `boto3` for S3 operations, `BedrockEmbeddings` for generating text embeddings, and `PGVector` (a PostgreSQL-based vector storage library) for indexing those embeddings.
+It uses AWS’s `boto3` for S3 operations, `BedrockEmbeddings` for generating text embeddings, and `PGVector` (a PostgreSQL-based vector storage library) for storing those embeddings.
 
 ### Import Libraries <a name="import-libraries"></a>
 - **logging**: For logging messages at different severity levels.
 - **boto3**: AWS SDK for Python, used to manage S3 interactions.
 - **typing**: Provides `Dict`, `Optional`, and `Tuple` for Python type hints.
-- **psycopg2**: Postgres database adapter (referenced if needed by PGVector or direct DB logic).
+- **psycopg2**: Postgres database adapter.
 - **BedrockEmbeddings** (from `langchain_aws`): Custom embeddings wrapper to transform text into vector embeddings.
 - **PGVector** (from `langchain_postgres`): Vector store implementation that persists vectors to a Postgres database.
 - **process_documents** (from `processing.documents`): A function that processes and uploads documents to the vector store.
@@ -94,7 +94,7 @@ def store_category_data(
     ...
 ```
 #### Purpose
-Orchestrates the retrieval or initialization of a PGVector store from configuration details, then processes documents from the specified `bucket/category_id` path in S3, storing them in the vector store.
+Orchestrates the retrieval or initialization of a PGVector store from configuration details, then processes documents from the specified `bucket/category_id` path in S3, and finally stores them in the vector store.
 
 #### Process Flow
 1. Calls `get_vectorstore` with `vectorstore_config_dict` to obtain `(vectorstore, connection_string)`.

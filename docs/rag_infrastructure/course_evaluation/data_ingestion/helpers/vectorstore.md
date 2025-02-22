@@ -17,13 +17,12 @@ This script defines a single function, `update_vectorstore`, which updates a vec
 
 ### Import Libraries <a name="import-libraries"></a>
 - **typing.Dict**: Used for providing type hints for dictionaries.
-- **helpers.helper.store_category_data**: A helper function that processes and stores data in a vector store, handling the ingestion and embedding creation.
+- **helpers.helper.store_category_data**: A helper function that processes and stores data in a vector store. It handles the ingestion and embedding creation.
 
 ### AWS Configuration and Setup <a name="aws-configuration-and-setup"></a>
 - The function expects:
   - A bucket name (`bucket`) corresponding to an S3 bucket where documents reside.
   - A `category_id` representing the folder or category within the bucket to process.
-- AWS credentials are assumed to be configured elsewhere, typically via environment variables or AWS CLI.
 
 ### Helper Functions <a name="helper-functions"></a>
 - **store_category_data**: Performs data ingestion and embedding operations. It processes items in the specified `bucket` and `category_id` using the provided embeddings and vector store configuration.
@@ -88,7 +87,7 @@ def update_vectorstore(
   - `bucket`: Name of the S3 bucket.
   - `category_id`: Folder or category within the S3 bucket to process.
   - `vectorstore_config_dict`: Dictionary of configuration parameters (database, host, port, user, etc.) for the vector store.
-  - `embeddings`: Embedding instance (e.g., BedrockEmbeddings) to generate vector representations of text.
+  - `embeddings`: Embedding instance (BedrockEmbeddings) to generate vector representations of text.
 - **Outputs**:
   - Returns **"SUCCESS"** or an **error message string** based on the processing outcome.
 
