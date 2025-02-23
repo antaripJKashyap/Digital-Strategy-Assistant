@@ -64,7 +64,22 @@ def connect_to_db():
             raise
     return connection
 
-
+def update_conversation_csv(session_id, file_path):
+    """ Inserts a record into the conversation_csv table """
+    query = """
+        INSERT INTO conversation_csv (file_path, file_type, notified, timestamp)
+        VALUES (%s, %s, %s, %s)
+    """
+    connection = connect_to_db()
+    try:
+        cur = connection.cursor()
+        cur.execute(query, (file_path, "csv", False, datetime.now(timezone.utc)))
+        connection.commit()
+        cur.close()
+        print(f" Successfully inserted CSV record for session {session_id}")
+    except Exception as e:
+        print(f" Database error while updating conversation_csv: {e}")
+    
 def fetch_all_session_ids():
     query = "SELECT DISTINCT session_id FROM user_engagement_log WHERE session_id IS NOT NULL;"
     connection = connect_to_db()
@@ -284,6 +299,7 @@ def handler(event, context):
             
             upload_to_s3(csv_path, S3_BUCKET, f"{current_session_id}/chat_history.csv")
             print("CSV successfully uploaded!")
+            update_conversation_csv(current_session_id, f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv")
 
             return {
                 "statusCode": 200,
