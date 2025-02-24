@@ -53,8 +53,8 @@ def get_vectorstore(
 ```
 
 #### Purpose
-- **Initialize a PGVector Instance**: Sets up a vector store that handles vector embeddings using a PostgreSQL backend.
-- **Return Connection Details**: Provides both the vector store instance and its connection string to facilitate further operations.
+- Sets up a vector store that handles vector embeddings using a PostgreSQL backend.
+- Provides both the vector store instance and its connection string to facilitate further operations.
 
 #### Process Flow
 1. Constructs a connection string using the provided database credentials.
