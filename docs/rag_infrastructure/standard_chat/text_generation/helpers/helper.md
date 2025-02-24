@@ -26,8 +26,7 @@ This script is designed to initialize and return a **PGVector vector store** ins
 - **langchain_postgres.PGVector**: Facilitates interactions with the PostgreSQL vector store.
 
 ### LLM and Embeddings Usage <a name="llm-and-embeddings-usage"></a>
-- The `embeddings` parameter (of type `BedrockEmbeddings`) is utilized to transform textual data into vectors.  
-- These vector representations are managed by the PGVector instance, enabling efficient semantic search and retrieval within applications that leverage language models.
+- The `embeddings` parameter (of type `BedrockEmbeddings`) is utilized to transform textual data into vectors.
 
 ### Main Function <a name="main-function"></a>
 - **get_vectorstore**: This function creates the connection string based on provided database credentials, initializes a PGVector vector store with JSONB support, and returns a tuple containing the vector store instance along with the connection string.
@@ -62,12 +61,9 @@ def get_vectorstore(
 - **Return Connection Details**: Provides both the vector store instance and its connection string to facilitate further operations.
 
 #### Process Flow
-1. **Connection String Construction**:  
-   Constructs a connection string using the provided database credentials.
-2. **Vector Store Initialization**:  
-   Logs the initialization process and creates the PGVector instance with the specified embeddings and collection name.
-3. **Error Handling**:  
-   In case of exceptions, logs the error and returns `None`.
+1. Constructs a connection string using the provided database credentials.
+2. Logs the initialization process and creates the PGVector instance with the specified embeddings and collection name.
+3. In case of exceptions, logs the error and returns `None`.
 
 #### Inputs and Outputs
 - **Inputs**:
