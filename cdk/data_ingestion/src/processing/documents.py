@@ -164,70 +164,7 @@ def store_doc_chunks(
         this_doc_chunks.extend(doc_chunks)
        
     return this_doc_chunks
-'''                
-def process_documents(
-    bucket: str,
-    category_id: str, 
-    vectorstore: PGVector, 
-    embeddings: BedrockEmbeddings,
-    record_manager: SQLRecordManager
-) -> None:
-    """
-    Process and add text documents from an S3 bucket to the vectorstore.
-    
-    Args:
-    bucket (str): The name of the S3 bucket containing the text documents.
-    course (str): The course ID folder in the S3 bucket.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
-    """
-    print("start processing document")
-    paginator = s3.get_paginator('list_objects_v2')
-    page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category_id}/")
-    all_doc_chunks = []
-    
-    try:
-        for page in page_iterator:
-            print("checking paginator  003")
-            if "Contents" not in page:
-                continue  # Skip pages without any content (e.g., if the bucket is empty)
-            for document in page['Contents']:
-                
-                documentname = document['Key']
-                this_doc_chunks = add_document(
-                    bucket=bucket,
-                    category_id=category_id,
-                    document_name=documentname.split('/')[-1],
-                    vectorstore=vectorstore,
-                    embeddings=embeddings
-                )
 
-                all_doc_chunks.extend(this_doc_chunks)
-
-    except Exception as e:
-        logger.error(f"Error processing documents: {e}")
-        raise
-    
-    if all_doc_chunks:  # Check if there are any documents to index
-        idx = index(
-            all_doc_chunks, 
-            record_manager, 
-            vectorstore, 
-            cleanup="full",
-            source_id_key="source"
-        )
-        logger.info(f"Indexing updates: \n {idx}")
-    else:
-        idx = index(
-            [],
-            record_manager, 
-            vectorstore, 
-            cleanup="full",
-            source_id_key="source"
-        )
-        logger.info("No documents found for indexing.")
-'''
 def process_documents(
     bucket: str,
     category_id: str, 
