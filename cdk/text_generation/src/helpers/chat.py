@@ -18,17 +18,6 @@ from typing import Dict, Any, Optional, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class LLM_evaluation(BaseModel):
-    """
-    Data model that represents an LLM evaluation.
-
-    Attributes:
-        response (str): Assessment of the student's answer with a follow-up question.
-    """
-    response: str = Field(
-        description="Assessment of the student's answer with a follow-up question."
-    )
-
 def create_dynamodb_history_table(table_name: str) -> None:
     """
     Create a DynamoDB table to store session history if it does not already exist.
