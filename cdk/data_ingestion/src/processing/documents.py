@@ -14,9 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize the S3 client
 s3 = boto3.client('s3')
-# BUCKET_NAME = "DSA-data-ingestion-bucket"
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
-print('EMBEDDING_BUCKET_NAME',EMBEDDING_BUCKET_NAME)
+print('EMBEDDING_BUCKET_NAME', EMBEDDING_BUCKET_NAME)
 
 def extract_txt(
     bucket: str,
@@ -24,13 +23,16 @@ def extract_txt(
 ) -> str:
     """
     Extract text from a file stored in an S3 bucket.
-    
+
+    This function downloads a file from the specified S3 bucket using the provided key,
+    reads its content as UTF-8 text, and returns the extracted text.
+
     Args:
-    bucket (str): The name of the S3 bucket.
-    file_key (str): The key of the file in the S3 bucket.
-    
+        bucket (str): The name of the S3 bucket.
+        document_key (str): The key of the file in the S3 bucket.
+
     Returns:
-    str: The extracted text.
+        str: The extracted text from the file.
     """
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         s3.download_fileobj(bucket, document_key, tmp_file)
@@ -51,16 +53,20 @@ def store_doc_texts(
     output_bucket: str
 ) -> List[str]:
     """
-    Store the text of each page of a document in an S3 bucket.
-    
+    Extract and store the text from each page of a document in an S3 bucket.
+
+    This function downloads a document (such as a PDF) from the specified S3 bucket and category folder,
+    extracts the text from each page using pymupdf, and stores each page's text as a separate file in the output S3 bucket.
+    The generated file keys follow the pattern: `<category_id>/<document_name>_page_<page_num>.txt`.
+
     Args:
-    bucket (str): The name of the S3 bucket containing the document.
-    category (str): The category ID folder in the S3 bucket.
-    filename (str): The name of the document file.
-    output_bucket (str): The name of the S3 bucket for storing the extracted text.
-    
+        bucket (str): The name of the S3 bucket containing the document.
+        category_id (str): The folder or category ID in the S3 bucket where the document is stored.
+        document_name (str): The name of the document file.
+        output_bucket (str): The name of the S3 bucket where the extracted text files will be stored.
+
     Returns:
-    List[str]: A list of keys for the stored text files in the output bucket.
+        List[str]: A list of keys corresponding to the stored text files for each page.
     """
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
         s3.download_file(bucket, f"{category_id}/{document_name}", tmp_file.name)
@@ -90,18 +96,25 @@ def add_document(
     output_bucket: str = EMBEDDING_BUCKET_NAME
 ) -> List[Document]:
     """
-    Add a document to the vectorstore.
-    
+    Add a document to the vectorstore by extracting its text and creating semantic chunks.
+
+    This function processes a document by:
+      1. Extracting each page's text using `store_doc_texts`.
+      2. Splitting the text into semantic chunks via `store_doc_chunks`.
+      3. Adding metadata (such as the source S3 URL and a unique document ID) to each chunk.
+      4. Ingesting the chunks into the provided vectorstore.
+
     Args:
-    bucket (str): The name of the S3 bucket containing the document.
-    category_id (str): The category ID folder in the S3 bucket.
-    document_name (str): The name of the document file.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    output_bucket (str, optional): The name of the S3 bucket for storing extracted data. Defaults to 'temp-extracted-data'.
-    
+        bucket (str): The name of the S3 bucket containing the document.
+        category_id (str): The folder or category ID in the S3 bucket where the document is stored.
+        document_name (str): The name of the document file.
+        vectorstore (PGVector): The vectorstore instance where document chunks will be stored.
+        embeddings (BedrockEmbeddings): The embeddings instance used to generate document embeddings.
+        output_bucket (str, optional): The S3 bucket for storing intermediate extracted text files.
+                                       Defaults to the EMBEDDING_BUCKET_NAME environment variable.
+
     Returns:
-    List[Document]: A list of all document chunks for this document that were added to the vectorstore.
+        List[Document]: A list of document chunks that were added to the vectorstore.
     """
     output_filenames = store_doc_texts(
         bucket=bucket,
@@ -125,22 +138,26 @@ def store_doc_chunks(
     embeddings: BedrockEmbeddings
 ) -> List[Document]:
     """
-    Store chunks of documents in the vectorstore.
-    
+    Process text files by splitting them into semantic chunks and adding them to the vectorstore.
+
+    This function downloads each text file (each representing a page of a document) from the specified S3 bucket,
+    uses a semantic text splitter to create chunks, attaches metadata including the source S3 URL and a unique document ID,
+    and then adds these chunks to the vectorstore. After processing, the original text file is deleted from the bucket.
+
     Args:
-    bucket (str): The name of the S3 bucket containing the text files.
-    filenames (List[str]): A list of keys for the text files in the bucket.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    
+        bucket (str): The name of the S3 bucket containing the text files.
+        documentnames (List[str]): A list of keys for the text files in the bucket.
+        vectorstore (PGVector): The vectorstore instance to which document chunks will be added.
+        embeddings (BedrockEmbeddings): The embeddings instance used for generating semantic chunks.
+
     Returns:
-    List[Document]: A list of all document chunks for this document that were added to the vectorstore.
+        List[Document]: A list of document chunks created and added to the vectorstore.
     """
     text_splitter = SemanticChunker(embeddings)
     this_doc_chunks = []
 
     for documentname in documentnames:
-        this_uuid = str(uuid.uuid4()) # Generating one UUID for all chunks of from a specific page in the document
+        this_uuid = str(uuid.uuid4())  # Generating one UUID for all chunks from a specific page in the document
         output_buffer = BytesIO()
         s3.download_fileobj(bucket, documentname, output_buffer)
         output_buffer.seek(0)
@@ -148,7 +165,7 @@ def store_doc_chunks(
         doc_chunks = text_splitter.create_documents([doc_texts])
         
         head, _, _ = documentname.partition("_page")
-        true_filename = head # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
+        true_filename = head  # Converts 'CourseCode_XXX_-_Course-Name.pdf_page_1.txt' to 'CourseCode_XXX_-_Course-Name.pdf'
         
         doc_chunks = [x for x in doc_chunks if x.page_content]
         
@@ -159,7 +176,7 @@ def store_doc_chunks(
             else:
                 logger.warning(f"Empty chunk for {documentname}")
         
-        s3.delete_object(Bucket=bucket,Key=documentname)
+        s3.delete_object(Bucket=bucket, Key=documentname)
         print(f"Deleting {documentname} from {bucket}")
         this_doc_chunks.extend(doc_chunks)
        
@@ -173,14 +190,19 @@ def process_documents(
     record_manager: SQLRecordManager
 ) -> None:
     """
-    Process and add text documents from an S3 bucket to the vectorstore.
-    
+    Process all documents in a specified category from an S3 bucket and update the vectorstore index.
+
+    This function uses an S3 paginator to iterate through all documents in the given category folder,
+    processes each document by extracting its text and splitting it into chunks (via `add_document`),
+    and then indexes all document chunks in the vectorstore using the provided record manager.
+    If no document chunks are found, a cleanup indexing operation is still performed.
+
     Args:
-    bucket (str): The name of the S3 bucket containing the text documents.
-    category_id (str): The category ID folder in the S3 bucket.
-    vectorstore (PGVector): The vectorstore instance.
-    embeddings (BedrockEmbeddings): The embeddings instance.
-    record_manager (SQLRecordManager): Manages list of documents in the vectorstore for indexing.
+        bucket (str): The name of the S3 bucket containing the documents.
+        category_id (str): The category folder in the S3 bucket to process.
+        vectorstore (PGVector): The vectorstore instance for storing document chunks.
+        embeddings (BedrockEmbeddings): The embeddings instance used to generate document embeddings.
+        record_manager (SQLRecordManager): Manager for maintaining records of documents in the vectorstore.
     """
     print("start processing document")
     paginator = s3.get_paginator('list_objects_v2')
