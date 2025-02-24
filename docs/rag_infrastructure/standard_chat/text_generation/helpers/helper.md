@@ -1,8 +1,4 @@
-Below is the markdown documentation for the code, following the structure and style provided:
-
----
-
-# vectorstore.py
+# helper.py
 
 ## Table of Contents <a name="table-of-contents"></a>
 - [Script Overview](#script-overview)
