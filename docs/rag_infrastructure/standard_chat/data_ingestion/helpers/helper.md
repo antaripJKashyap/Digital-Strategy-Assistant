@@ -30,7 +30,7 @@ This script provides functionality for initializing and configuring a PGVector-b
 - **boto3.client('s3')**: Initializes the S3 client for downloading, uploading, or listing objects from an S3 bucket.
 
 ### Helper Functions <a name="helper-functions"></a>
-Currently, the main helper function is `get_vectorstore`, which constructs and returns a PGVector instance (and its connection string).
+The main helper function is `get_vectorstore`, which constructs and returns a PGVector instance (and its connection string).
 
 ### Main Functions <a name="main-functions"></a>
 1. **`store_category_data`**: Coordinates the ingestion process of documents from a specified S3 bucket and category into the PGVector store.

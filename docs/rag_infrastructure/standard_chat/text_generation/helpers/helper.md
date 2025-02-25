@@ -3,27 +3,39 @@
 ## Table of Contents <a name="table-of-contents"></a>
 - [Script Overview](#script-overview)
   - [Import Libraries](#import-libraries)
-  - [Helper Functions](#helper-functions)
+  - [LLM and Embeddings Usage](#llm-and-embeddings-usage)
+  - [Main Function](#main-function)
   - [Execution Flow](#execution-flow)
 - [Detailed Function Descriptions](#detailed-function-descriptions)
   - [Function: `get_vectorstore`](#get_vectorstore)
 
+---
+
 ## Script Overview <a name="script-overview"></a>
-This script is designed to initialize and return a PGVector instance that interacts with a PostgreSQL database to store and retrieve vectorized document embeddings.
+This script is designed to initialize and return a **PGVector vector store** instance, which is used to manage and store vector embeddings in a PostgreSQL database. The script constructs a connection string from provided credentials, initializes the vector store with the specified embeddings, and handles errors gracefully with logging.
 
 ### Import Libraries <a name="import-libraries"></a>
-- **logging**: Used for logging script actions and errors.
-- **psycopg2**: For interacting with PostgreSQL databases.
-- **BedrockEmbeddings**: LangChain community embeddings instance for handling document embeddings. This project uses the Amazon Titan Text Embeddings V2 model to generate embeddings.
-- **PGVector**: PostgreSQL-based vector store for storing and retrieving vectorized documents.
+- **logging**: Provides logging functionality to trace the execution flow and errors.
+- **typing.Optional, typing.Tuple**: Used for type annotations, indicating optional and tuple return types.
+- **psycopg2**: A PostgreSQL database adapter used in conjunction with SQLAlchemy-style connection strings.
+- **langchain_aws.BedrockEmbeddings**: Supplies the embeddings instance required to generate vector representations.
+- **langchain_postgres.PGVector**: Facilitates interactions with the PostgreSQL vector store.
 
-### Helper Functions <a name="helper-functions"></a>
-- **get_vectorstore**: Initializes and returns a PGVector instance connected to the PostgreSQL database. It handles connection setup and error logging.
+### LLM and Embeddings Usage <a name="llm-and-embeddings-usage"></a>
+- The `embeddings` parameter (of type `BedrockEmbeddings`) is utilized to transform textual data into vectors.
+
+### Main Function <a name="main-function"></a>
+- **get_vectorstore**: This function creates the connection string based on provided database credentials, initializes a PGVector vector store with JSONB support, and returns a tuple containing the vector store instance along with the connection string.
 
 ### Execution Flow <a name="execution-flow"></a>
-1. **Database Connection**: A connection string is built based on the provided database credentials.
-2. **Vector Store Initialization**: A PGVector instance is initialized using the connection string and collection name.
-3. **Logging**: The script logs successful initialization and error messages if any occur.
+1. **Connection String Construction**:  
+   The function assembles a PostgreSQL connection string using the input parameters (user, password, host, port, and database name).
+2. **Vector Store Initialization**:  
+   With the constructed connection string, the function initializes a PGVector instance by passing in the embeddings and collection name.
+3. **Logging and Return**:  
+   Upon successful initialization, the function logs the event and returns a tuple consisting of the vector store and the connection string. If an error occurs, it logs the error and returns `None`.
+
+---
 
 ## Detailed Function Descriptions <a name="detailed-function-descriptions"></a>
 
@@ -37,49 +49,31 @@ def get_vectorstore(
     password: str, 
     host: str, 
     port: int
-) -> Optional[PGVector]:
-    try:
-        connection_string = (
-            f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
-        )
-
-        logger.info("Initializing the VectorStore")
-        vectorstore = PGVector(
-            embeddings=embeddings,
-            collection_name=collection_name,
-            connection=connection_string,
-            use_jsonb=True
-        )
-
-        logger.info("VectorStore initialized")
-        return vectorstore, connection_string
-
-    except Exception as e:
-        logger.error(f"Error initializing vector store: {e}")
-        return None
+) -> Optional[Tuple[PGVector, str]]:
 ```
-#### Purpose
 
-Initializes and returns a `PGVector` instance that connects to a PostgreSQL database and prepares a vector store for storing embedded document data.
+#### Purpose
+- Sets up a vector store that handles vector embeddings using a PostgreSQL backend.
+- Provides both the vector store instance and its connection string to facilitate further operations.
 
 #### Process Flow
-
-1. **Database Connection Setup**: Creates a connection string using the provided database credentials and logs successful connections or errors.
-2. **Vector Store Initialization**: Constructs a `PGVector` instance using the connection string, collection name, and embeddings. If successful, returns the initialized `PGVector` instance along with the connection string.
-3. **Error Handling**: Captures and logs any errors that occur during vector store initialization.
+1. Constructs a connection string using the provided database credentials.
+2. Logs the initialization process and creates the PGVector instance with the specified embeddings and collection name.
+3. In case of exceptions, logs the error and returns `None`.
 
 #### Inputs and Outputs
 - **Inputs**:
-  - `collection_name`: The name of the collection in the vector store.
-  - `embeddings`: The `BedrockEmbeddings` instance for creating embeddings.
-  - `dbname`: Database name.
-  - `user`: Database user.
-  - `password`: Database password.
-  - `host`: Host for the PostgreSQL database.
-  - `port`: Port for the PostgreSQL database.
-
+  - `collection_name` (str): The identifier for the vector collection.
+  - `embeddings` (BedrockEmbeddings): The embeddings instance for processing and transforming data.
+  - `dbname` (str): The PostgreSQL database name.
+  - `user` (str): The username for the database connection.
+  - `password` (str): The corresponding password for the database user.
+  - `host` (str): The host address of the database.
+  - `port` (int): The port number on which the database service is running.
 - **Outputs**:
-  - Returns the initialized `PGVector` instance and the connection string if successful.
-  - Returns `None` if an error occurred during setup.
+  - Returns a tuple `(PGVector, str)` on successful initialization, where the first element is the vector store instance and the second is the connection string.
+  - Returns `None` if an error occurs during the initialization process.
+
+---
 
 [🔼 Back to top](#table-of-contents)

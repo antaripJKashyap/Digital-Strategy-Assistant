@@ -18,17 +18,6 @@ from typing import Dict, Any, Optional, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class LLM_evaluation(BaseModel):
-    """
-    Data model that represents an LLM evaluation.
-
-    Attributes:
-        response (str): Assessment of the student's answer with a follow-up question.
-    """
-    response: str = Field(
-        description="Assessment of the student's answer with a follow-up question."
-    )
-
 def create_dynamodb_history_table(table_name: str) -> None:
     """
     Create a DynamoDB table to store session history if it does not already exist.
@@ -101,28 +90,28 @@ def get_bedrock_llm(
     )
 
 
-def get_student_query(raw_query: str) -> str:
+def get_user_query(raw_query: str) -> str:
     """
-    Format the student's raw query into a system-ready template.
+    Format the user's raw query into a system-ready template.
 
     This includes prefixing the query with 'user' for clarity in prompt contexts.
 
     Args:
-        raw_query (str): The raw query input from the student.
+        raw_query (str): The raw query input from the user.
 
     Returns:
         str: The formatted query string suitable for downstream processing.
     """
-    logger.info("Formatting the raw student query for downstream processing.")
-    student_query = f"""
+    logger.info("Formatting the raw user query for downstream processing.")
+    user_query = f"""
     user
     {raw_query}
     
     """
-    return student_query
+    return user_query
 
 
-def get_initial_student_query() -> str:
+def get_initial_user_query() -> str:
     """
     Generate a JSON-formatted initial query structure for user role selection.
 
@@ -164,7 +153,7 @@ def get_response(
       3. Uses a DynamoDB-backed message history for conversational context.
 
     Args:
-        query (str): The student's query.
+        query (str): The user's query.
         llm (ChatBedrock): The language model instance.
         history_aware_retriever: The retriever that supplies relevant context documents.
         table_name (str): The name of the DynamoDB table for message history.

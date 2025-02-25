@@ -4,16 +4,14 @@
 - [Script Overview](#script-overview)
   - [Import Libraries](#import-libraries)
   - [AWS Configuration and Setup](#aws-configuration-and-setup)
-  - [Data Models](#data-models)
   - [Helper Functions](#helper-functions)
   - [Main Functions](#main-functions)
   - [Execution Flow](#execution-flow)
 - [Detailed Function Descriptions](#detailed-function-descriptions)
-  - [Class: `LLM_evaluation`](#class-llm_evaluation)
   - [Function: `create_dynamodb_history_table`](#function-create_dynamodb_history_table)
   - [Function: `get_bedrock_llm`](#function-get_bedrock_llm)
-  - [Function: `get_student_query`](#function-get_student_query)
-  - [Function: `get_initial_student_query`](#function-get_initial_student_query)
+  - [Function: `get_user_query`](#function-get_user_query)
+  - [Function: `get_initial_user_query`](#function-get_initial_user_query)
   - [Function: `get_response`](#function-get_response)
   - [Function: `generate_response`](#function-generate_response)
   - [Function: `get_llm_output`](#function-get_llm_output)
@@ -25,77 +23,61 @@
 ---
 
 ## Script Overview <a name="script-overview"></a>
-This script integrates Amazon Bedrock language models and a DynamoDB-backed chat history to support a retrieval-augmented Q&A system. It provides mechanisms to:
-- Store and manage conversation history in DynamoDB.
-- Retrieve an LLM from Amazon Bedrock.
-- Format user queries for chat consumption.
-- Generate responses using retrieval-augmented generation (RAG) chains.
-- Parse, evaluate, and format LLM outputs.
+This script implements a chat system that integrates Amazon Bedrock language models with a DynamoDB-backed chat history using a retrieval-augmented generation (RAG) approach. It processes user queries by combining them with context retrieved from documents and chat history, then generates detailed responses that include follow-up questions. The system is designed to support role-based query formatting and provides functionality for document evaluation against predefined guidelines.
 
 ### Import Libraries <a name="import-libraries"></a>
-```python
-import boto3, re, json
-from datetime import datetime
-from langchain_aws import ChatBedrock, BedrockLLM
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.output_parsers import StrOutputParser
-from langchain.chains import create_retrieval_chain
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
-from langchain_core.pydantic_v1 import BaseModel, Field
-from typing import Dict, Any
-```
+- **Standard Libraries**:  
+  - `logging`: Provides logging capabilities for debugging and tracking.
+  - `boto3`: AWS SDK for interacting with DynamoDB.
+  - `re`: Enables regular expression operations for text processing.
+  - `json`: Supports JSON parsing and stringifying.
+  - `datetime`: Handles date and time operations.
 
-- **boto3**: AWS SDK for interacting with services like DynamoDB.
-- **re, json**: Standard libraries for regular expressions and JSON manipulation.
-- **datetime**: Used for handling timestamps (if needed).
-- **langchain_aws**: Provides `ChatBedrock` and `BedrockLLM` for working with Amazon Bedrock language models.
-- **langchain_core**: Contains prompt templates, runnable logic, and output parsing.
-- **langchain.chains**: Contains chain constructs for combining documents and creating retrieval pipelines.
-- **langchain_community**: Contains chat message history integrations for DynamoDB.
-- **pydantic_v1**: For data validation and modeling.
+- **LangChain and AWS Modules**:  
+  - `langchain_aws`: Supplies `ChatBedrock` and `BedrockLLM` for working with Amazon Bedrock language models.
+  - `langchain_core.prompts`: Contains prompt templates and message placeholders (`PromptTemplate`, `ChatPromptTemplate`, `MessagesPlaceholder`).
+  - `langchain.chains.combine_documents`: Provides `create_stuff_documents_chain` to combine document contexts.
+  - `langchain_core.output_parsers`: Includes `StrOutputParser` to parse text outputs.
+  - `langchain.chains`: Provides `create_retrieval_chain` for building retrieval pipelines.
+  - `langchain_core.runnables`: Contains `RunnablePassthrough` for simple data passing.
+  - `langchain_core.runnables.history`: Offers `RunnableWithMessageHistory` to manage chat history.
+  - `langchain_community.chat_message_histories`: Implements `DynamoDBChatMessageHistory` to log messages in DynamoDB.
+  - `langchain_core.pydantic_v1`: Uses `BaseModel` and `Field` for data modeling.
+  
+- **Typing**:  
+  - Provides type hints such as `Dict`, `Any`, `Optional`, and `Tuple`.
 
 ### AWS Configuration and Setup <a name="aws-configuration-and-setup"></a>
-- **DynamoDB**:  
-  Uses `boto3.resource("dynamodb")` and `boto3.client("dynamodb")` to manage session history tables.  
+- **DynamoDB Integration**:  
+  The function `create_dynamodb_history_table` ensures that a DynamoDB table (keyed by `SessionId`) exists to store conversation history using on-demand billing.
 
-- **Amazon Bedrock**:  
-  The `ChatBedrock` and `BedrockLLM` classes are leveraged to create and interact with an LLM hosted on AWS.
-
-### Data Models <a name="data-models"></a>
-- **LLM_evaluation**:  
-  Pydantic-based class that encapsulates a response and a follow-up question.
+- **Amazon Bedrock Integration**:  
+  The functions `get_bedrock_llm` and related components utilize Amazon Bedrock models (via `ChatBedrock` and `BedrockLLM`) to generate responses based on user queries and contextual data.
 
 ### Helper Functions <a name="helper-functions"></a>
-- **create_dynamodb_history_table**: Ensures a DynamoDB table exists to store chat session history.
-- **get_bedrock_llm**: Retrieves a Bedrock LLM instance based on a specified model ID.
-- **get_student_query**: Formats raw user queries for compatibility with downstream systems.
-- **get_initial_student_query**: Builds a JSON-structured initial user prompt for role selection.
-- **generate_response**: Invokes the RAG chain to generate a single response.
-- **get_llm_output**: Splits a complete LLM response into main content and follow-up questions.
-- **format_to_markdown**: Converts evaluation dictionaries into Markdown output.
-- **parse_evaluation_response**: Recursively processes and organizes evaluation output into Markdown and question lists.
-- **format_docs**: Concatenates pages or chunked document text into a single string.
+- **get_user_query**: Formats raw user queries by prefixing them with a "user" tag.
+- **get_initial_user_query**: Generates a JSON-formatted prompt to allow users to select their role.
+- **generate_response**: Invokes the retrieval chain to produce an LLM-generated response.
+- **get_llm_output**: Processes the LLM output, splitting it into primary response content and follow-up questions.
+- **format_to_markdown**: Converts dictionaries of evaluation results into Markdown format.
+- **parse_evaluation_response**: Recursively organizes evaluation output into Markdown and a list of follow-up options.
+- **format_docs**: Concatenates document content into a single string for context retrieval.
 
 ### Main Functions <a name="main-functions"></a>
-- **get_response**: Orchestrates retrieval of context documents, runs the question-answer chain, and prepares user-facing responses.
-- **get_response_evaluation**: Evaluates documents against a set of guidelines by constructing a specialized prompt and chaining with an LLM.
+- **get_response**: Coordinates the construction of a system prompt, integrates document retrieval and chat history, and generates a final answer with follow-up questions.
+- **get_response_evaluation**: Evaluates documents against provided guidelines by constructing a specialized prompt, invoking the LLM, and returning structured Markdown output.
 
 ### Execution Flow <a name="execution-flow"></a>
-1. **DynamoDB Setup**:  
-   `create_dynamodb_history_table` ensures a chat-history table is present, keyed by `SessionId`.
-2. **Bedrock LLM Initialization**:  
-   `get_bedrock_llm` fetches a Bedrock model instance with a specified ID and temperature.
-3. **Query and Retrieval**:  
-   `get_response` uses a retrieval chain to bring in context from stored documents and merges it with the chat history in DynamoDB.
+1. **DynamoDB Table Setup**:  
+   The system checks for (and creates if necessary) a DynamoDB table to store chat session history.
+2. **LLM Initialization**:  
+   A Bedrock language model is instantiated via `get_bedrock_llm` using a specific model ID and temperature setting.
+3. **Query Formatting**:  
+   User queries are formatted using `get_user_query` and `get_initial_user_query` to ensure consistent processing.
 4. **Response Generation**:  
-   The `generate_response` function repeatedly invokes the RAG chain until a non-empty result is produced.
-5. **Response Parsing**:  
-   `get_llm_output` extracts main content and follow-up questions from the final LLM output.
-6. **Evaluation (Optional)**:  
-   `get_response_evaluation` can analyze document compliance with given guidelines, returning a structured result.
+   The `get_response` function creates a detailed system prompt and builds a retrieval chain that integrates context and chat history. It repeatedly generates responses until a non-empty answer is produced and then processes the output using `get_llm_output`.
+5. **Optional Document Evaluation**:  
+   The `get_response_evaluation` function can be used to assess documents against guidelines, returning results in Markdown format along with any follow-up suggestions.
 
 [🔼 Back to top](#table-of-contents)
 
@@ -103,47 +85,35 @@ from typing import Dict, Any
 
 ## Detailed Function Descriptions <a name="detailed-function-descriptions"></a>
 
-### Class: `LLM_evaluation` <a name="class-llm_evaluation"></a>
-```python
-class LLM_evaluation(BaseModel):
-    response: str = Field(description="Assessment of the student's answer with a follow-up question.")
-```
-#### Purpose
-- Serves as a Pydantic data model to encapsulate an LLM evaluation response and possibly an additional follow-up question.
-
-#### Attributes
-- **response (str)**: Contains the assessment text generated by the LLM.
-
----
-
 ### Function: `create_dynamodb_history_table` <a name="function-create_dynamodb_history_table"></a>
 ```python
-def create_dynamodb_history_table(table_name: str) -> bool:
+def create_dynamodb_history_table(table_name: str) -> None:
     """
-    Create a DynamoDB table to store the session history if it doesn't already exist.
+    Create a DynamoDB table to store session history if it does not already exist.
+    
+    The table is keyed by 'SessionId' and uses on-demand billing (PAY_PER_REQUEST).
+    If the table already exists, no action is taken.
 
     Args:
-    table_name (str): The name of the DynamoDB table to create.
+        table_name (str): The name of the DynamoDB table to create.
 
     Returns:
-    None
+        None
     """
-    ...
 ```
 #### Purpose
-- Ensures there is a DynamoDB table for storing session history (using a key schema based on `SessionId`).
+- Ensures a DynamoDB table exists to log conversation history, preserving chat context across sessions.
 
 #### Process Flow
-1. Lists existing DynamoDB tables.
-2. Checks if `table_name` is already present.
-3. Creates the table if necessary, using on-demand billing mode.
-4. Waits for the table to exist before returning.
+1. Lists existing DynamoDB tables using `boto3`.
+2. Checks if the specified `table_name` exists.
+3. Creates the table with `SessionId` as the key if it does not exist, then waits for its availability.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `table_name (str)`: Desired table name in DynamoDB.
-- **Outputs**:
-  - No return value, but creates the DynamoDB table if missing.
+- **Inputs**:  
+  - `table_name`: The desired DynamoDB table name.
+- **Outputs**:  
+  - None; the function performs table creation as a side effect.
 
 ---
 
@@ -153,61 +123,90 @@ def get_bedrock_llm(
     bedrock_llm_id: str,
     temperature: float = 0
 ) -> ChatBedrock:
-    ...
+    """
+    Retrieve a Bedrock LLM instance configured with the given model ID and temperature.
+
+    Args:
+        bedrock_llm_id (str): The unique identifier for the Bedrock LLM model.
+        temperature (float, optional): A parameter that controls the randomness 
+            of generated responses (default is 0).
+
+    Returns:
+        ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
+    """
 ```
 #### Purpose
-- Retrieves a Bedrock LLM instance using a specified model ID and temperature.
+- Instantiates a `ChatBedrock` object using a specified model ID and a temperature parameter to control response variability.
 
 #### Process Flow
-1. Constructs a `ChatBedrock` instance.
-2. Passes `model_kwargs` such as `temperature` for controlling response creativity.
+1. Logs the initialization parameters.
+2. Returns a configured `ChatBedrock` instance.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `bedrock_llm_id (str)`: The unique model ID in Amazon Bedrock.
-  - `temperature (float)`: Degree of randomness in LLM responses (default 0).
-- **Outputs**:
-  - Returns a `ChatBedrock` instance configured with the given model ID.
+- **Inputs**:  
+  - `bedrock_llm_id`: Unique identifier for the language model.
+  - `temperature`: Optional parameter to control response randomness.
+- **Outputs**:  
+  - A `ChatBedrock` instance.
 
 ---
 
-### Function: `get_student_query` <a name="function-get_student_query"></a>
+### Function: `get_user_query` <a name="function-get_user_query"></a>
 ```python
-def get_student_query(raw_query: str) -> str:
-    ...
+def get_user_query(raw_query: str) -> str:
+    """
+    Format the user's raw query into a system-ready template.
+
+    This includes prefixing the query with 'user' for clarity in prompt contexts.
+
+    Args:
+        raw_query (str): The raw query input from the user.
+
+    Returns:
+        str: The formatted query string suitable for downstream processing.
+    """
 ```
 #### Purpose
-- Prepares raw user input for standardized processing in the conversation chain.
+- Standardizes user input by adding a "user" prefix, ensuring consistency in the conversation context.
 
 #### Process Flow
-1. Inserts the text `user` followed by the raw query.
-2. Maintains a consistent format across calls.
+1. Prefixes the raw query with "user".
+2. Returns the formatted query string.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `raw_query (str)`: The raw question or statement from the user.
-- **Outputs**:
-  - A templated string with user role tagging.
+- **Inputs**:  
+  - `raw_query`: The unformatted query from the user.
+- **Outputs**:  
+  - A string formatted for use in the RAG chain.
 
 ---
 
-### Function: `get_initial_student_query` <a name="function-get_initial_student_query"></a>
+### Function: `get_initial_user_query` <a name="function-get_initial_user_query"></a>
 ```python
-def get_initial_student_query():
-    ...
+def get_initial_user_query() -> str:
+    """
+    Generate a JSON-formatted initial query structure for user role selection.
+
+    This prompts users to select from three roles: Student/prospective student, 
+    Educator/educational designer, or Admin.
+
+    Returns:
+        str: A JSON-formatted string prompting role selection and 
+             providing follow-up options.
+    """
 ```
 #### Purpose
-- Provides a JSON-formatted string prompting the user to select their role (Student, Educator, or Admin).
+- Provides a starting prompt that allows users to select their role, thereby tailoring subsequent interactions.
 
 #### Process Flow
-1. Constructs a dictionary with a “message” key and an “options” list.
-2. Dumps it to a JSON string, making it easily interpretable by chat interfaces.
+1. Constructs a dictionary with a welcome message and role options.
+2. Converts the dictionary to a JSON string.
 
 #### Inputs and Outputs
 - **Inputs**:  
   - None.
-- **Outputs**:
-  - Returns a JSON-formatted string that asks for role selection and provides options.
+- **Outputs**:  
+  - A JSON string that contains role selection options.
 
 ---
 
@@ -221,162 +220,257 @@ def get_response(
     session_id: str,
     user_prompt: str
 ) -> dict:
-    ...
+    """
+    Generate a response to a user query using an LLM and a history-aware retriever.
+
+    This function:
+      1. Builds a system prompt that references the Digital Learning Strategy.
+      2. Creates a RAG (Retrieval-Augmented Generation) chain to handle query 
+         and context retrieval.
+      3. Uses a DynamoDB-backed message history for conversational context.
+
+    Args:
+        query (str): The user's query.
+        llm (ChatBedrock): The language model instance.
+        history_aware_retriever: The retriever that supplies relevant context documents.
+        table_name (str): The name of the DynamoDB table for message history.
+        session_id (str): A unique identifier for the conversation session.
+        user_prompt (str): Additional instructions or context for the system prompt.
+
+    Returns:
+        dict: A dictionary containing:
+            - "llm_output" (str): The generated response text.
+            - "options" (list[str]): A list of follow-up questions or prompts.
+    """
 ```
 #### Purpose
-- Orchestrates the retrieval-augmented generation process for a single user query.
+- Orchestrates response generation by constructing a detailed system prompt, integrating context retrieval with chat history, and invoking the LLM.
 
 #### Process Flow
-1. Builds a **system prompt** that includes details about the Digital Learning Strategy.
-2. Creates a RAG chain that fetches relevant documents and merges them with chat history.
-3. Repeatedly calls `generate_response` until a non-empty answer emerges.
-4. Splits the result into main content and follow-up questions via `get_llm_output`.
+1. Logs and constructs a comprehensive system prompt that includes Digital Learning Strategy details and role-specific instructions.
+2. Creates a chat prompt template and builds a retrieval chain.
+3. Wraps the chain with a DynamoDB-based history manager.
+4. Repeatedly calls `generate_response` until a valid response is obtained.
+5. Parses the output into main content and follow-up questions using `get_llm_output`.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `query (str)`: The user’s query text.
-  - `llm (ChatBedrock)`: The Bedrock LLM used for generation.
-  - `history_aware_retriever`: Retrieves relevant context documents.
-  - `table_name (str)`: DynamoDB table name for storing conversation history.
-  - `session_id (str)`: Unique ID for the current chat session.
-  - `user_prompt (str)`: Additional instructions appended to the system prompt.
-- **Outputs**:
-  - A `dict` with:
-    - `"llm_output"`: The main content of the LLM response.
-    - `"options"`: Follow-up questions or suggestions extracted from the response.
+- **Inputs**:  
+  - `query`: User’s query.
+  - `llm`: The language model instance.
+  - `history_aware_retriever`: Component for retrieving context documents.
+  - `table_name`: DynamoDB table for chat history.
+  - `session_id`: Unique conversation identifier.
+  - `user_prompt`: Additional prompt instructions.
+- **Outputs**:  
+  - A dictionary with `"llm_output"` and `"options"`.
 
 ---
 
 ### Function: `generate_response` <a name="function-generate_response"></a>
 ```python
 def generate_response(conversational_rag_chain: object, query: str, session_id: str) -> str:
-    ...
+    """
+    Invoke a RAG chain to generate a response for a given query.
+
+    Args:
+        conversational_rag_chain (object): The RAG chain that retrieves 
+            context documents and integrates them into responses.
+        query (str): The input query for which a response is needed.
+        session_id (str): A unique identifier for the conversation session.
+
+    Returns:
+        str: The generated answer from the LLM, incorporating retrieval context and chat history.
+    """
 ```
 #### Purpose
-- Invokes the RAG chain to generate the LLM’s response to a single query.
+- Invokes the retrieval chain with the provided query and session context, returning the generated response.
 
 #### Process Flow
-1. Calls the `invoke` method on the `conversational_rag_chain`.
-2. Passes in the user `query` and a configuration block containing `session_id`.
-3. Returns only the “answer” portion of the response.
+1. Calls the `invoke` method on the `conversational_rag_chain` with the query and session configuration.
+2. Returns the "answer" field from the resulting output.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `conversational_rag_chain (object)`: RAG chain that merges the retriever and LLM pipeline.
-  - `query (str)`: The user’s question or prompt.
-  - `session_id (str)`: Identifier to track chat context in DynamoDB.
-- **Outputs**:
-  - A `str` containing the generated response text.
+- **Inputs**:  
+  - `conversational_rag_chain`: The retrieval chain object.
+  - `query`: User’s query.
+  - `session_id`: Identifier for the current session.
+- **Outputs**:  
+  - A string containing the LLM-generated answer.
 
 ---
 
 ### Function: `get_llm_output` <a name="function-get_llm_output"></a>
 ```python
 def get_llm_output(response: str) -> dict:
-    ...
+    """
+    Split the LLM response text into main content and follow-up questions.
+
+    This function looks for a delimiter "You might have the following questions:" 
+    to separate the response into two sections: 
+      1. The main response content.
+      2. A list of subsequent questions.
+
+    Args:
+        response (str): The complete response text from the LLM.
+
+    Returns:
+        dict: A dictionary with:
+            - "llm_output" (str): Main content before the question delimiter.
+            - "options" (list[str]): The extracted follow-up questions, if any.
+    """
 ```
 #### Purpose
-- Splits the raw LLM response into main content and follow-up questions based on a delimiter.
+- Processes and splits the raw LLM output into primary response text and follow-up queries.
 
 #### Process Flow
-1. Searches for `"You might have the following questions:"` in the response.
-2. Splits the text into main content (before the delimiter) and question list (after the delimiter).
-3. Converts URLs in the main content to Markdown links.
-4. Organizes the follow-up questions into a list.
+1. Searches for a delimiter in the response text.
+2. Converts any URLs into Markdown hyperlinks.
+3. Splits follow-up questions based on punctuation and returns them in a list.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `response (str)`: The full text returned by the LLM.
-- **Outputs**:
-  - A `dict` containing:
-    - `"llm_output"`: The main response text.
-    - `"options"`: A list of follow-up questions (if any).
+- **Inputs**:  
+  - `response`: The full text output from the LLM.
+- **Outputs**:  
+  - A dictionary with keys `"llm_output"` and `"options"`.
 
 ---
 
 ### Function: `format_to_markdown` <a name="function-format_to_markdown"></a>
 ```python
 def format_to_markdown(evaluation_results: dict) -> str:
-    ...
+    """
+    Convert a dictionary of evaluation results into Markdown format.
+
+    Each key-value pair is transformed into a heading (key) and the associated text (value).
+
+    Args:
+        evaluation_results (dict): A dictionary where each key is a heading 
+            and each value is the corresponding content.
+
+    Returns:
+        str: A multi-line string formatted in Markdown.
+    """
 ```
 #### Purpose
-- Converts a dictionary of evaluation results into a Markdown-formatted string.
+- Formats evaluation result dictionaries into a Markdown string with clear headings and content.
 
 #### Process Flow
-1. Iterates over the dictionary items (key-value pairs).
-2. Formats each key as a heading and the corresponding text as a paragraph.
+1. Iterates over each key-value pair.
+2. Prepends a heading format and combines the output into a single Markdown string.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `evaluation_results (dict)`: Keys are headings, and values are body content.
-- **Outputs**:
-  - Returns a single string formatted in Markdown, with headings and paragraphs.
+- **Inputs**:  
+  - `evaluation_results`: Dictionary of evaluation data.
+- **Outputs**:  
+  - A Markdown-formatted string.
 
 ---
 
 ### Function: `parse_evaluation_response` <a name="function-parse_evaluation_response"></a>
 ```python
 def parse_evaluation_response(evaluation_output: dict) -> dict:
-    ...
+    """
+    Parse the output of `get_response_evaluation` to produce markdown and a list of follow-up options.
+
+    This function iterates over the evaluation output, which may nest additional dictionaries 
+    (recursively calling itself). It organizes text content into a main_content list and 
+    follow-up questions or options into a separate list.
+
+    Args:
+        evaluation_output (dict): The raw evaluation result dictionary 
+            (could be nested with additional dicts).
+
+    Returns:
+        dict: A dictionary with:
+            - "llm_output" (str): Rendered Markdown text of the evaluation results.
+            - "options" (list[str]): Any follow-up questions or options extracted.
+    """
 ```
 #### Purpose
-- Recursively parses an evaluation output structure and generates Markdown plus a list of questions.
+- Recursively processes evaluation results to produce Markdown-formatted text and extract follow-up options.
 
 #### Process Flow
-1. Walks through the `evaluation_output` dict, which may contain nested dicts or lists.
-2. Aggregates text content under `main_content` and collects question-like items under `options`.
-3. Converts the final result to Markdown using `format_to_markdown`.
+1. Iterates through each item in the evaluation dictionary.
+2. Recursively processes nested dictionaries.
+3. Formats the aggregated text using `format_to_markdown`.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `evaluation_output (dict)`: Nested dictionary of evaluation data.
-- **Outputs**:
-  - A dictionary containing:
-    - `"llm_output"` (str): The Markdown-formatted result.
-    - `"options"` (list): Follow-up questions or items extracted during parsing.
+- **Inputs**:  
+  - `evaluation_output`: Nested dictionary containing evaluation results.
+- **Outputs**:  
+  - A dictionary with `"llm_output"` (Markdown text) and `"options"` (list of follow-up items).
 
 ---
 
 ### Function: `format_docs` <a name="function-format_docs"></a>
 ```python
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
+def format_docs(docs: list) -> str:
+    """
+    Join the page_content of a list of documents into a single string.
+
+    Used for feeding the relevant text context to the LLM or retriever.
+
+    Args:
+        docs (list): A list of document objects, each having a 'page_content' attribute.
+
+    Returns:
+        str: A concatenated string of all document contents, separated by newlines.
+    """
 ```
 #### Purpose
-- Concatenates multiple documents’ page contents into a single string for feeding into an LLM or retriever.
+- Combines the content of multiple documents into one continuous text block to be used as context.
 
 #### Process Flow
-1. Joins the `page_content` of each document with double newlines.
+1. Iterates over document objects.
+2. Joins the `page_content` of each document using double newlines.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `docs (list)`: A list of document objects, each with a `page_content` attribute.
-- **Outputs**:
-  - A single string combining all pages or content blocks.
+- **Inputs**:  
+  - `docs`: List of document objects.
+- **Outputs**:  
+  - A single concatenated string.
 
 ---
 
 ### Function: `get_response_evaluation` <a name="function-get_response_evaluation"></a>
 ```python
 def get_response_evaluation(llm, retriever, guidelines_file) -> dict:
-    ...
+    """
+    Evaluate documents against a set of guidelines using an LLM and a retriever.
+
+    The process:
+      1. Converts a guidelines JSON or string input into a Python dict.
+      2. Uses a prompt template for each guideline, combining the retriever output 
+         and the guideline into an evaluation request.
+      3. Aggregates evaluation results into a dictionary.
+
+    Args:
+        llm: The LLM instance (e.g., Bedrock).
+        retriever: The retriever that provides relevant document context.
+        guidelines_file: JSON or a string representing guidelines used for evaluation.
+
+    Returns:
+        dict: Parsed evaluation results in a structure containing:
+              - "llm_output" (str): Markdown-formatted content.
+              - "options" (list[str]): Follow-up questions or suggestions, if present.
+    """
 ```
 #### Purpose
-- Evaluates documents against a set of guidelines by prompting the LLM with context from the retriever.
+- Evaluates documents against specified guidelines by constructing a custom prompt and invoking the LLM, then aggregates the results into Markdown format with follow-up suggestions.
 
 #### Process Flow
-1. Parses the `guidelines_file` into a Python structure (if it is a string).
-2. Creates a prompt template that includes documents and the guidelines.
-3. Iterates over each guideline entry, running the chain and collecting responses.
-4. Uses `parse_evaluation_response` to format final output.
+1. Converts the `guidelines_file` into a Python dictionary if necessary.
+2. Constructs a prompt template that includes document context and evaluation guidelines.
+3. Iterates through each guideline, invoking a RAG chain to generate evaluation responses.
+4. Aggregates and processes the responses using `parse_evaluation_response`.
 
 #### Inputs and Outputs
-- **Inputs**:
-  - `llm`: The LLM instance (e.g., `ChatBedrock`) for generating evaluation text.
-  - `retriever`: Provides relevant document contexts.
-  - `guidelines_file`: A JSON file or string specifying compliance guidelines.
-- **Outputs**:
-  - A dictionary containing the Markdown-rendered evaluation output and any follow-up questions (`options`).
+- **Inputs**:  
+  - `llm`: The language model instance.
+  - `retriever`: Component to retrieve relevant document context.
+  - `guidelines_file`: Guidelines for evaluation (JSON or string).
+- **Outputs**:  
+  - A dictionary containing `"llm_output"` (Markdown formatted evaluation) and `"options"` (follow-up questions).
 
 ---
 

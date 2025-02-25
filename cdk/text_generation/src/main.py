@@ -9,7 +9,7 @@ from langchain_aws import BedrockEmbeddings
 
 
 from helpers.vectorstore import get_vectorstore_retriever, get_vectorstore_retriever_ordinary
-from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response, get_response_evaluation
+from helpers.chat import get_bedrock_llm, get_initial_user_query, get_user_query, create_dynamodb_history_table, get_response, get_response_evaluation
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
@@ -617,7 +617,7 @@ def handler(event, context):
 
     if question == "":
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
-        initial_query = get_initial_student_query()
+        initial_query = get_initial_user_query()
         query_data = json.loads(initial_query)
         options = query_data["options"]
         # student_query = get_student_query("")
@@ -639,8 +639,8 @@ def handler(event, context):
         }
         
     else:
-        logger.info(f"Processing student question: {question}")
-        student_query = get_student_query(question)
+        logger.info(f"Processing the user's question: {question}")
+        user_query = get_user_query(question)
         options = []
         log_user_engagement(
             session_id=session_id,
@@ -731,7 +731,7 @@ def handler(event, context):
         logger.info("Generating response from the LLM.")
         print(f"before get_response")
         response = get_response(
-            query=student_query,
+            query=user_query,
             llm=llm,
             history_aware_retriever=history_aware_retriever,
             table_name=TABLE_NAME,
