@@ -414,6 +414,7 @@ export class ApiGatewayStack extends cdk.Stack {
         TABLE_NAME: "DynamoDB-Conversation-Table",
         RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
         CHATLOGS_BUCKET: csv_bucket.bucketName,
+        APPSYNC_API_URL: this.downloadMessagesApi.graphqlUrl,
         REGION: this.region,
       },
     });
@@ -430,7 +431,7 @@ export class ApiGatewayStack extends cdk.Stack {
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
     });
     csv_bucket.grantReadWrite(chatHistory);
-    
+    csvQueue.grantConsumeMessages(chatHistory);
     chatHistory.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["dynamodb:Query"],
@@ -1193,7 +1194,7 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
         code: lambda.DockerImageCode.fromImageAsset(
           "./comparison_data_ingestion"
         ),
-        memorySize: 512,
+        memorySize: 2048,
         timeout: cdk.Duration.seconds(600),
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-ComparisonDataIngestFunction`,
@@ -1376,8 +1377,8 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
       `${id}-DataIngestFunction`,
       {
         code: lambda.DockerImageCode.fromImageAsset("./data_ingestion"),
-        memorySize: 512,
-        timeout: cdk.Duration.seconds(300),
+        memorySize: 2048,
+        timeout: cdk.Duration.seconds(600),
         vpc: vpcStack.vpc, // Pass the VPC
         functionName: `${id}-DataIngestFunction`,
         environment: {
@@ -1808,5 +1809,40 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
         webAclArn: waf.attrArn,
       }
     );
+
+
+    /**
+     *
+     * Create Lambda function that will return all the chatlog file names with their respective presigned URLs for a specified course and instructor
+     */
+    const getChatLogsFunction = new lambda.Function(this, `${id}-GetChatLogsFunction`, {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      code: lambda.Code.fromAsset("lambda/getChatLogsFunction"),
+      handler: "getChatLogsFunction.lambda_handler",
+      timeout: Duration.seconds(300),
+      memorySize: 256,
+      vpc: vpcStack.vpc,
+      environment: {
+        BUCKET: csv_bucket.bucketName,
+        REGION: this.region,
+      },
+      functionName: `${id}-GetChatLogsFunction`,
+      layers: [psycopgLayer, powertoolsLayer],
+    });
+
+    // Override the Logical ID of the Lambda Function to get ARN in OpenAPI
+    const cfnGetChatLogsFunction = getChatLogsFunction.node
+      .defaultChild as lambda.CfnFunction;
+    cfnGetChatLogsFunction.overrideLogicalId("GetChatLogsFunction");
+
+    // Grant the Lambda function read-only permissions to the S3 bucket
+    csv_bucket.grantRead(getChatLogsFunction);
+
+    // Add the permission to the Lambda function's policy to allow API Gateway access
+    getChatLogsFunction.addPermission("AllowApiGatewayInvoke", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
+      action: "lambda:InvokeFunction",
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
   }
 }

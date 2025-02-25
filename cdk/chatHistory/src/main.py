@@ -5,6 +5,8 @@ import boto3
 import logging
 import re
 import psycopg2
+import time
+import httpx
 from datetime import datetime, timezone
 from boto3.dynamodb.conditions import Key
 
@@ -13,6 +15,7 @@ S3_BUCKET = os.environ.get("CHATLOGS_BUCKET")
 DB_SECRET_NAME = os.environ.get("SM_DB_CREDENTIALS")
 RDS_PROXY_ENDPOINT = os.environ.get("RDS_PROXY_ENDPOINT")
 TABLE_NAME = os.environ.get("TABLE_NAME")
+APPSYNC_API_URL = os.environ.get("APPSYNC_API_URL")
 
 if not TABLE_NAME:
     raise ValueError("TABLE_NAME environment variable is required but not set.")
@@ -263,60 +266,102 @@ def upload_to_s3(file_path, bucket_name, s3_file_path):
     except Exception as e:
         print(f"S3 Upload Error: {e}")
 
+def invoke_event_notification(session_id, message="Chat logs successfully uploaded"):
+    try:
+        query = """
+        mutation sendNotification($message: String!, $request_id: String!) {
+            sendNotification(message: $message, request_id: $request_id) {
+                message
+                request_id
+            }
+        }
+        """
+        headers = {"Content-Type": "application/json", "Authorization": "API_KEY"}
+        payload = {
+            "query": query,
+            "variables": {
+                "message": message,
+                "session_id": session_id,
+            }
+        }
+
+        # Delay to ensure client subscribes before mutation is sent 
+        time.sleep(1)
+
+        # Send the request to AppSync
+        with httpx.Client() as client:
+            response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
+            response_data = response.json()
+
+            logger.info(f"RESPONSE: {response}")
+            print(f"RESPONSE: {response}")
+
+            if response.status_code != 200 or "errors" in response_data:
+                logger.error(f"Failed to send notification to AppSync: {response_data}")
+                raise Exception(f"Failed to send notification: {response_data}")
+
+            logger.info(f"Notification sent successfully: {response_data}")
+            print(f"Notification sent successfully: {response_data}")
+    except Exception as e:
+        logger.error(f"Error invoking AppSync notification: {e}")
+        raise
 
 def handler(event, context):
-    
-    try:
-        query_params = event.get("queryStringParameters", {})
-        current_session_id = query_params.get("session_id", "")
-        print("🔍 Fetching all user message timestamps and roles...")
-        user_timestamps = fetch_all_user_messages()
-        
-        print("🔍 Fetching all session IDs...")
-        session_ids = fetch_all_session_ids()
 
-        chat_data = []
-        for session_id in session_ids:
-            chat_messages = fetch_chat_messages(session_id, table)
-
-            session_timestamps = user_timestamps.get(session_id, {})
-
-            for message in chat_messages:
-                if message["MessageType"] == "user":
-                    user_data = session_timestamps.get(message["Message"], {})
-                    message["Timestamp"] = user_data.get("Timestamp", None)
-                    message["UserRole"] = user_data.get("UserRole", "")
-                else:
-                    message["Timestamp"] = None  # AI messages don’t get timestamps
-
-                chat_data.append(message)
-
-        print("Merging complete. Writing data to CSV...")
-        csv_path = write_to_csv(chat_data)
-
-        if csv_path:
-            print("Uploading CSV to S3...")
+    for record in event["Records"]:
+        try:
+            message_body = json.loads(record["body"])
+            current_session_id = message_body.get("session_id")
+            # query_params = event.get("queryStringParameters", {})
+            # current_session_id = query_params.get("session_id", "")
+            print("🔍 Fetching all user message timestamps and roles...")
+            user_timestamps = fetch_all_user_messages()
             
-            upload_to_s3(csv_path, S3_BUCKET, f"{current_session_id}/chat_history.csv")
-            print("CSV successfully uploaded!")
-            update_conversation_csv(current_session_id, f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv")
+            print("🔍 Fetching all session IDs...")
+            session_ids = fetch_all_session_ids()
+
+            chat_data = []
+            for session_id in session_ids:
+                chat_messages = fetch_chat_messages(session_id, table)
+
+                session_timestamps = user_timestamps.get(session_id, {})
+
+                for message in chat_messages:
+                    if message["MessageType"] == "user":
+                        user_data = session_timestamps.get(message["Message"], {})
+                        message["Timestamp"] = user_data.get("Timestamp", None)
+                        message["UserRole"] = user_data.get("UserRole", "")
+                    else:
+                        message["Timestamp"] = None  # AI messages don’t get timestamps
+
+                    chat_data.append(message)
+
+            print("Merging complete. Writing data to CSV...")
+            csv_path = write_to_csv(chat_data)
+
+            if csv_path:
+                print("Uploading CSV to S3...")
+                
+                s3_uri = upload_to_s3(csv_path, S3_BUCKET, f"{current_session_id}/chat_history.csv")
+                print("CSV successfully uploaded!")
+                update_conversation_csv(current_session_id, f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv")
+                invoke_event_notification(session_id, message=f"Chat logs uploaded to {s3_uri}")
+                return {
+                    "statusCode": 200,
+                    "body": json.dumps({
+                        "message": "CSV uploaded successfully",
+                        "s3_path": f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv"
+                    })
+                }
 
             return {
-                "statusCode": 200,
-                "body": json.dumps({
-                    "message": "CSV uploaded successfully",
-                    "s3_path": f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv"
-                })
+                "statusCode": 500,
+                "body": json.dumps({"error": "Failed to generate CSV"})
             }
 
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": "Failed to generate CSV"})
-        }
-
-    except Exception as e:
-        print(f"Lambda Error: {e}")
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": "Internal Server Error"})
-        }
+        except Exception as e:
+            print(f"Lambda Error: {e}")
+            return {
+                "statusCode": 500,
+                "body": json.dumps({"error": "Internal Server Error"})
+            }

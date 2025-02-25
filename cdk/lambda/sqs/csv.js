@@ -1,83 +1,76 @@
-// const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
-
-// // Initialize SQS client
-// const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
-
-// exports.handler = async (event, context) => {
-//   try {
-//     const currentTimestamp = new Date().toISOString();
-
-//     const message = {
-//       timestamp: currentTimestamp,
-//       source: 'rest_api'
-//     };
-//     const params = {
-//       QueueUrl: process.env.SQS_QUEUE_URL,
-//       MessageBody: JSON.stringify(message),
-//       MessageGroupId: 'csv-api-messages',
-//       MessageDeduplicationId: currentTimestamp 
-//     };
-
-//     console.log('Sending message:', message);
-
-//     // Send message to SQS
-//     const command = new SendMessageCommand(params);
-//     const response = await sqsClient.send(command);
-
-//     console.log('Message sent to SQS:', response);
-
-//     return {
-//       statusCode: 200,
-//       body: JSON.stringify({ 
-//         message: 'Successfully sent timestamp to SQS',
-//         timestamp: currentTimestamp 
-//       }),
-//     };
-//   } catch (error) {
-//     console.error('Error sending message to SQS:', error);
-
-//     return {
-//       statusCode: 500,
-//       body: JSON.stringify({
-//         message: 'Error sending message to SQS',
-//         error: error.message,
-//       }),
-//     };
-//   }
-// };
 const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
+// const { initializeConnection } = require("./lib.js");
 
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
+// const { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT } = process.env;
+// let sqlConnection = global.sqlConnection;
 
 exports.handler = async (event) => {
   try {
-    const { user_email} = JSON.parse(event.body);
+    // Parse the incoming event
+    console.log("Parsing instructor_email, course_id, and request_id");
+    const { session_id } = JSON.parse(event.body);
 
-    if (!user_email) {
+    // Validate input
+    if (!session_id) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing user_email" }),
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+          "Access-Control-Allow-Methods": "OPTIONS,POST",
+        },
+        body: JSON.stringify({ error: "Missing session_id" }),
       };
     }
 
+    // Initialize database connection if not already established
+    // if (!sqlConnection) {
+    //   await initializeConnection(SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT);
+    //   sqlConnection = global.sqlConnection;
+    // }
+
+    // // Insert the record into the chatlogs_notifications table
+    // console.log("Inserting record into the chatlogs_notifications table with completion status FALSE");
+    // await sqlConnection`
+    //   INSERT INTO "chatlogs_notifications" ("course_id", "instructor_email", "request_id", "completion")
+    //   VALUES (${course_id}, ${instructor_email}, ${request_id}, false)
+    //   ON CONFLICT DO NOTHING;
+    // `;
+
+    // Prepare the SQS message
     const params = {
-      QueueUrl: process.env.SQS_QUEUE_URL,
-      MessageBody: JSON.stringify({ user_email}),
-      MessageGroupId: course_id, // FIFO requires group ID
-      MessageDeduplicationId: `${user_email}`, // Deduplication ID
+      QueueUrl: process.env.csvQueue.queueUrl,
+      MessageBody: JSON.stringify({ session_id }),
+      MessageGroupId: session_id, // FIFO requires group ID
+      MessageDeduplicationId: `${session_id}`, // Deduplication ID
     };
 
+    // Send the message to SQS
+    console.log("Sending message to SQS");
     const command = new SendMessageCommand(params);
     await sqsClient.send(command);
+    console.log("Message sent to SQS");
 
+    // Return success response
     return {
       statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+        "Access-Control-Allow-Methods": "OPTIONS,POST",
+      },
       body: JSON.stringify({ message: "Job submitted successfully" }),
     };
   } catch (error) {
-    console.error("Error submitting job to SQS:", error);
+    console.error("Error processing SQS function:", error);
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key",
+        "Access-Control-Allow-Methods": "OPTIONS,POST",
+      },
       body: JSON.stringify({ error: "Internal Server Error" }),
     };
   }

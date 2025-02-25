@@ -130,6 +130,7 @@ import {
           NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          NEXT_PUBLIC_APPSYNC_API_URL: apiStack.getDownloadMessagesApiUrl(),
           AMPLIFY_DIFF_DEPLOY: "false",
           AMPLIFY_MONOREPO_APP_ROOT: "frontendAdmin",
         },

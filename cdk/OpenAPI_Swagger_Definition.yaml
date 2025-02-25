@@ -769,15 +769,20 @@ paths:
       tags:
         - Admin
       summary: Get chat history
-      operationId: admin_get_analytics_GET
+      operationId: admin_chat_history_GET
       description: Submit a job to retrieve course messages via SQS.
-      parameters:
-        - in: query
-          name: session_id
+      requestBody:
           required: true
-          description: session_id of the admin
-          schema:
-            type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    description: The session_id of the admin
+                required:
+                  - session_id
       responses:
         "200":
           description: Job submitted successfully.
@@ -801,7 +806,7 @@ paths:
         - adminAuthorizer: []
       x-amazon-apigateway-integration:
         uri:
-          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${getChatHistory.Arn}/invocations"
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${csvFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1778,6 +1783,73 @@ paths:
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/fetch_chatlogs:
+    options:
+      summary: CORS support
+      description: Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+
+    get:
+      tags:
+        - Admin
+      summary: Get a chatlog files for a specific course requested by instructor
+      operationId: admin_fetch_chatlogs_GET
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          description: session_id of the admin
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recieved all the chatlog files for the course requested by the admin successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  log_files:
+                    type: object
+                    description: A dictionary where keys are file names and values are presigned URLs
+                    additionalProperties:
+                      type: string
+                      description: Presigned URL for the log file
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetChatLogsFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
