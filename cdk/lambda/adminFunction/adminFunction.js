@@ -851,51 +851,36 @@ exports.handler = async (event) => {
         }
         break;
       case "GET /admin/csv":
-        try {
-          // SQL query to get all conversation CSV entries
-          const conversationCSVs = await sqlConnectionTableCreator`
-              SELECT 
-                file_path, 
-                file_type, 
-                notified, 
-                timestamp 
-              FROM conversation_csv 
-              ORDER BY timestamp DESC;
-            `;
+          try {
+              // Query to check the completion status in the chatlogs_notifications table
+              const notificationStatus = await sqlConnectionTableCreator`
+                  SELECT notified, session_id
+                  FROM "conversation_csv"
+                  LIMIT 1;
+              `;
 
-          // Insert a record into the user engagement log
-          await sqlConnectionTableCreator`
-              INSERT INTO user_engagement_log (
-                log_id, 
-                session_id, 
-                timestamp, 
-                engagement_type, 
-                user_info, 
-                user_role
-              ) VALUES (
-                uuid_generate_v4(),
-                NULL,
-                CURRENT_TIMESTAMP,
-                'conversation_csv retrieval',
-                NULL,
-                'admin'
-              )
-            `;
-
-          response.body = JSON.stringify({
-            conversation_csvs: conversationCSVs.map((entry) => ({
-              file_path: entry.file_path,
-              file_type: entry.file_type,
-              notified: entry.notified,
-              timestamp: entry.timestamp,
-            })),
-          });
-        } catch (err) {
-          response.statusCode = 500;
-          console.error(err);
-          response.body = JSON.stringify({ error: "Internal server error" });
-        }
-        break;
+              // if exists, true or false, button should not be enabled
+              if (notificationStatus.length > 0) {
+                  response.statusCode = 200;
+                  response.body = JSON.stringify({
+                    isEnabled: false,
+                    completionStatus: notificationStatus[0].completion,
+                    sessionId: notificationStatus[0].session_id
+                  });
+              } else {
+                response.statusCode = 200;
+                response.body = JSON.stringify({
+                  isEnabled: true,
+                  completionStatus: null,
+                  sessionId: null
+                });
+              }
+          } catch (err) {
+              response.statusCode = 500;
+              console.error(err);
+              response.body = JSON.stringify({ error: "Internal server error" });
+          }
+      break;
       case "PUT /admin/csv":
         try {
           // First, count the number of rows that will be updated
@@ -940,6 +925,52 @@ exports.handler = async (event) => {
           response.body = JSON.stringify({ error: "Internal server error" });
         }
         break;
+        case "DELETE /admin/csv":
+          try {
+              if (
+                event.queryStringParameters != null &&
+                event.queryStringParameters.session_id
+              ) {
+                  // Delete a specific notification for a session_id
+                  const { session_id } = event.queryStringParameters;
+                  console.log(`Deleting notification for session_id: ${session_id}`);
+      
+                  const deleteResult = await sqlConnectionTableCreator`
+                    DELETE FROM "conversation_csv"
+                    WHERE session_id = ${session_id}
+                    RETURNING *;
+                  `;
+      
+                  if (deleteResult.length > 0) {
+                      response.statusCode = 200;
+                      response.body = JSON.stringify({ message: "Notification removed successfully." });
+                  } else {
+                      response.statusCode = 404;
+                      response.body = JSON.stringify({ error: "No notification found for the given session_id." });
+                  }
+              } else {
+                  // If no session_id provided, delete all completed notifications
+                  console.log("Deleting all completed notifications from conversation_csv");
+      
+                  const deleteAllResult = await sqlConnectionTableCreator`
+                    DELETE FROM "conversation_csv"
+                    RETURNING *;
+                  `;
+      
+                  if (deleteAllResult.length > 0) {
+                      response.statusCode = 200;
+                      response.body = JSON.stringify({ message: "All completed notifications removed successfully." });
+                  } else {
+                      response.statusCode = 404;
+                      response.body = JSON.stringify({ error: "No completed notifications found." });
+                  }
+              }
+          } catch (err) {
+              response.statusCode = 500;
+              console.error("Error deleting notifications:", err);
+              response.body = JSON.stringify({ error: "Internal server error" });
+          }
+          break;
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }

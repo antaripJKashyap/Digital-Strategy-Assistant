@@ -17,34 +17,27 @@ s3 = boto3.client(
     config=Config(s3={"addressing_style": "virtual"}, region_name=REGION, signature_version="s3v4"),
 )
 
-def list_files_in_s3_prefix(bucket, prefix):
+def list_all_files_in_s3(bucket):
     files = []
     continuation_token = None
 
-    # Fetch all objects in the directory, handling pagination
     while True:
+        params = {"Bucket": bucket}
         if continuation_token:
-            result = s3.list_objects_v2(
-                Bucket=bucket,
-                Prefix=prefix,
-                ContinuationToken=continuation_token
-            )
-        else:
-            result = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+            params["ContinuationToken"] = continuation_token
+
+        result = s3.list_objects_v2(**params)
 
         if "Contents" in result:
             for obj in result["Contents"]:
-                files.append(obj["Key"].replace(prefix, ""))
+                files.append(obj["Key"])
 
-        # Check if there's more data to fetch
         if result.get("IsTruncated"):
             continuation_token = result.get("NextContinuationToken")
         else:
             break
 
-    # **Sort files in reverse order (most recent first)**
-    files.sort(reverse=True)
-
+    files.sort(reverse=True)  # Sort files in reverse order (most recent first)
     return files
 
 def generate_presigned_url(bucket, key):
@@ -60,31 +53,11 @@ def generate_presigned_url(bucket, key):
         return None
 
 def lambda_handler(event, context):
-    query_params = event.get("queryStringParameters", {})
-
-    session_id = query_params.get("session_id", "")
-    print(f"session_id: {session_id}")
-
-    if not session_id:
-        logger.error("Missing required parameters", extra={"course_id": session_id})
-        return {
-            "statusCode": 400,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "*",
-            },
-            "body": json.dumps("Missing required parameters: course_id or instructor_email"),
-        }
-    
     try:
-        log_prefix = f"{session_id}/"
+        log_files = list_all_files_in_s3(BUCKET)
 
-        log_files = list_files_in_s3_prefix(BUCKET, log_prefix)
-
-        # Generate presigned URLs for logs
-        log_files_urls = {file_name: generate_presigned_url(BUCKET, f"{log_prefix}{file_name}") for file_name in log_files}
+        # Generate presigned URLs for all files
+        log_files_urls = {file_name: generate_presigned_url(BUCKET, file_name) for file_name in log_files}
 
         logger.info("Presigned URLs generated successfully", extra={"log_files": log_files_urls})
 

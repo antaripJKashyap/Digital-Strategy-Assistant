@@ -70,8 +70,7 @@ def handler(event, context):
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE EXTENSION IF NOT EXISTS "vector";
             CREATE TABLE IF NOT EXISTS "conversation_csv" (
-                file_path varchar,
-                file_type varchar,
+                "session_id" uuid PRIMARY KEY ,
                 notified boolean,
                 timestamp timestamp
             );

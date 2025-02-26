@@ -379,6 +379,11 @@ export class ApiGatewayStack extends cdk.Stack {
       notificationFunction
     );
 
+    const getChatHistoryLambdaDataSource = this.downloadMessagesApi.addLambdaDataSource(
+      "getChatHistoryLambdaDataSource",
+      notificationFunction
+    );
+
     compTextGenLambdaDataSource.createResolver("ResolverCompTextGenApi", {
       typeName: "Mutation",
       fieldName: "sendNotification",
@@ -387,6 +392,13 @@ export class ApiGatewayStack extends cdk.Stack {
     });
 
     notificationLambdaDataSource.createResolver("ResolverEventApi", {
+      typeName: "Mutation",
+      fieldName: "sendNotification",
+      requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
+      responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
+    });
+
+    getChatHistoryLambdaDataSource.createResolver("ResolverdownloadMessagesApi", {
       typeName: "Mutation",
       fieldName: "sendNotification",
       requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
@@ -486,6 +498,12 @@ export class ApiGatewayStack extends cdk.Stack {
         resources: [
           `arn:aws:secretsmanager:${this.region}:${this.account}:secret:*`,
         ],
+      })
+    );
+
+    chatHistory.addEventSource(
+      new lambdaEventSources.SqsEventSource(csvQueue, {
+        batchSize: 1,
       })
     );
 
@@ -803,7 +821,7 @@ export class ApiGatewayStack extends cdk.Stack {
       {
         parameterName: `/${id}/DSA/BedrockLLMId`,
         description: "Parameter containing the Bedrock LLM ID",
-        stringValue: "us.meta.llama3-2-11b-instruct-v1:0",
+        stringValue: "meta.llama3-70b-instruct-v1:0",
       }
     );
     const embeddingModelParameter = new ssm.StringParameter(
@@ -1106,11 +1124,14 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: "csv.handler",
       memorySize: 512,
-      code: lambda.Code.fromAsset("lambda/sqs"),
+      code: lambda.Code.fromAsset("lambda/lib"),
       timeout: cdk.Duration.seconds(900),
       environment: {
         SQS_QUEUE_URL: csvQueue.queueUrl,
+        SM_DB_CREDENTIALS: db.secretPathUser.secretName,
+        RDS_PROXY_ENDPOINT: db.rdsProxyEndpoint,
       },
+      layers: [postgres],
       vpc: vpcStack.vpc,
       role: coglambdaRole,
     });

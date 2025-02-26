@@ -1,14 +1,14 @@
 const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
-// const { initializeConnection } = require("./lib.js");
+const { initializeConnection } = require("./lib.js");
 
 const sqsClient = new SQSClient({ region: process.env.AWS_REGION });
-// const { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT } = process.env;
-// let sqlConnection = global.sqlConnection;
+const { SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT } = process.env;
+let sqlConnection = global.sqlConnection;
 
 exports.handler = async (event) => {
   try {
     // Parse the incoming event
-    console.log("Parsing instructor_email, course_id, and request_id");
+    console.log("Parsing session_id");
     const { session_id } = JSON.parse(event.body);
 
     // Validate input
@@ -25,25 +25,25 @@ exports.handler = async (event) => {
     }
 
     // Initialize database connection if not already established
-    // if (!sqlConnection) {
-    //   await initializeConnection(SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT);
-    //   sqlConnection = global.sqlConnection;
-    // }
+    if (!sqlConnection) {
+      await initializeConnection(SM_DB_CREDENTIALS, RDS_PROXY_ENDPOINT);
+      sqlConnection = global.sqlConnection;
+    }
 
-    // // Insert the record into the chatlogs_notifications table
-    // console.log("Inserting record into the chatlogs_notifications table with completion status FALSE");
-    // await sqlConnection`
-    //   INSERT INTO "chatlogs_notifications" ("course_id", "instructor_email", "request_id", "completion")
-    //   VALUES (${course_id}, ${instructor_email}, ${request_id}, false)
-    //   ON CONFLICT DO NOTHING;
-    // `;
+    // Insert the record into the chatlogs_notifications table
+    console.log("Inserting record into the chatlogs_notifications table with completion status FALSE");
+    await sqlConnection`
+      INSERT INTO "conversation_csv" ("session_id", "notified", "timestamp")
+      VALUES (${session_id}, false, NOW())
+      ON CONFLICT DO NOTHING;
+    `;
 
     // Prepare the SQS message
     const params = {
-      QueueUrl: process.env.csvQueue.queueUrl,
+      QueueUrl: process.env.SQS_QUEUE_URL,
       MessageBody: JSON.stringify({ session_id }),
       MessageGroupId: session_id, // FIFO requires group ID
-      MessageDeduplicationId: `${session_id}`, // Deduplication ID
+      MessageDeduplicationId: session_id, // Deduplication ID
     };
 
     // Send the message to SQS

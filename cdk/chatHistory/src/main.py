@@ -67,16 +67,16 @@ def connect_to_db():
             raise
     return connection
 
-def update_conversation_csv(session_id, file_path):
+def update_conversation_csv(session_id):
     """ Inserts a record into the conversation_csv table """
     query = """
-        INSERT INTO conversation_csv (file_path, file_type, notified, timestamp)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO conversation_csv (session_id, notified, timestamp)
+        VALUES (%s, %s, %s)
     """
     connection = connect_to_db()
     try:
         cur = connection.cursor()
-        cur.execute(query, (file_path, "csv", False, datetime.now(timezone.utc)))
+        cur.execute(query, (session_id, False, datetime.now(timezone.utc)))
         connection.commit()
         cur.close()
         print(f" Successfully inserted CSV record for session {session_id}")
@@ -234,11 +234,21 @@ def fetch_chat_messages(session_id, table):
         return []
 
     
-def write_to_csv(data, file_path="/tmp/chat_history.csv"):
+def write_to_csv(session_id, data):
+    """
+    Writes chat data to a CSV file and uploads it to S3.
+    """
     header = ["SessionId", "UserRole", "MessageType", "Message", "Timestamp"]
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Avoids ":" for Windows safety
+    file_name = f"{timestamp}.csv"
+    temp_file_path = f"/tmp/{file_name}"  # Write to /tmp/ in AWS Lambda
+    s3_key = f"{session_id}/{file_name}"  # Final path in S3
+
     try:
         print("Writing data to CSV...")
-        with open(file_path, "w", newline="", encoding="utf-8") as file:
+        
+        # Write CSV to /tmp/
+        with open(temp_file_path, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(header)
             for row in data:
@@ -250,10 +260,16 @@ def write_to_csv(data, file_path="/tmp/chat_history.csv"):
                     row["Timestamp"].strftime("%Y-%m-%d %H:%M:%S") if row["Timestamp"] else "",
                 ])
         
-        print(f"CSV file saved at {file_path}")
-        return file_path
+        print(f"CSV file created at {temp_file_path}")
+
+        # Upload to S3
+        s3_client.upload_file(temp_file_path, S3_BUCKET, s3_key)
+        print(f"File uploaded to s3://{S3_BUCKET}/{s3_key}")
+
+        return temp_file_path, file_name
+    
     except Exception as e:
-        print(f"Error writing to CSV: {e}")
+        print(f"Error writing to CSV or uploading to S3: {e}")
         return None
 
 
@@ -266,44 +282,46 @@ def upload_to_s3(file_path, bucket_name, s3_file_path):
     except Exception as e:
         print(f"S3 Upload Error: {e}")
 
-def invoke_event_notification(session_id, message="Chat logs successfully uploaded"):
+def invoke_event_notification(session_id, message):
+    """
+    Publish a notification event to AppSync via HTTPX (directly to the AppSync API).
+    """
     try:
         query = """
-        mutation sendNotification($message: String!, $request_id: String!) {
-            sendNotification(message: $message, request_id: $request_id) {
+        mutation sendNotification($message: String!, $sessionId: String!) {
+            sendNotification(message: $message, sessionId: $sessionId) {
                 message
-                request_id
+                sessionId
             }
         }
         """
-        headers = {"Content-Type": "application/json", "Authorization": "API_KEY"}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": "API_KEY"
+        }
+
         payload = {
             "query": query,
             "variables": {
                 "message": message,
-                "session_id": session_id,
+                "sessionId": session_id
             }
         }
-
-        # Delay to ensure client subscribes before mutation is sent 
-        time.sleep(1)
 
         # Send the request to AppSync
         with httpx.Client() as client:
             response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
             response_data = response.json()
 
-            logger.info(f"RESPONSE: {response}")
-            print(f"RESPONSE: {response}")
-
+            logging.info(f"AppSync Response: {json.dumps(response_data, indent=2)}")
             if response.status_code != 200 or "errors" in response_data:
-                logger.error(f"Failed to send notification to AppSync: {response_data}")
                 raise Exception(f"Failed to send notification: {response_data}")
 
-            logger.info(f"Notification sent successfully: {response_data}")
             print(f"Notification sent successfully: {response_data}")
+            return response_data["data"]["sendNotification"]
+
     except Exception as e:
-        logger.error(f"Error invoking AppSync notification: {e}")
+        logging.error(f"Error publishing event to AppSync: {str(e)}")
         raise
 
 def handler(event, context):
@@ -337,15 +355,15 @@ def handler(event, context):
                     chat_data.append(message)
 
             print("Merging complete. Writing data to CSV...")
-            csv_path = write_to_csv(chat_data)
+            csv_path, csv_name = write_to_csv(current_session_id,chat_data)
 
             if csv_path:
                 print("Uploading CSV to S3...")
                 
-                s3_uri = upload_to_s3(csv_path, S3_BUCKET, f"{current_session_id}/chat_history.csv")
+                s3_uri = upload_to_s3(csv_path, S3_BUCKET, csv_name)
                 print("CSV successfully uploaded!")
-                update_conversation_csv(current_session_id, f"s3://{S3_BUCKET}/{current_session_id}/chat_history.csv")
-                invoke_event_notification(session_id, message=f"Chat logs uploaded to {s3_uri}")
+                # update_conversation_csv(current_session_id)
+                invoke_event_notification(current_session_id, message=f"chat logs uploaded to {s3_uri}")
                 return {
                     "statusCode": 200,
                     "body": json.dumps({

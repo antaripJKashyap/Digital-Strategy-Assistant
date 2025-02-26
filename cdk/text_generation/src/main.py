@@ -8,8 +8,8 @@ import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
 
-from helpers.vectorstore import get_vectorstore_retriever, get_vectorstore_retriever_ordinary
-from helpers.chat import get_bedrock_llm, get_initial_user_query, get_user_query, create_dynamodb_history_table, get_response, get_response_evaluation
+from helpers.vectorstore import get_vectorstore_retriever
+from helpers.chat import get_bedrock_llm, create_dynamodb_history_table, get_response, get_user_query, get_initial_user_query
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)

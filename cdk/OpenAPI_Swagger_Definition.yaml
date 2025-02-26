@@ -1890,20 +1890,26 @@ paths:
               schema:
                 type: object
                 properties:
-                  conversation_csvs:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        file_path:
-                          type: string
-                        file_type:
-                          type: string
-                        notified:
-                          type: boolean
-                        timestamp:
-                          type: string
-                          format: date-time
+                  isEnabled:
+                    type: boolean
+                    description: Indicates whether the button to generate chatlogs should be enabled or disabled
+                  completionStatus:
+                    type: boolean
+                    nullable: true
+                    description: The actual value of the completion status. If the row does not exist, this will be null.
+                  session_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                    description: The session_id used to subscribe to AppSync. If the row does not exist, this will be null.
+        "400":
+          description: Bad Request
+        "404":
+          description: Course not found
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
         "500":
           description: Internal Server Error
       security:
@@ -1961,6 +1967,37 @@ paths:
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${csvFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    delete:
+      tags:
+        - Admin
+      summary: Delete row from database since CSV file full of chatlogs has been completed and notification has been sent to front-end
+      operationId: instructor_delete_file_DELETE
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          description: session_id of the admin
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification deleted successfully
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
