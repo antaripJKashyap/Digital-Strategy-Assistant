@@ -139,7 +139,7 @@ def get_response_evaluation(
     If the documents have some material that is irrelevant to the guidelines, recognize that the guidelines may not fully apply, then proceed with your regular assessment.
     
     Replace terms like “compliance” with “alignment” to reflect the guidelines’ voluntary and collaborative nature.
-    After completing your evaluation, provide a concise summary starting with “Summary:”. This summary should include what the documents are about and your overall evaluation result.
+    After completing your evaluation, provide a concise summary. This summary should contain your overall evaluation result.
     Provide only broad suggestions or examples of how one might address the guidelines; do not give specific step-by-step instructions.
     
     Do not repeat or restate the user’s prompt in your response.
