@@ -154,7 +154,17 @@ const AdminHome = () => {
         removeCompletedNotification();
   
         // Notify the instructor
-        alert(`Chat logs are now available`);
+        toast.success("Chat logs are now available!", {
+          position: "top-center",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+          theme: "colored",
+        });
+        
   
         // Close WebSocket after receiving the notification
         ws.close();
@@ -207,7 +217,17 @@ const AdminHome = () => {
           removeCompletedNotification();
 
           // Notify the Instructor
-          alert(`Chat logs are available `);
+          toast.success("Chat logs are now available!", {
+            position: "top-center",
+            autoClose: 5000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+            progress: undefined,
+            theme: "colored",
+          });
+          
 
         } else if (data.completionStatus === false) {
           // Reopen WebSocket to listen for notifications
