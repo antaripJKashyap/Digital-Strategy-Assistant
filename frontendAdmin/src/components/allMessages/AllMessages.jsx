@@ -68,12 +68,17 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
             if (data.log_files) {
                 const formattedLogs = Object.entries(data.log_files).map(([fileName, presignedUrl]) => {
                     const extractedTimestamp = fileName.split("/").pop(); // Extracts just the filename
-                    console.log("Extracted timestamp before parsing:", extractedTimestamp); // DEBUG LOG
+                    const dateObject = convertToLocalTime(extractedTimestamp); // Convert to Date object
+
                     return {
-                        date: convertToLocalTime(extractedTimestamp), // Pass only `timestamp.csv`
+                        date: dateObject.toLocaleString(undefined, { timeZoneName: "short" }), // Formatted for display
+                        timestamp: dateObject.getTime(), // Store timestamp for sorting
                         presignedUrl: presignedUrl,
                     };
                 });
+
+                // Sort logs by timestamp (latest first)
+                formattedLogs.sort((a, b) => b.timestamp - a.timestamp);
 
                 setPreviousChatLogs(formattedLogs);
             } else {
@@ -89,45 +94,19 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
     }
 };
 
-
 const convertToLocalTime = (fileName) => {
   try {
-      console.log("Processing filename:", fileName); // DEBUG LOG
-
-      // Extract timestamp from file name (handling .csv at the end)
       const match = fileName.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.csv/);
-      if (!match) {
-          console.warn("Could not extract a valid timestamp from filename:", fileName);
-          return "Invalid Date"; // Return a default value
-      }
+      if (!match) return new Date(0); // Return an invalid date as fallback
 
-      console.log("Extracted timestamp:", match[1]); // DEBUG LOG
-
-      // Replace underscores with spaces (JavaScript Date needs "YYYY-MM-DD HH:MM:SS")
       let formattedTimestamp = match[1].replace(/_/g, " ");
-
-      // Replace the last two dashes in time with colons
       formattedTimestamp = formattedTimestamp.replace(/(\d{2})-(\d{2})-(\d{2})$/, "$1:$2:$3");
 
-      console.log("Final formatted timestamp:", formattedTimestamp); // DEBUG LOG
-
-      // Convert extracted timestamp to a Date object (assuming UTC)
       const utcDate = new Date(formattedTimestamp + " UTC");
-
-      // Check if the date is valid
-      if (isNaN(utcDate.getTime())) {
-          console.error("Invalid Date created from:", formattedTimestamp);
-          return "Invalid Date"; // Fallback if Date parsing fails
-      }
-
-      console.log("UTC Date:", utcDate.toISOString()); // DEBUG LOG
-
-      // Convert to local time and return formatted string
-      return utcDate.toLocaleString(undefined, { timeZoneName: "short" });
-
+      return isNaN(utcDate.getTime()) ? new Date(0) : utcDate;
   } catch (error) {
-      console.error("Error converting time:", error);
-      return "Invalid Date"; // Fallback in case of error
+      console.error("Error parsing timestamp:", error);
+      return new Date(0);
   }
 };
 
