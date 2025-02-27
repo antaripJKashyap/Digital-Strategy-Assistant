@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { fetchAuthSession, fetchUserAttributes } from "aws-amplify/auth";
@@ -6,7 +7,7 @@ import { useNotification } from "@/context/NotificationContext"; // Ensure you h
 
 export default function AllMessages({ notifications, setNotifications, openWebSocket }) {
   const [loading, setLoading] = useState(false);
-  const [previousFiles, setPreviousFiles] = useState([]);
+  const [previousFiles, setPreviousChatLogs] = useState([]);
   const [isDownloadEnabled, setIsDownloadEnabled] = useState(true);
   const { setNotificationForSession } = useNotification();
 
@@ -23,8 +24,7 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
       const token = session.tokens.idToken;
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/csv=${encodeURIComponent(
-                    session_id)}`,
+        `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/csv`,
         {
           method: "GET",
           headers: {
@@ -47,59 +47,106 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
 
   const fetchPreviousFiles = async () => {
     try {
-      const session = await fetchAuthSession(); // change
-      const token = session.tokens.idToken;
+        const session = await fetchAuthSession();
+        const token = session.tokens.idToken;
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/fetch_chatlogs?session_id=${encodeURIComponent(session_id)}`,
-                {
-                    method: "GET",
-                    headers: {
-                        Authorization: token,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
+        const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/fetch_chatlogs`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: token,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
 
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Chat logs fetched:", data);
-        if (data.log_files) {
-            const formattedLogs = Object.entries(data.log_files).map(([fileName, presignedUrl]) => ({
-                date: convertToLocalTime(fileName), // Using file name as the date
-                presignedUrl: presignedUrl,
-            }));
-            setPreviousChatLogs(formattedLogs);
+        if (response.ok) {
+            const data = await response.json();
+            console.log("Chat logs fetched:", data);
+
+            if (data.log_files) {
+                const formattedLogs = Object.entries(data.log_files).map(([fileName, presignedUrl]) => {
+                    const extractedTimestamp = fileName.split("/").pop(); // Extracts just the filename
+                    console.log("Extracted timestamp before parsing:", extractedTimestamp); // DEBUG LOG
+                    return {
+                        date: convertToLocalTime(extractedTimestamp), // Pass only `timestamp.csv`
+                        presignedUrl: presignedUrl,
+                    };
+                });
+
+                setPreviousChatLogs(formattedLogs);
+            } else {
+                setPreviousChatLogs([]);
+            }
         } else {
-            setPreviousChatLogs([]);
+            console.error("Failed to fetch chat logs:", response.statusText);
         }
-    } else {
-        console.error("Failed to fetch chat logs:", response.statusText);
+    } catch (error) {
+        console.error("Error fetching chat logs:", error);
+    } finally {
+        setLoading(false);
     }
-} catch (error) {
-    console.error("Error fetching chat logs:", error);
-} finally {
-    setLoading(false);
-}
 };
 
-  const convertToLocalTime = (fileName) => {
-    const match = fileName.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
-    if (!match) return fileName;
-    
-    const utcDate = new Date(match[0] + " UTC");
-    return utcDate.toLocaleString(undefined, { timeZoneName: "short" });
-  };
+
+const convertToLocalTime = (fileName) => {
+  try {
+      console.log("Processing filename:", fileName); // DEBUG LOG
+
+      // Extract timestamp from file name (handling .csv at the end)
+      const match = fileName.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.csv/);
+      if (!match) {
+          console.warn("Could not extract a valid timestamp from filename:", fileName);
+          return "Invalid Date"; // Return a default value
+      }
+
+      console.log("Extracted timestamp:", match[1]); // DEBUG LOG
+
+      // Replace underscores with spaces (JavaScript Date needs "YYYY-MM-DD HH:MM:SS")
+      let formattedTimestamp = match[1].replace(/_/g, " ");
+
+      // Replace the last two dashes in time with colons
+      formattedTimestamp = formattedTimestamp.replace(/(\d{2})-(\d{2})-(\d{2})$/, "$1:$2:$3");
+
+      console.log("Final formatted timestamp:", formattedTimestamp); // DEBUG LOG
+
+      // Convert extracted timestamp to a Date object (assuming UTC)
+      const utcDate = new Date(formattedTimestamp + " UTC");
+
+      // Check if the date is valid
+      if (isNaN(utcDate.getTime())) {
+          console.error("Invalid Date created from:", formattedTimestamp);
+          return "Invalid Date"; // Fallback if Date parsing fails
+      }
+
+      console.log("UTC Date:", utcDate.toISOString()); // DEBUG LOG
+
+      // Convert to local time and return formatted string
+      return utcDate.toLocaleString(undefined, { timeZoneName: "short" });
+
+  } catch (error) {
+      console.error("Error converting time:", error);
+      return "Invalid Date"; // Fallback in case of error
+  }
+};
+
+
 
   const handleDownload = async () => {
     try {
+      // Ensure openWebSocket is a function before proceeding
+      if (typeof openWebSocket !== "function") {
+        console.error("Error: openWebSocket is not a function!");
+        return;
+      }
+  
       setLoading(true);
-      const session = await fetchAuthSession();  //change this
+      const session = await fetchAuthSession();
       const token = session.tokens.idToken;
-      
+      // Generate a unique session_id
       const session_id = uuidv4();
-
+      console.log("session_id:", session_id);
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/chat_history`,
         {
@@ -111,65 +158,27 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
           body: JSON.stringify({ session_id: session_id }),
         }
       );
-
+  
       if (response.ok) {
+        console.log("Job submitted successfully");
         setIsDownloadEnabled(false);
-        openWebSocket(requestId, setNotificationForSession, () => {
+        openWebSocket(session_id, setNotificationForSession, () => {
+          console.log("Waiting before checking notification status...");
           setTimeout(() => {
             checkNotificationStatus();
             fetchPreviousFiles();
           }, 2000);
         });
+      } else {
+        console.error("Failed to submit job:", response.statusText);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Error submitting job:", error);
     } finally {
       setLoading(false);
     }
   };
-
-  const openWebSocket = (requestId, setNotification, onComplete) => {
-    const wsUrl = constructWebSocketUrl(); // Implement this similarly to ChatLogs
-    const ws = new WebSocket(wsUrl, "graphql-ws");
-
-    ws.onopen = () => {
-      const initMessage = { type: "connection_init" };
-      ws.send(JSON.stringify(initMessage));
-
-      const subscriptionId = uuidv4();
-      const subscriptionMessage = {
-        id: subscriptionId,
-        type: "start",
-        payload: {
-          data: JSON.stringify({
-            query: `subscription OnNotify($requestId: String!) {
-              onNotify(requestId: $requestId) { message requestId }
-            }`,
-            variables: { requestId }
-          }),
-          extensions: { authorization: {/*...*/} }
-        }
-      };
-      ws.send(JSON.stringify(subscriptionMessage));
-    };
-
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === "data" && message.payload?.data?.onNotify) {
-        setNotification(requestId, true);
-        alert("New messages CSV is ready!");
-        ws.close();
-        if (onComplete) onComplete();
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      ws.close();
-    };
-
-    setTimeout(() => ws.close(), 180000);
-  };
+  
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full p-4">

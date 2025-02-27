@@ -18,6 +18,7 @@ import "react-toastify/dist/ReactToastify.css";
 import LoadingScreen from "./Loading/LoadingScreen.jsx";
 import Feedback from "./feedback/Feedback.jsx";
 import Guidelines from "./guidelines/Guidelines.jsx";
+import { v4 as uuidv4 } from 'uuid';
 const AdminHome = () => {
   const [user, setUser] = useState(null);
   const [userGroup, setUserGroup] = useState(null);
@@ -33,6 +34,7 @@ const AdminHome = () => {
             const group = tokens.accessToken.payload["cognito:groups"];
             setUser(tokens.accessToken.payload);
             setUserGroup(group || []);
+            checkNotificationStatus(tokens.idToken);
           }
         })
         .catch((error) => {
@@ -43,10 +45,32 @@ const AdminHome = () => {
         });
     };
 
-    fetchAuthData(), checkNotificationStatus(token);
+    fetchAuthData();
   }, []);
 
 
+  function constructWebSocketUrl() {
+    const tempUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL; // Replace with your WebSocket URL
+    const apiUrl = tempUrl.replace("https://", "wss://");
+    const urlObj = new URL(apiUrl);
+    const tmpObj = new URL(tempUrl);
+    const modifiedHost = urlObj.hostname.replace(
+        "appsync-api",
+        "appsync-realtime-api"
+    );
+  
+    urlObj.hostname = modifiedHost;
+    const host = tmpObj.hostname;
+    const header = {
+        host: host,
+        Authorization: "API_KEY",
+    };
+  
+    const encodedHeader = btoa(JSON.stringify(header));
+    const payload = "e30=";
+  
+    return `${urlObj.toString()}?header=${encodedHeader}&payload=${payload}`;
+  };
 
   const removeCompletedNotification = async () => {
     try {
@@ -183,18 +207,18 @@ const AdminHome = () => {
           removeCompletedNotification();
 
           // Notify the Instructor
-          alert(`Chat logs are available for course: ${course.course_name}`);
+          alert(`Chat logs are available `);
 
         } else if (data.completionStatus === false) {
           // Reopen WebSocket to listen for notifications
-          console.log(`Getting chatlogs for ${course.course_name} is not completed. Re-opening the websocket.`);
-          openWebSocket(course.course_name, course.course_id, data.requestId, setNotificationForCourse);
+          console.log(`Getting chatlogs is not completed. Re-opening the websocket.`);
+          openWebSocket(session_id, setNotificationForCourse);
         } else {
-          console.log(`Either chatlogs for ${course.course_name} were not requested or instructor already received notification. No need to notify instructor or re-open websocket.`);
+          console.log(`Either chatlogs for  were not requested or instructor already received notification. No need to notify instructor or re-open websocket.`);
         }
       }
     } catch (error) {
-      console.error("Error checking notification status for", course.course_id, error);
+      console.error("Error checking notification status for", error);
     }
     
   };
