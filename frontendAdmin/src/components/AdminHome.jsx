@@ -96,7 +96,7 @@ const AdminHome = () => {
     }
   };
 
-  function openWebSocket(session_id, setNotificationForCourse, onComplete) {
+  function openWebSocket(session_id, setNotificationForSession, onComplete) {
     // Open WebSocket connection
     const wsUrl = constructWebSocketUrl();
     const ws = new WebSocket(wsUrl, "graphql-ws");
@@ -148,7 +148,7 @@ const AdminHome = () => {
         console.log("Notification received:", receivedMessage);
         
         // Sets icon to show new file on ChatLogs page
-        // setNotificationForCourse(session_id, true);
+        setNotificationForSession(true);
         
         // Remove row from database
         removeCompletedNotification();
@@ -200,8 +200,8 @@ const AdminHome = () => {
         if (data.completionStatus === true) {
           console.log(`Getting chatlogs is completed. Notifying the user and removing row from database.`);
 
-          // Sets icon to show new file on ChatLogs page
-          // setNotificationForCourse(course.course_id, true);
+          // Sets icon to show new file on Allmessages page
+          setNotificationForSession(true);
 
           // Remove row from database
           removeCompletedNotification();
@@ -212,7 +212,7 @@ const AdminHome = () => {
         } else if (data.completionStatus === false) {
           // Reopen WebSocket to listen for notifications
           console.log(`Getting chatlogs is not completed. Re-opening the websocket.`);
-          openWebSocket(session_id, setNotificationForCourse);
+          openWebSocket(session_id, setNotificationForSession);
         } else {
           console.log(`Either chatlogs for  were not requested or instructor already received notification. No need to notify instructor or re-open websocket.`);
         }

@@ -5,13 +5,19 @@ const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState({});
+  const [hasChatHistoryNotification, setHasChatHistoryNotification] = useState(false);
 
-  const setNotificationForSession = (sessionId, hasNotification) => {
-    setNotifications((prev) => ({ ...prev, [sessionId]: hasNotification }));
+  // Keeping the function name the same but removing sessionId
+  const setNotificationForSession = (hasNotification) => {
+    setHasChatHistoryNotification(hasNotification);
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, setNotificationForSession }}>
+    <NotificationContext.Provider value={{ 
+      notifications, 
+      setNotificationForSession, 
+      hasChatHistoryNotification 
+    }}>
       {children}
     </NotificationContext.Provider>
   );

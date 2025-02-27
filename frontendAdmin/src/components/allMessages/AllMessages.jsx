@@ -131,8 +131,6 @@ const convertToLocalTime = (fileName) => {
   }
 };
 
-
-
   const handleDownload = async () => {
     try {
       // Ensure openWebSocket is a function before proceeding

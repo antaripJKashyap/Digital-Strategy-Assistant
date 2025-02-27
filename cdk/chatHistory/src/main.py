@@ -360,10 +360,10 @@ def handler(event, context):
             if csv_path:
                 print("Uploading CSV to S3...")
                 
-                s3_uri = upload_to_s3(csv_path, S3_BUCKET, csv_name)
+                # s3_uri = upload_to_s3(csv_path, S3_BUCKET, csv_name)
                 print("CSV successfully uploaded!")
                 # update_conversation_csv(current_session_id)
-                invoke_event_notification(current_session_id, message=f"chat logs uploaded to {s3_uri}")
+                invoke_event_notification(current_session_id, message=f"chat logs uploaded to s3")
                 return {
                     "statusCode": 200,
                     "body": json.dumps({
