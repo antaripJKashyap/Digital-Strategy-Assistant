@@ -139,7 +139,8 @@ def get_response_evaluation(
     If the documents do relate to educational course content, determine how effectively they address or reflect the guidelines. 
     If they partially or do not address the guidelines, offer high-level guidance on how they might be better aligned. 
     If parts of the documents are irrelevant to the guidelines, note that the guidelines may not fully apply, and then continue with your assessment of the relevant content.
-    
+
+    Do not attempt to identify or mention a specific course name, even if the documents include information that might suggest one.
     Provide your evaluation result in one concise paragraph—no more than five or six sentences—without any lists or bullet points. 
     Include only broad suggestions or examples of how educational designers could incorporate the guidelines, and avoid specific, step-by-step instructions or overly detailed recommendations.
     Use terms like “alignment” instead of “compliance” to emphasize the voluntary and collaborative nature of the guidelines. 
