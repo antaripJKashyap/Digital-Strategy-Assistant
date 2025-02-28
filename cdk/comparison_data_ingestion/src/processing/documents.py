@@ -109,7 +109,7 @@ def process_documents(
     
     1. Retrieve or create guardrails needed for content filtering.
     2. List documents in the specified S3 path.
-    3. Download and process each document (PDF), page by page.
+    3. Download and process each document (PDF or text), page by page for PDFs.
     4. Apply the configured guardrail checks via the Bedrock Runtime.
        - If any restricted content is found, all documents are deleted from S3, 
          and processing is aborted with an error message.
@@ -162,93 +162,94 @@ def process_documents(
             with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
                 tmp_path = tmp_file.name
                 s3.download_file(bucket, document_key, tmp_path)
-
-            # Open the PDF using pymupdf
-            doc_pdf = pymupdf.open(tmp_path)
+            
+            # Verify file exists and is readable
+            if not os.path.exists(tmp_path) or not os.access(tmp_path, os.R_OK):
+                logger.error(f"Temporary file does not exist or is not readable: {tmp_path}")
+                continue
+                
             doc_id = str(uuid.uuid4())
             
-            # Extract text from each page
-            for page_idx, page in enumerate(doc_pdf, start=1):
-                page_text = page.get_text().strip()
-                if not page_text:
-                    continue
-
-                # Apply the guardrail to the extracted text
+            # Check file type and process accordingly
+            if document_key.lower().endswith('.pdf'):
+                # Process PDF files with PyMuPDF
                 try:
-                    response = bedrock_runtime_client.apply_guardrail(
-                        guardrailIdentifier=guardrail_id,
-                        guardrailVersion=guardrail_version,
-                        source="INPUT",
-                        content=[{"text": {
-                            "text": page_text,
-                            "qualifiers": ["guard_content"]}
-                        }]
-                    )
+                    doc_pdf = pymupdf.open(tmp_path)
                     
-                    # Check if guardrail intervention occurred
-                    if response.get('action') == 'GUARDRAIL_INTERVENED':
-                        error_message = None
-                        # Inspect each assessment for violations in order of priority
-                        for assessment in response.get('assessments', []):
-                            # Topics policy checks (Financial Advice, Offensive Content)
-                            if 'topicPolicy' in assessment:
-                                for topic in assessment['topicPolicy'].get('topics', []):
-                                    if topic.get('name') == 'FinancialAdvice' and topic.get('action') == 'BLOCKED':
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected financial advice in them."
-                                        break
+                    # Extract text from each page
+                    for page_idx, page in enumerate(doc_pdf, start=1):
+                        page_text = page.get_text().strip()
+                        if not page_text:
+                            continue
 
-                                    elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
-                                        break
-                                if error_message:
-                                    break
+                        # Apply the guardrail to the extracted text
+                        guardrail_result = apply_guardrail_to_text(page_text, guardrail_id, guardrail_version)
+                        if guardrail_result != "SUCCESS":
+                            error_message = guardrail_result
+                            doc_pdf.close()
+                            
+                            # Delete all documents from S3
+                            for key in document_keys:
+                                s3.delete_object(Bucket=bucket, Key=key)
+                                logger.info(f"Deleted {key} from S3.")
+                            
+                            return error_message
 
-                            # Sensitive information policy (PII) checks
-                            if not error_message and 'sensitiveInformationPolicy' in assessment:
-                                for pii in assessment['sensitiveInformationPolicy'].get('piiEntities', []):
-                                    if pii.get('action') in ['BLOCKED', 'ANONYMIZED']:
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected sensitive (personally identifiable) information in them."
-                                        break
-                                if error_message:
-                                    break
-
-                        # If we still have no specific message but there's an intervention
-                        if not error_message:
-                            error_message = "Sorry, I cannot process your document(s) due to restricted content."
-
-                        # Cleanup before aborting
-                        doc_pdf.close()
-
-                        # Delete all documents from S3 since the user must re-upload 
-                        # for a new attempt
+                        # If guardrail did not trigger a block, create a Document object
+                        all_docs.append(Document(
+                            page_content=page_text,
+                            metadata={
+                                "id": doc_id,
+                                "filename": document_key,
+                                "page": page_idx,
+                                "category_id": category_id,
+                            }
+                        ))
+                    
+                    doc_pdf.close()
+                    
+                except Exception as e:
+                    logger.error(f"Error processing PDF document {document_key}: {e}")
+                    continue
+            else:
+                # Process text files directly
+                try:
+                    with open(tmp_path, 'r', encoding='utf-8') as text_file:
+                        text_content = text_file.read().strip()
+                    
+                    if not text_content:
+                        continue
+                        
+                    # Apply the guardrail to the text content
+                    guardrail_result = apply_guardrail_to_text(text_content, guardrail_id, guardrail_version)
+                    if guardrail_result != "SUCCESS":
+                        error_message = guardrail_result
+                        
+                        # Delete all documents from S3
                         for key in document_keys:
                             s3.delete_object(Bucket=bucket, Key=key)
                             logger.info(f"Deleted {key} from S3.")
-
-                        # Return the error message triggered by guardrails
+                        
                         return error_message
-
+                    
+                    # If guardrail did not trigger a block, create a Document object
+                    all_docs.append(Document(
+                        page_content=text_content,
+                        metadata={
+                            "id": doc_id,
+                            "filename": document_key,
+                            "page": 1,  # Text files are treated as single-page documents
+                            "category_id": category_id,
+                        }
+                    ))
+                    
                 except Exception as e:
-                    logger.error(f"Error applying guardrail: {e}")
-                    raise
-
-                # If guardrail did not trigger a block, 
-                # create a Document object for further processing
-                all_docs.append(Document(
-                    page_content=page_text,
-                    metadata={
-                        "id": doc_id,
-                        "filename": document_key,
-                        "page": page_idx,
-                        "category_id": category_id,
-                    }
-                ))
-            
-            doc_pdf.close()
+                    logger.error(f"Error processing text document {document_key}: {e}")
+                    continue
             
         except Exception as e:
             logger.error(f"Error processing document {document_key}: {e}")
-            raise
+            continue
         finally:
             # Ensure the temporary file is cleaned up
             if tmp_path and os.path.exists(tmp_path):
@@ -266,4 +267,66 @@ def process_documents(
         logger.info(f"Deleted {key} from S3.")
     
     # Return success if the process completed without guardrail intervention
+    return "SUCCESS"
+
+def apply_guardrail_to_text(text: str, guardrail_id: str, guardrail_version: str) -> str:
+    """
+    Apply guardrail checks to the given text.
+    
+    Args:
+        text (str): The text to check.
+        guardrail_id (str): The ID of the guardrail to apply.
+        guardrail_version (str): The version of the guardrail to apply.
+        
+    Returns:
+        str: "SUCCESS" if no guardrail intervention, otherwise an error message.
+    """
+    try:
+        response = bedrock_runtime_client.apply_guardrail(
+            guardrailIdentifier=guardrail_id,
+            guardrailVersion=guardrail_version,
+            source="INPUT",
+            content=[{"text": {
+                "text": text,
+                "qualifiers": ["guard_content"]}
+            }]
+        )
+        
+        # Check if guardrail intervention occurred
+        if response.get('action') == 'GUARDRAIL_INTERVENED':
+            error_message = None
+            # Inspect each assessment for violations in order of priority
+            for assessment in response.get('assessments', []):
+                # Topics policy checks (Financial Advice, Offensive Content)
+                if 'topicPolicy' in assessment:
+                    for topic in assessment['topicPolicy'].get('topics', []):
+                        if topic.get('name') == 'FinancialAdvice' and topic.get('action') == 'BLOCKED':
+                            error_message = "Sorry, I cannot process your document(s) because I've detected financial advice in them."
+                            break
+
+                        elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
+                            error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
+                            break
+                    if error_message:
+                        break
+
+                # Sensitive information policy (PII) checks
+                if not error_message and 'sensitiveInformationPolicy' in assessment:
+                    for pii in assessment['sensitiveInformationPolicy'].get('piiEntities', []):
+                        if pii.get('action') in ['BLOCKED', 'ANONYMIZED']:
+                            error_message = "Sorry, I cannot process your document(s) because I've detected sensitive (personally identifiable) information in them."
+                            break
+                    if error_message:
+                        break
+
+            # If we still have no specific message but there's an intervention
+            if not error_message:
+                error_message = "Sorry, I cannot process your document(s) due to restricted content."
+                
+            return error_message
+                
+    except Exception as e:
+        logger.error(f"Error applying guardrail: {e}")
+        raise
+        
     return "SUCCESS"

@@ -507,12 +507,12 @@ const Chat = ({ setPage }) => {
 
   const handleSyllabusSubmit = async () => {
     let ws = null;
-
+  
     try {
       // First set loading state to disable message input
       setIsLoading(true);
       setDocumentProcessing(true);
-
+  
       // Add user message immediately
       setMessages((prev) => [
         ...prev,
@@ -521,8 +521,12 @@ const Chat = ({ setPage }) => {
           Content: "I've uploaded course files for comparison",
         },
       ]);
-
-      // Process and upload files
+  
+      // Make sure textSyllabus is being passed even when files array is empty
+      console.log("Text syllabus before upload:", textSyllabus); // Add this for debugging
+      console.log("Files before upload:", syllabusFiles); // Add this for debugging
+      
+      // Process and upload files (including text if available)
       await processAndUploadFiles(syllabusFiles, textSyllabus, session);
 
       const wsUrl = constructWebSocketUrl();
@@ -621,6 +625,7 @@ const Chat = ({ setPage }) => {
         ws.close();
       }
       setIsLoading(false);
+      setDocumentProcessing(false);
     }
   };
 
