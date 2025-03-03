@@ -84,8 +84,8 @@ const SyllabusComparisonModal = ({
     setActiveTab("files");
   };
 
-  const removeFile = () => {
-    setFiles([]);
+  const removeFile = (indexToRemove) => {
+    setFiles(files.filter((_, index) => index !== indexToRemove));
   };
 
   const handleSubmit = () => {
@@ -187,13 +187,13 @@ const SyllabusComparisonModal = ({
                           {formatFileName(file.name)}
                         </span>
                         <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={removeFile}
-                          className="flex-shrink-0 ml-2"
-                        >
-                          Remove
-                        </Button>
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeFile(index)}  // Pass the index to the function
+                        className="flex-shrink-0 ml-2"
+                      >
+                        Remove
+                      </Button>
                       </li>
                     ))}
                   </ul>
