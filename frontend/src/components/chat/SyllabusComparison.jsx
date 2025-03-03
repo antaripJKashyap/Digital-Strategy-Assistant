@@ -29,7 +29,7 @@ const SyllabusComparisonModal = ({
   const [isLoadingGuidelines, setIsLoadingGuidelines] = useState(false);
   const fileInputRef = React.useRef(null);
   const [wordCount, setWordCount] = useState(0);
-  const MAX_WORD_COUNT = 1000;
+  const MAX_WORD_COUNT = 2000;
   
   useEffect(() => {
     console.log("guidelines", guidelines);
@@ -184,7 +184,7 @@ const SyllabusComparisonModal = ({
                 value={textSyllabus}
                 onChange={handleTextChange}
                 className="w-full border p-2 rounded min-h-[150px]"
-                placeholder="Paste text here (1000 word limit)"
+                placeholder="Paste text here (2000 word limit)"
               />
             </div>
           </TabsContent>

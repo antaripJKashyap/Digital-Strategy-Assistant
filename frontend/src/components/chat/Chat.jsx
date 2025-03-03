@@ -23,6 +23,7 @@ import { getUserRole } from "./Utility";
 import { TbLayersDifference } from "react-icons/tb";
 
 
+
 // "Processing document..." animation
 const TypingIndicatorProcessing = () => (
   <div className="processing-container">
@@ -47,6 +48,25 @@ const Chat = ({ setPage }) => {
   const [syllabusFiles, setSyllabusFiles] = useState([]);
   const [selectedCriteria, setSelectedCriteria] = useState([]);
   const [isEvaluationActive, setIsEvaluationActive] = useState(false);
+  const [evaluationComplete, setEvaluationComplete] = useState(false);
+
+    // Additionally, add a useEffect to monitor isLoading changes:
+  useEffect(() => {
+    console.log("isLoading state changed to:", isLoading);
+  }, [isLoading]);
+  
+  useEffect(() => {
+    console.log(
+      "State changed:",
+      "isLoading =", isLoading,
+      "| isCreatingSession =", isCreatingSession,
+      "| documentProcessing =", documentProcessing
+    );
+  }, [isLoading, isCreatingSession, documentProcessing]);
+
+  useEffect(() => {
+    console.log("isCreatingSession changed to:", isCreatingSession);
+  }, [isCreatingSession]);
 
   const INITIAL_MESSAGE = {
     Type: "ai",
@@ -138,7 +158,7 @@ const Chat = ({ setPage }) => {
       toast.error("Please select one of the options first!");
       return;
     }
-  
+    // setIsEvaluationActive(true);
     setMessageInput("");
     setIsLoading(true);
   
@@ -215,32 +235,60 @@ const Chat = ({ setPage }) => {
           };
   
           // Handle incoming messages
-          ws.onmessage = (event) => {
-            const messageData = JSON.parse(event.data);
-            if (messageData.type === "data" && messageData.payload?.data?.onNotify) {
-              const receivedMessage = messageData.payload.data.onNotify.message;
-  
-              if (receivedMessage === "EVALUATION_COMPLETE") {
-                ws.close(); // Close WebSocket on completion
-                setIsLoading(false);
-                resolve(true); // Resolve the promise
-                return;
+          // Inside your sendMessage function (comparison branch)
+ws.onmessage = (event) => {
+  console.log("WebSocket event received:", event);
+  let messageData;
+  try {
+    messageData = JSON.parse(event.data);
+  } catch (err) {
+    console.error("Failed to parse event data:", err);
+    return;
+  }
+  console.log("Parsed message data:", messageData);
+
+  if (messageData.type === "data" && messageData.payload?.data?.onNotify) {
+    const receivedMessage = messageData.payload.data.onNotify.message;
+    console.log("Received message content:", receivedMessage);
+    
+    // Check if the message indicates evaluation complete
+    if (receivedMessage.includes("EVALUATION_COMPLETE")) {
+      console.log("EVALUATION_COMPLETE detected, stopping loading indicator.");
+      setIsEvaluationActive(false);
+      setEvaluationComplete(true);
+      setIsLoading(false);
+      ws.close();
+      resolve(true);
+      return;
+    }
+    
+    
+    // Update evaluationBuffer and messages
+    evaluationBuffer += evaluationBuffer ? `\n\n${receivedMessage}` : receivedMessage;
+    console.log("Updated evaluationBuffer:", evaluationBuffer);
+    
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.Type === "ai" && lastMessage?.isCombined) {
+        const updatedMessages = [
+          ...prev.slice(0, -1),
+          { ...lastMessage, Content: evaluationBuffer },
+        ];
+        console.log("Updated messages with combined message:", updatedMessages);
+        return updatedMessages;
+      } else {
+        const updatedMessages = [
+          ...prev,
+          { Type: "ai", Content: evaluationBuffer, isCombined: true },
+        ];
+        console.log("Appended new combined message:", updatedMessages);
+        return updatedMessages;
               }
-  
-              evaluationBuffer += evaluationBuffer ? `\n\n${receivedMessage}` : receivedMessage;
-  
-              setMessages((prev) => {
-                const lastMessage = prev[prev.length - 1];
-                return lastMessage?.Type === "ai" && lastMessage?.isCombined
-                  ? [
-                      ...prev.slice(0, -1),
-                      { ...lastMessage, Content: evaluationBuffer },
-                    ]
-                  : [...prev, { Type: "ai", Content: evaluationBuffer, isCombined: true }];
-              });
-            }
-          };
-  
+            });
+          }
+        };
+
+
           // Handle WebSocket errors
           ws.onerror = (error) => {
             console.error("WebSocket error:", error);
@@ -282,6 +330,7 @@ const Chat = ({ setPage }) => {
       ]);
       toast.error(error.message);
     } finally {
+      console.log("Reached finally block in sendMessage. Setting isLoading(false).");
       setIsLoading(false);
     }
   };
@@ -452,28 +501,33 @@ const Chat = ({ setPage }) => {
                 }
               />
             ))}
+
   
-          {/* Add "Compare Materials" option if the role is Educator/Admin */}
-          {isEduOrAdminRole && index > 0 && (
-            <OptionMessage
-              key={`${index}-syllabus`}
-              text="I want to compare my course materials with the Digital Strategy Guidelines"
-              icon={TbLayersDifference}
-              onClick={() => setShowSyllabusModal(true)}
-            />
-          )}
-  
-          {/* Existing "My task is done" option */}
-          {index >= 4 &&
-            !message.Content.includes(
-              "Thank you! Your feedback will help improve the Digital Strategy Assistant."
-            ) && (
+            {
+              // Don’t show “My task is done” if we’re already at the final Thank You
+              !message.Content.includes("Thank you! Your feedback will help improve") &&
+              
+              // CASE A: user has done enough messages (index >= 4) AND not in the middle of evaluation
+              // OR
+              // CASE B: the evaluation is fully done
+              ((index >= 4 && !isEvaluationActive) || evaluationComplete) && (
+                <OptionMessage
+                  key="done"
+                  text="My task is done"
+                  onClick={() => setShowFeedback(true)}
+                />
+              )
+            }
+
+            {isEduOrAdminRole && !isEvaluationActive && index > 0 && (
               <OptionMessage
-                key={`${index}-done`}
-                text="My task is done"
-                onClick={() => setShowFeedback(true)}
+                key="syllabus"
+                text="I want to compare my course materials with the Digital Strategy Guidelines"
+                icon={TbLayersDifference}
+                onClick={() => setShowSyllabusModal(true)}
               />
             )}
+
         </React.Fragment>
       );
     }
