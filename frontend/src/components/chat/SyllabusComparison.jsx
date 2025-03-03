@@ -159,9 +159,7 @@ const SyllabusComparisonModal = ({
         <DialogHeader>
           <DialogTitle>Compare Materials</DialogTitle>
           <DialogDescription>
-            Choose to upload files or paste text of course materials to compare
-            with the Digital Strategy Guidelines. Examples of course materials
-            include syllabi, course outlines, and policy documents. Files must
+          Choose to upload or paste text of course materials to compare with guidance provided through the Digital Learning Strategy documents. Files must
             be less than 25MB.
           </DialogDescription>
         </DialogHeader>
