@@ -27,10 +27,15 @@ const SyllabusComparisonModal = ({
   const [activeTab, setActiveTab] = useState("text");
   const [guidelines, setGuidelines] = useState([]);
   const [isLoadingGuidelines, setIsLoadingGuidelines] = useState(false);
+  const fileInputRef = React.useRef(null);
+  const [wordCount, setWordCount] = useState(0);
+  const MAX_WORD_COUNT = 1000;
+  
   useEffect(() => {
     console.log("guidelines", guidelines);
     console.log("selectedCriteria", selectedCriteria);
   }, [guidelines, selectedCriteria]);
+  
   useEffect(() => {
     const fetchGuidelines = async () => {
       setIsLoadingGuidelines(true);
@@ -62,6 +67,7 @@ const SyllabusComparisonModal = ({
         : prev.filter((name) => name !== criteriaName)
     );
   };
+  
   useEffect(() => {
     if (activeTab === "text") {
       setFiles([]);
@@ -84,8 +90,29 @@ const SyllabusComparisonModal = ({
     setActiveTab("files");
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current.click();
+  };
+
   const removeFile = (indexToRemove) => {
     setFiles(files.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleTextChange = (e) => {
+    const text = e.target.value;
+    const words = text.trim() === "" ? [] : text.trim().split(/\s+/);
+    const count = words.length;
+    
+    if (count <= MAX_WORD_COUNT) {
+      setTextSyllabus(text);
+      setWordCount(count);
+    } else {
+      // Truncate text to max word count
+      const truncatedText = words.slice(0, MAX_WORD_COUNT).join(" ");
+      setTextSyllabus(truncatedText);
+      setWordCount(MAX_WORD_COUNT);
+      toast.error(`Text exceeds the ${MAX_WORD_COUNT} word limit. Please shorten your text or upload a file.`);
+    }
   };
 
   const handleSubmit = () => {
@@ -129,8 +156,6 @@ const SyllabusComparisonModal = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-xl sm:max-w-2xl">
-        {" "}
-        {/* Increased width */}
         <DialogHeader>
           <DialogTitle>Compare Materials</DialogTitle>
           <DialogDescription>
@@ -148,15 +173,18 @@ const SyllabusComparisonModal = ({
 
           <TabsContent value="text">
             <div className="grid w-full items-center gap-4">
-              <Label htmlFor="syllabus-text">Enter Text</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="syllabus-text">Enter Text</Label>
+                <span className={`text-sm ${wordCount >= MAX_WORD_COUNT * 0.9 ? 'text-red-500' : 'text-gray-500'}`}>
+                  {wordCount}/{MAX_WORD_COUNT} words
+                </span>
+              </div>
               <textarea
                 id="syllabus-text"
                 value={textSyllabus}
-                onChange={(e) => {
-                  setTextSyllabus(e.target.value);
-                }}
+                onChange={handleTextChange}
                 className="w-full border p-2 rounded min-h-[150px]"
-                placeholder="Paste text here"
+                placeholder="Paste text here (1000 word limit)"
               />
             </div>
           </TabsContent>
@@ -164,19 +192,33 @@ const SyllabusComparisonModal = ({
           <TabsContent value="files">
             <div className="grid w-full items-center gap-4">
               <Label htmlFor="syllabus-upload">Upload File</Label>
-              <Input
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
                 id="syllabus-upload"
                 type="file"
                 multiple
                 onChange={handleFileChange}
                 accept=".pdf,.docx,.pptx,.txt,.xlsx,.xps,.mobi,.cbz"
-                onClick={(e) => {
-                  e.currentTarget.value = null;
-                }}
+                className="hidden"
               />
+              
+              {/* Custom file button with file count */}
+              <div className="w-full border rounded">
+                <button
+                  type="button"
+                  onClick={triggerFileInput}
+                  className="w-full p-2 text-left border-0 bg-white rounded flex justify-between items-center"
+                >
+                  <span className="text-base">Choose Files</span>
+                  {files.length > 0 && <span>{files.length} files</span>}
+                </button>
+              </div>
+              
               {files.length > 0 && (
                 <div>
-                  <p className="mb-2">Selected File:</p>
+                  <p className="mb-2">Selected Files: ({files.length} {files.length === 1 ? 'file' : 'files'})</p>
                   <ul>
                     {files.map((file, index) => (
                       <li
@@ -187,13 +229,13 @@ const SyllabusComparisonModal = ({
                           {formatFileName(file.name)}
                         </span>
                         <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => removeFile(index)}  // Pass the index to the function
-                        className="flex-shrink-0 ml-2"
-                      >
-                        Remove
-                      </Button>
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                          className="flex-shrink-0 ml-2"
+                        >
+                          Remove
+                        </Button>
                       </li>
                     ))}
                   </ul>
