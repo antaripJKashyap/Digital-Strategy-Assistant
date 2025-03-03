@@ -49,7 +49,27 @@ const Chat = ({ setPage }) => {
   const [selectedCriteria, setSelectedCriteria] = useState([]);
   const [isEvaluationActive, setIsEvaluationActive] = useState(false);
   const [evaluationComplete, setEvaluationComplete] = useState(false);
+  const [autoScroll, setAutoScroll] = useState(true);
+  const chatContainerRef = useRef(null);
 
+  
+
+  // 1. If autoScroll is true, we scroll down whenever `messages` change
+  useEffect(() => {
+    if (autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, showFeedback, autoScroll]);
+  // 2. On scroll, check if user is near the bottom
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+
+    const { scrollTop, clientHeight, scrollHeight } = chatContainerRef.current;
+    // If scrollTop + clientHeight is near the scrollHeight,
+    // we consider the user at the bottom
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 10;
+    setAutoScroll(atBottom);
+  };
     // Additionally, add a useEffect to monitor isLoading changes:
   useEffect(() => {
     console.log("isLoading state changed to:", isLoading);
@@ -121,9 +141,6 @@ const Chat = ({ setPage }) => {
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
 
   const constructCompTextGenWebSocketUrl = () => {
     const tempUrl = process.env.NEXT_PUBLIC_APPSYNC_API_URL;
@@ -454,10 +471,6 @@ ws.onmessage = (event) => {
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, showFeedback]);
-
-  useEffect(() => {
     if (!fingerprint || session) return;
     createNewSession(fingerprint);
   }, [fingerprint, session]);
@@ -468,12 +481,24 @@ ws.onmessage = (event) => {
     }
   }, [session]);
 
-  const handleSessionReset = () => {
+  const handleSessionReset = async () => {
+    // 1. Clear local feedback state, etc.
     setShowFeedback(false);
-    setSession(null);
-    setMessages([]);
+  
+    // 2. Remove old session from localStorage
     localStorage.removeItem("chatSession");
-    createNewSession(fingerprint);
+    
+     // Reset evaluationComplete so "My task is done" won't appear right away
+    setEvaluationComplete(false);
+
+    // 3. Clear out old messages, leaving only the initial prompt
+    setMessages([INITIAL_MESSAGE]);
+  
+    // 4. Actually create a brand new session on the backend
+    const newSessionId = await createNewSession(fingerprint);
+  
+    // 5. Save that new ID in state, but do *not* fetchMessages
+    setSession(newSessionId);
   };
 
   const renderMessage = (message, index) => {
@@ -684,83 +709,96 @@ ws.onmessage = (event) => {
   };
 
   return (
-    <div>
-      <div className="w-full h-screen flex flex-col">
-        <Header setPage={setPage} />
-        <div className="flex-grow overflow-y-auto pt-8 flex flex-col">
-          <div className="flex-grow px-8 flex flex-col overflow-y-auto">
-            {messages.map((message, index) => renderMessage(message, index))}
-            {(isLoading || isCreatingSession) && (
+    <div className="w-full h-screen flex flex-col">
+      <Header setPage={setPage} />
+
+      {/* 3. Attach ref & onScroll to the main scrollable div */}
+      <div
+        className="flex-grow overflow-y-auto pt-8 flex flex-col"
+        ref={chatContainerRef}
+        onScroll={handleScroll}
+      >
+        <div className="flex-grow px-8 flex flex-col">
+          {messages.map((message, index) => renderMessage(message, index))}
+          
+          {/* Your loading spinner logic */}
+          {(isLoading || isCreatingSession) && (
             documentProcessing ? (
               <TypingIndicatorProcessing />
             ) : (
               <TypingIndicator />
             )
           )}
-            {showFeedback && (
-              <FeedbackComponent
-                feedback={feedback}
-                setFeedback={setFeedback}
-                onSubmit={handleFeedbackSubmit}
-                isSubmitting={isSendingFeedback}
-                onClose={() => setShowFeedback(false)}
-              />
-            )}
-            <div ref={messagesEndRef} className="mb-8" />
-          </div>
-        </div>
-        <div className="flex flex-col">
-          <div className="border-t border-b border-black w-full flex items-center justify-between px-8">
-            <div className="flex items-center space-x-2">
-              <button onClick={handleSessionReset}>
-                <LuListRestart size={20} />
-              </button>
-            </div>
-            <div className="flex-grow mx-4 flex items-center">
-              <textarea
-                ref={textareaRef}
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none flex items-center justify-center"
-                placeholder="Type a message..."
-                maxLength={2096}
-                style={{
-                  minHeight: "40px",
-                  height: "auto",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-                rows={1}
-                onInput={(e) => {
-                  e.target.style.height = "auto";
-                  e.target.style.height = `${Math.max(
-                    e.target.scrollHeight,
-                    48
-                  )}px`;
-                }}
-              />
-            </div>
-            <button
-              onClick={() =>
-                !isLoading &&
-                !isCreatingSession &&
-                messageInput.trim() &&
-                sendMessage(messageInput)
-              }
-              className={`${
-                isLoading || isCreatingSession
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer"
-              }`}
-              disabled={isLoading || isCreatingSession}
-            >
-              <LuSendHorizonal size={20} />
-            </button>
-          </div>
-          <Footer />
+
+          {/* Your feedback modal */}
+          {showFeedback && (
+            <FeedbackComponent
+              feedback={feedback}
+              setFeedback={setFeedback}
+              onSubmit={handleFeedbackSubmit}
+              isSubmitting={isSendingFeedback}
+              onClose={() => setShowFeedback(false)}
+            />
+          )}
+
+          {/* 4. The “anchor” for auto-scroll. We only scroll here if autoScroll===true */}
+          <div ref={messagesEndRef} className="mb-8" />
         </div>
       </div>
+
+      {/* Your footer / input area */}
+      <div className="flex flex-col">
+        <div className="border-t border-b border-black w-full flex items-center justify-between px-8">
+          <div className="flex items-center space-x-2">
+            <button onClick={handleSessionReset}>
+              <LuListRestart size={20} />
+            </button>
+          </div>
+          <div className="flex-grow mx-4 flex items-center">
+            <textarea
+              ref={textareaRef}
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyDown={handleKeyPress}
+              className="px-4 py-2 text-md w-full bg-white text-black resize-none overflow-hidden focus:outline-none flex items-center justify-center"
+              placeholder="Type a message..."
+              maxLength={2096}
+              style={{
+                minHeight: "40px",
+                height: "auto",
+                display: "flex",
+                alignItems: "center",
+              }}
+              rows={1}
+              onInput={(e) => {
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.max(
+                  e.target.scrollHeight,
+                  48
+                )}px`;
+              }}
+            />
+          </div>
+          <button
+            onClick={() =>
+              !isLoading &&
+              !isCreatingSession &&
+              messageInput.trim() &&
+              sendMessage(messageInput)
+            }
+            className={`${
+              isLoading || isCreatingSession
+                ? "opacity-50 cursor-not-allowed"
+                : "cursor-pointer"
+            }`}
+            disabled={isLoading || isCreatingSession}
+          >
+            <LuSendHorizonal size={20} />
+          </button>
+        </div>
+        <Footer />
+      </div>
+
       <ToastContainer
         position="top-center"
         autoClose={5000}
@@ -773,6 +811,8 @@ ws.onmessage = (event) => {
         pauseOnHover
         theme="colored"
       />
+
+      {/* The Syllabus Modal, unchanged */}
       <SyllabusComparisonModal
         isOpen={showSyllabusModal}
         onClose={() => setShowSyllabusModal(false)}
