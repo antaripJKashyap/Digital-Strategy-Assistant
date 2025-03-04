@@ -156,15 +156,14 @@ def process_documents(
     # Process each document individually
     for document_key in document_keys:
         logger.info(f"Processing document: {document_key}")
-        tmp_path = None
         try:
-            # Download the document to a temporary file
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                tmp_path = tmp_file.name
-                s3.download_file(bucket, document_key, tmp_path)
-
-            # Open the PDF using pymupdf
-            doc_pdf = pymupdf.open(tmp_path)
+            # Get the document directly from S3 as bytes
+            response = s3.get_object(Bucket=bucket, Key=document_key)
+            file_data = response['Body'].read()
+            
+            # Open the document using pymupdf
+            document_filetype = document_key.split('.')[-1].lower()
+            doc_pdf = pymupdf.open(stream=file_data, filetype=document_filetype)
             doc_id = str(uuid.uuid4())
             
             # Extract text from each page
@@ -249,11 +248,6 @@ def process_documents(
         except Exception as e:
             logger.error(f"Error processing document {document_key}: {e}")
             raise
-        finally:
-            # Ensure the temporary file is cleaned up
-            if tmp_path and os.path.exists(tmp_path):
-                os.remove(tmp_path)
-                logger.debug(f"Cleaned up temp file: {tmp_path}")
 
     # If no guardrail errors occurred, add all documents to the vector store
     if all_docs:
