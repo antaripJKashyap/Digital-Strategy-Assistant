@@ -15,7 +15,8 @@ export default function AnalyticsDashboard() {
   const [avg_feedback_per_role, setAvgFeedbackPerRole] = useState([]);
   const [unique_users_per_month, setUniqueUsersPerMonth] = useState([]);
   const [messages_per_role_per_month, setMessagesPerRolePerMonth] = useState([]);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
+  const [timeView, setTimeView] = useState('month');
 
   const getMaxValue = (data, keys) => {
     return Math.max(
@@ -45,23 +46,20 @@ export default function AnalyticsDashboard() {
           setUniqueUsersPerMonth(data.unique_users_per_month);
           setMessagesPerRolePerMonth(data.messages_per_role_per_month);
         } else {
-          toast.error("Failed to fetch analytics:");
+          console.error("Failed to fetch analytics");
         }
       } catch (error) {
-        console.error("Error fetching analytics:");
+        console.error("Error fetching analytics:", error);
       } finally {
-        setLoading(false); 
+        setLoading(false);
       }
     };
 
     fetchAnalytics();
   }, []);
 
- 
   if (loading) {
-    return (
-      <LoadingScreen />
-    );
+    return <LoadingScreen />;
   }
 
   const roleDisplayMap = {
@@ -81,55 +79,129 @@ export default function AnalyticsDashboard() {
     };
   });
 
-  const uniqueMonths = [
-    ...new Set(messages_per_role_per_month.map((item) => item.month)),
-  ];
+  // Process Unique Users Data
+  const processUniqueUsersData = (data, view) => {
+    const groupedData = data.reduce((acc, item) => {
+      const [year, month] = item.month.split("-");
+      const key = view === 'month' 
+        ? `${year}-${month}` 
+        : year;
+      
+      const existingItem = acc.find(d => d.month === key);
+      if (existingItem) {
+        existingItem.unique_users = (existingItem.unique_users || 0) + parseInt(item.unique_users, 10);
+      } else {
+        acc.push({
+          month: key,
+          unique_users: parseInt(item.unique_users, 10)
+        });
+      }
+      return acc;
+    }, []);
 
-  // Process data to ensure all roles are represented for each month
-  const processedData = uniqueMonths.map((month) => {
-    const monthData = messages_per_role_per_month.filter(
-      (item) => item.month === month
-    );
-    const [year, monthNum] = new Date(month).toISOString().split("-");
-    const monthNames = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
+    return groupedData.map(item => ({
+      month: view === 'month' 
+        ? formatMonthLabel(item.month) 
+        : item.month,
+      unique_users: item.unique_users
+    })).sort((a, b) => {
+      const parseKey = (key) => view === 'month' 
+        ? new Date(key) 
+        : parseInt(key);
+      return parseKey(a.month) > parseKey(b.month) ? 1 : -1;
+    });
+  };
+
+  // Process Messages per Role Data
+  const processMessagesData = (data, view) => {
+    const uniqueTimeKeys = [
+      ...new Set(data.map((item) => {
+        const [year, month] = new Date(item.month).toISOString().split("-");
+        return view === 'month' ? `${year}-${month}` : year;
+      }))
     ];
 
-    return {
-      month: `${monthNames[parseInt(monthNum, 10) - 1]} ${year}`,
-      public:
-        monthData.find((item) => item.user_role === "public")?.message_count ||
-        0,
-      educator:
-        monthData.find((item) => item.user_role === "educator")
-          ?.message_count || 0,
-      admin:
-        monthData.find((item) => item.user_role === "admin")?.message_count ||
-        0,
-    };
-  });
+    return uniqueTimeKeys.map((timeKey) => {
+      const monthData = data.filter((item) => {
+        const [year, month] = new Date(item.month).toISOString().split("-");
+        const key = view === 'month' ? `${year}-${month}` : year;
+        return key === timeKey;
+      });
 
-    const maxValue = getMaxValue(processedData, [
-      "public",
-      "educator",
-      "admin",
-    ]);
+      return {
+        month: view === 'month' 
+          ? formatMonthLabel(timeKey) 
+          : timeKey,
+        public: monthData
+          .filter((item) => item.user_role === "public")
+          .reduce((sum, item) => sum + item.message_count, 0),
+        educator: monthData
+          .filter((item) => item.user_role === "educator")
+          .reduce((sum, item) => sum + item.message_count, 0),
+        admin: monthData
+          .filter((item) => item.user_role === "admin")
+          .reduce((sum, item) => sum + item.message_count, 0),
+      };
+    }).sort((a, b) => {
+      const parseKey = (key) => view === 'month' 
+        ? new Date(key) 
+        : parseInt(key);
+      return parseKey(a.month) > parseKey(b.month) ? 1 : -1;
+    });
+  };
 
+  // Helper to format month labels
+  const formatMonthLabel = (key) => {
+    const monthNames = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    const [year, month] = key.split("-");
+    return month 
+      ? `${monthNames[parseInt(month, 10) - 1]} ${year}` 
+      : key;
+  };
+
+  // Process data based on current view
+  const processedUniqueUsersData = processUniqueUsersData(unique_users_per_month, timeView);
+  const processedMessagesData = processMessagesData(messages_per_role_per_month, timeView);
+
+  const maxValue = getMaxValue(processedMessagesData, [
+    "public",
+    "educator",
+    "admin",
+  ]);
 
   return (
     <main className="ml-12 flex-1 p-6 w-full">
-      <div className="text-lg mb-4">Number of Users by Month</div>
+      {/* Toggle for Month/Year View */}
+      <div className="flex justify-end mb-4 space-x-2 items-center">
+        <span className="text-sm font-medium">View:</span>
+        <div className="border rounded-md">
+          <button
+            onClick={() => setTimeView('month')}
+            className={`px-3 py-1 text-sm ${
+              timeView === 'month' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-transparent'
+            } rounded-l-md`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setTimeView('year')}
+            className={`px-3 py-1 text-sm ${
+              timeView === 'year' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-transparent'
+            } rounded-r-md`}
+          >
+            Year
+          </button>
+        </div>
+      </div>
+
+      <div className="text-lg mb-4">Number of Users by {timeView === 'month' ? 'Month' : 'Year'}</div>
       <ChartContainer
         config={{
           unique_users: {
@@ -140,32 +212,12 @@ export default function AnalyticsDashboard() {
         className="h-[350px] w-10/12"
       >
         <LineChart
-          data={unique_users_per_month.map((item) => {
-            const [year, month] = item.month.split("-");
-            const monthNames = [
-              "Jan",
-              "Feb",
-              "Mar",
-              "Apr",
-              "May",
-              "Jun",
-              "Jul",
-              "Aug",
-              "Sep",
-              "Oct",
-              "Nov",
-              "Dec",
-            ];
-            return {
-              month: `${monthNames[parseInt(month, 10) - 1]} ${year}`,
-              unique_users: parseInt(item.unique_users, 10),
-            };
-          })}
+          data={processedUniqueUsersData}
           margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
         >
           <XAxis
             dataKey="month"
-            label={{ value: "Month", position: "bottom", offset: 0 }}
+            label={{ value: timeView === 'month' ? "Month" : "Year", position: "bottom", offset: 0 }}
           />
           <YAxis
             label={{
@@ -185,7 +237,7 @@ export default function AnalyticsDashboard() {
         </LineChart>
       </ChartContainer>
 
-      <div className="text-lg mb-4">User Engagement by Month</div>
+      <div className="text-lg mb-4">User Engagement by {timeView === 'month' ? 'Month' : 'Year'}</div>
       <ChartContainer
         config={{
           public: {
@@ -204,12 +256,12 @@ export default function AnalyticsDashboard() {
         className="h-[350px] w-10/12"
       >
         <LineChart
-          data={processedData}
+          data={processedMessagesData}
           margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
         >
           <XAxis
             dataKey="month"
-            label={{ value: "Month", position: "bottom", offset: 0 }}
+            label={{ value: timeView === 'month' ? "Month" : "Year", position: "bottom", offset: 0 }}
           />
           <YAxis
             label={{
@@ -243,6 +295,7 @@ export default function AnalyticsDashboard() {
           <ChartTooltip content={<ChartTooltipContent />} />
         </LineChart>
       </ChartContainer>
+
       <div className=" mb-12 mt-12 space-y-6 mr-12 ">
         <div>
           <div className=" mx-4 flex justify-between">
