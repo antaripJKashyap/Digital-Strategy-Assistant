@@ -654,6 +654,9 @@ ws.onmessage = (event) => {
                 { Type: "ai", Content: receivedMessage }
               ]);
               setDocumentProcessing(false);
+              setIsEvaluationActive(false);
+              setEvaluationComplete(true);
+              setIsLoading(false);
             }
           }
         };
