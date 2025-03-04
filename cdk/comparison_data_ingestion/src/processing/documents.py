@@ -172,6 +172,12 @@ def process_documents(
                 page_text = page.get_text().strip()
                 if not page_text:
                     continue
+            
+            # Extract text from each page
+            for page_idx, page in enumerate(doc_pdf, start=1):
+                page_text = page.get_text().strip()
+                if not page_text:
+                    continue
 
                 # Apply the guardrail to the extracted text
                 
@@ -198,6 +204,11 @@ def process_documents(
                                         error_message = "Sorry, I cannot process your document(s) because I've detected financial advice in them."
                                         break
 
+                                    elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
+                                        error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
+                                        break
+                                if error_message:
+                                    break
                                     elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
                                         error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
                                         break
