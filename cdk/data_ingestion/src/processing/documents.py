@@ -34,17 +34,8 @@ def extract_txt(
     Returns:
         str: The extracted text from the file.
     """
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_fileobj(bucket, document_key, tmp_file)
-        tmp_file_path = tmp_file.name
-
-    try:
-        with open(tmp_file_path, 'r', encoding='utf-8') as file:
-            text = file.read()
-    finally:
-        os.remove(tmp_file_path)
-
-    return text
+    response = s3.get_object(Bucket=bucket, Key=document_key)
+    return response['Body'].read().decode('utf-8')
 
 def store_doc_texts(
     bucket: str,
@@ -68,24 +59,23 @@ def store_doc_texts(
     Returns:
         List[str]: A list of keys corresponding to the stored text files for each page.
     """
-    with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        s3.download_file(bucket, f"{category_id}/{document_name}", tmp_file.name)
-        doc = pymupdf.open(tmp_file.name)
+    # Get document bytes directly from S3
+    response = s3.get_object(Bucket=bucket, Key=f"{category_id}/{document_name}")
+    file_data = response['Body'].read()
+    
+    # Process document in memory
+    document_filetype = document_name.split('.')[-1].lower()
+    doc = pymupdf.open(stream=file_data, filetype=document_filetype)
+
+    # Upload each page's text to S3
+    for page_num, page in enumerate(doc, start=1):
+        text = page.get_text().encode("utf8")
+        page_output_key = f'{category_id}/{document_name}_page_{page_num}.txt'
         
-        with BytesIO() as output_buffer:
-            for page_num, page in enumerate(doc, start=1):
-                text = page.get_text().encode("utf8")
-                output_buffer.write(text)
-                output_buffer.write(bytes((12,)))
-                
-                page_output_key = f'{category_id}/{document_name}_page_{page_num}.txt'
-                
-                with BytesIO(text) as page_output_buffer:
-                    s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
+        with BytesIO(text) as page_output_buffer:
+            s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
-        os.remove(tmp_file.name)
-
-    return [f'{category_id}/{document_name}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
+    return [f'{category_id}/{document_name}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1]
 
 def add_document(
     bucket: str,
