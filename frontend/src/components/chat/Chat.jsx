@@ -591,7 +591,7 @@ ws.onmessage = (event) => {
       // First set loading state to disable message input
       setIsLoading(true);
       setDocumentProcessing(true);
-  
+      setEvaluationComplete(false);
       // Add user message immediately
       setMessages((prev) => [
         ...prev,
@@ -657,6 +657,9 @@ ws.onmessage = (event) => {
               setIsEvaluationActive(false);
               setEvaluationComplete(true);
               setIsLoading(false);
+              setTimeout(() => {
+                ws.close();
+              }, 0);
             }
           }
         };
