@@ -613,6 +613,9 @@ ws.onmessage = (event) => {
 
       // Rest of websocket code remains the same
       await new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error("WebSocket connection timeout"));
+        }, 180000);
         ws.onopen = () => {
           console.log("WebSocket connection established");
 
@@ -646,6 +649,8 @@ ws.onmessage = (event) => {
             const receivedMessage = message.payload.data.onNotify.message;
             
             if (receivedMessage === "Embeddings created successfully") {
+              clearTimeout(timeoutId);
+              ws.close();
               resolve(message);
             } else {
               // Add non-embedding messages as AI responses
@@ -657,21 +662,19 @@ ws.onmessage = (event) => {
               setIsEvaluationActive(false);
               setEvaluationComplete(true);
               setIsLoading(false);
-              setTimeout(() => {
-                ws.close();
-              }, 0);
+              
+              ws.close();
+              clearTimeout(timeoutId);
+              
             }
           }
         };
-
         ws.onerror = (error) => {
+          clearTimeout(timeoutId);
           console.error("WebSocket error:", error);
           reject(error);
         };
 
-        setTimeout(() => {
-          reject(new Error("WebSocket connection timeout"));
-        }, 180000);
       });
 
       // Only remove user message if embeddings were successfully created
