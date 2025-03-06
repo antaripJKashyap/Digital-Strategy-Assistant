@@ -330,8 +330,7 @@ def handler(event, context):
         try:
             message_body = json.loads(record["body"])
             current_session_id = message_body.get("session_id")
-            # query_params = event.get("queryStringParameters", {})
-            # current_session_id = query_params.get("session_id", "")
+            
             print("🔍 Fetching all user message timestamps and roles...")
             user_timestamps = fetch_all_user_messages()
             
@@ -360,9 +359,9 @@ def handler(event, context):
             if csv_path:
                 print("Uploading CSV to S3...")
                 
-                # s3_uri = upload_to_s3(csv_path, S3_BUCKET, csv_name)
+                
                 print("CSV successfully uploaded!")
-                # update_conversation_csv(current_session_id)
+                
                 invoke_event_notification(current_session_id, message=f"chat logs uploaded to s3")
                 return {
                     "statusCode": 200,
