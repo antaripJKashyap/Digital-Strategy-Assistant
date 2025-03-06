@@ -116,6 +116,14 @@
 | `feedback_description` | The description of the feedback              |
 | `timestamp`        | The time the feedback was created           |
 
+### `conversation_csv` table
+
+| Column Name           | Description                                   |
+| --------------------- | --------------------------------------------- |
+| `session_id`          | The ID of the associated session              |
+| `notified`          | The status of the notification (true/false)     |
+| `timestamp`        | The time the feedback was created           |
+
 
 ## S3 Structure
 
@@ -127,4 +135,11 @@
 └── {category_id_2}
     ├── document1.pdf
     └── document2.pdf
+
+.
+├── {session_id_1}
+│   ├── chathistory.csv
+└── {session_id_2}
+    ├── chathistory.csv
+    
 ```
