@@ -63,7 +63,7 @@ def invoke_event_notification(session_id, message):
                 "sessionId": session_id
             }
         }
-
+        time.sleep(1)
         # Send the request to AppSync
         with httpx.Client() as client:
             response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
@@ -235,6 +235,7 @@ def get_combined_guidelines(criteria_list):
 
 
 def handler(event, context):
+    time.sleep(1)
     print("Comparison Text Generation Lambda function is called!")
     initialize_constants()
     user_uploaded_vectorstore = None

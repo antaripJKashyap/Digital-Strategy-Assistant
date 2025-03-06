@@ -503,7 +503,7 @@ export class ApiGatewayStack extends cdk.Stack {
 
     chatHistory.addEventSource(
       new lambdaEventSources.SqsEventSource(csvQueue, {
-        batchSize: 1,
+        batchSize: 5,
       })
     );
 
@@ -924,7 +924,7 @@ export class ApiGatewayStack extends cdk.Stack {
 
     documentCompFunc.addEventSource(
       new lambdaEventSources.SqsEventSource(compTextGenQueue, {
-        batchSize: 1,
+        batchSize: 5,
       })
     );
     /**
@@ -1084,7 +1084,7 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
         code: lambda.Code.fromAsset("lambda/comparisonPreSignedURL"),
         handler: "comparisonPreSignedURL.lambda_handler",
         timeout: Duration.seconds(300),
-        memorySize: 128,
+        memorySize: 2048,
         environment: {
           BUCKET: comparisonBucket.bucketName,
           REGION: this.region,
@@ -1282,7 +1282,7 @@ resources: ["arn:aws:bedrock:*::foundation-model/*",
 
     comparisonDataIngestFunction.addEventSource(
       new lambdaEventSources.SqsEventSource(comparisonQueue, {
-        batchSize: 1,
+        batchSize: 5,
       })
     );
 

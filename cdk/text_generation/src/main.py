@@ -4,6 +4,7 @@ import boto3
 import logging
 import psycopg2
 import hashlib
+import time
 import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
@@ -453,7 +454,9 @@ def handler(event, context):
                 'user_role': user_role,
                 'criteria': criteria
             }
-            message_deduplication_id = hashlib.md5(json.dumps(message_body).encode('utf-8')).hexdigest()
+            unique_dedup_string = f"{json.dumps(message_body)}-{time.time_ns()}-{uuid.uuid4()}"
+
+            message_deduplication_id = hashlib.md5(unique_dedup_string.encode('utf-8')).hexdigest()
             sqs.send_message(
                 QueueUrl=os.environ["COMP_TEXT_GEN_QUEUE_URL"],
                 MessageBody=json.dumps(message_body),

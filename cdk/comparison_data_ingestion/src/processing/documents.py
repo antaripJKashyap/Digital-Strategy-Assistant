@@ -109,7 +109,7 @@ def process_documents(
     
     1. Retrieve or create guardrails needed for content filtering.
     2. List documents in the specified S3 path.
-    3. Download and process each document (PDF or text), page by page for PDFs.
+    3. Download and process each document (PDF), page by page.
     4. Apply the configured guardrail checks via the Bedrock Runtime.
        - If any restricted content is found, all documents are deleted from S3, 
          and processing is aborted with an error message.
@@ -171,15 +171,8 @@ def process_documents(
                 page_text = page.get_text().strip()
                 if not page_text:
                     continue
-            
-            # Extract text from each page
-            for page_idx, page in enumerate(doc_pdf, start=1):
-                page_text = page.get_text().strip()
-                if not page_text:
-                    continue
 
                 # Apply the guardrail to the extracted text
-                
                 try:
                     response = bedrock_runtime_client.apply_guardrail(
                         guardrailIdentifier=guardrail_id,
@@ -208,13 +201,8 @@ def process_documents(
                                         break
                                 if error_message:
                                     break
-                                    elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
-                                        break
-                                if error_message:
-                                    break
 
-                        # Sensitive information policy (PII) checks
+                            # Sensitive information policy (PII) checks
                             if not error_message and 'sensitiveInformationPolicy' in assessment:
                                 for pii in assessment['sensitiveInformationPolicy'].get('piiEntities', []):
                                     if pii.get('action') in ['BLOCKED', 'ANONYMIZED']:
@@ -232,19 +220,30 @@ def process_documents(
 
                         # Delete all documents from S3 since the user must re-upload 
                         # for a new attempt
-                        
-                        # Delete all documents from S3
                         for key in document_keys:
                             s3.delete_object(Bucket=bucket, Key=key)
                             logger.info(f"Deleted {key} from S3.")
-                        
+
+                        # Return the error message triggered by guardrails
                         return error_message
-                    
-                    
-                    
+
                 except Exception as e:
-                    logger.error(f"Error processing text document {document_key}: {e}")
-                    continue
+                    logger.error(f"Error applying guardrail: {e}")
+                    raise
+
+                # If guardrail did not trigger a block, 
+                # create a Document object for further processing
+                all_docs.append(Document(
+                    page_content=page_text,
+                    metadata={
+                        "id": doc_id,
+                        "filename": document_key,
+                        "page": page_idx,
+                        "category_id": category_id,
+                    }
+                ))
+            
+            doc_pdf.close()
             
         except Exception as e:
             logger.error(f"Error processing document {document_key}: {e}")
@@ -262,4 +261,3 @@ def process_documents(
     
     # Return success if the process completed without guardrail intervention
     return "SUCCESS"
-

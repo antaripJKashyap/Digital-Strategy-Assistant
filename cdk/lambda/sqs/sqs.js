@@ -34,7 +34,7 @@ exports.handler = async (event, context) => {
         QueueUrl: process.env.SQS_QUEUE_URL,
         MessageBody: JSON.stringify(message),
         MessageGroupId: sessionId, 
-        MessageDeduplicationId: fullKey, 
+        MessageDeduplicationId: `${fullKey}-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, 
       };
 
       console.log(message);

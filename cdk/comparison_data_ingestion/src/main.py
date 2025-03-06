@@ -5,6 +5,7 @@ import psycopg2
 from datetime import datetime, timezone
 import logging
 import httpx
+import time
 # import requests
 
 from helpers.vectorstore import update_vectorstore
@@ -62,7 +63,7 @@ def invoke_event_notification(session_id, message="Embeddings created successful
                 "sessionId": session_id
             }
         }
-
+        time.sleep(1)
         # Send the request to AppSync
         with httpx.Client() as client:
             response = client.post(APPSYNC_API_URL, headers=headers, json=payload)
@@ -146,6 +147,7 @@ def update_vectorstore_from_s3(bucket, session_id):
         raise
 
 def handler(event, context):
+    time.sleep(1)
     records = event.get('Records', [])
     if not records:
         return {
