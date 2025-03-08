@@ -388,7 +388,7 @@ ws.onmessage = (event) => {
       const sessionDataJson = await response.json();
       const sessionData = sessionDataJson[0].session_id;
       setSession(sessionData);
-      localStorage.setItem("chatSession", JSON.stringify(sessionData));
+      sessionStorage.setItem("chatSession", JSON.stringify(sessionData));
 
       const textGenResponse = await fetch(
         `${
@@ -462,12 +462,12 @@ ws.onmessage = (event) => {
       .catch((error) => {
         console.error("Error getting fingerprint:", error);
       });
-    const existingSession = localStorage.getItem("chatSession");
-    if (existingSession) {
-      const parsedSession = JSON.parse(existingSession);
-      setSession(parsedSession);
-      fetchMessages(parsedSession);
-    }
+      const existingSession = sessionStorage.getItem("chatSession");
+      if (existingSession) {
+        const parsedSession = JSON.parse(existingSession);
+        setSession(parsedSession);
+        fetchMessages(parsedSession);
+      }
   }, []);
 
   useEffect(() => {
@@ -481,12 +481,37 @@ ws.onmessage = (event) => {
     }
   }, [session]);
 
+  useEffect(() => {
+    // Create a function that will run when the page is refreshing
+    const handlePageRefresh = (e) => {
+      // Clear the session
+      sessionStorage.removeItem("chatSession");
+      
+      // Optionally cancel the refresh and redirect to home manually
+      // for more control over the process
+      e.preventDefault();
+      e.returnValue = '';
+      
+      // Navigate to home page instead
+      setPage("home");
+      return '';
+    };
+  
+    // Add beforeunload event listener which catches browser refreshes
+    window.addEventListener('beforeunload', handlePageRefresh);
+    
+    // Clean up the event listener on component unmount
+    return () => {
+      window.removeEventListener('beforeunload', handlePageRefresh);
+    };
+  }, [setPage]);
+  
   const handleSessionReset = async () => {
     // 1. Clear local feedback state, etc.
     setShowFeedback(false);
   
     // 2. Remove old session from localStorage
-    localStorage.removeItem("chatSession");
+    sessionStorage.removeItem("chatSession");
     
      // Reset evaluationComplete so "My task is done" won't appear right away
     setEvaluationComplete(false);
