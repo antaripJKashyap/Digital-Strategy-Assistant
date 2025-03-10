@@ -21,7 +21,7 @@
 13. When an instructor clicks download chat logs, a lambda function is triggered to add the request to the SQS queue.
 14. An AWS Lambda function is triggered by the SQS queue to process the chat messages asynchronously from Amazon Dynamodb.
 15. The processed chat messages are then stored in the Amazon S3 database for structured storage and retrieval.
-16. The Lambda function also interacts with AWS AppSync (GraphQL) to update the frontend chat interface in real-time, with notifications for when the CSV is finished downlaoding.
+16. The Lambda function also interacts with AWS AppSync (GraphQL) to update the frontend chat interface in real-time, with notifications for when the CSV is finished downloading.
 ## Database Schema
 
 ![Database Schema](./images/database_schema.png)
