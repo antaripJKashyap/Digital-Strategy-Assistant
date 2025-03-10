@@ -13,8 +13,8 @@ import LoadingScreen from "../Loading/LoadingScreen";
 
 export default function AnalyticsDashboard() {
   const [avg_feedback_per_role, setAvgFeedbackPerRole] = useState([]);
-  const [unique_users_per_month, setUniqueUsersPerMonth] = useState([]);
-  const [messages_per_role_per_month, setMessagesPerRolePerMonth] = useState([]);
+  const [unique_users_per_time, setUniqueUsersPerTime] = useState([]);
+  const [messages_per_role_per_time, setMessagesPerRolePerTime] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timeView, setTimeView] = useState('month');
 
@@ -30,7 +30,7 @@ export default function AnalyticsDashboard() {
         const session = await fetchAuthSession();
         const token = session.tokens.idToken;
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_ENDPOINT}admin/analytics`,
+          `${process.env.NEXT_PUBLIC_API_ENDPOINT}admin/analytics?view=${timeView}`,
           {
             method: "GET",
             headers: {
@@ -43,8 +43,8 @@ export default function AnalyticsDashboard() {
         if (response.ok) {
           const data = await response.json();
           setAvgFeedbackPerRole(data.avg_feedback_per_role);
-          setUniqueUsersPerMonth(data.unique_users_per_month);
-          setMessagesPerRolePerMonth(data.messages_per_role_per_month);
+          setUniqueUsersPerTime(data.unique_users_per_time_unit);
+          setMessagesPerRolePerTime(data.messages_per_role_per_time_unit);
         } else {
           console.error("Failed to fetch analytics");
         }
@@ -56,7 +56,7 @@ export default function AnalyticsDashboard() {
     };
 
     fetchAnalytics();
-  }, []);
+  }, [timeView]); // Re-fetch when timeView changes
 
   if (loading) {
     return <LoadingScreen />;
@@ -79,129 +79,87 @@ export default function AnalyticsDashboard() {
     };
   });
 
-  // Process Unique Users Data
-  const processUniqueUsersData = (data, view) => {
-    const groupedData = data.reduce((acc, item) => {
-      const [year, month] = item.month.split("-");
-      const key = view === 'month' 
-        ? `${year}-${month}` 
-        : year;
-      
-      const existingItem = acc.find(d => d.month === key);
-      if (existingItem) {
-        existingItem.unique_users = (existingItem.unique_users || 0) + parseInt(item.unique_users, 10);
-      } else {
-        acc.push({
-          month: key,
-          unique_users: parseInt(item.unique_users, 10)
-        });
-      }
-      return acc;
-    }, []);
-
-    return groupedData.map(item => ({
-      month: view === 'month' 
-        ? formatMonthLabel(item.month) 
-        : item.month,
-      unique_users: item.unique_users
-    })).sort((a, b) => {
-      const parseKey = (key) => view === 'month' 
-        ? new Date(key) 
-        : parseInt(key);
-      return parseKey(a.month) > parseKey(b.month) ? 1 : -1;
-    });
+  // Format x-axis labels based on timeView
+  const formatXAxisLabel = (value) => {
+    if (timeView === 'day') {
+      // For day view, just return the day number
+      return value;
+    } else {
+      // For month view, return month abbreviation
+      const parts = value.split(' ');
+      return parts[0];
+    }
   };
 
-  // Process Messages per Role Data
-  const processMessagesData = (data, view) => {
-    const uniqueTimeKeys = [
-      ...new Set(data.map((item) => {
-        const [year, month] = new Date(item.month).toISOString().split("-");
-        return view === 'month' ? `${year}-${month}` : year;
-      }))
-    ];
-
-    return uniqueTimeKeys.map((timeKey) => {
-      const monthData = data.filter((item) => {
-        const [year, month] = new Date(item.month).toISOString().split("-");
-        const key = view === 'month' ? `${year}-${month}` : year;
-        return key === timeKey;
-      });
-
-      return {
-        month: view === 'month' 
-          ? formatMonthLabel(timeKey) 
-          : timeKey,
-        public: monthData
-          .filter((item) => item.user_role === "public")
-          .reduce((sum, item) => sum + item.message_count, 0),
-        educator: monthData
-          .filter((item) => item.user_role === "educator")
-          .reduce((sum, item) => sum + item.message_count, 0),
-        admin: monthData
-          .filter((item) => item.user_role === "admin")
-          .reduce((sum, item) => sum + item.message_count, 0),
-      };
-    }).sort((a, b) => {
-      const parseKey = (key) => view === 'month' 
-        ? new Date(key) 
-        : parseInt(key);
-      return parseKey(a.month) > parseKey(b.month) ? 1 : -1;
-    });
+  // Get title based on timeView
+  const getUsersTitle = () => {
+    if (timeView === 'day') {
+      return 'Number of Users by Month';
+    } else {
+      return 'Number of Users (Past 12 Months)';
+    }
   };
 
-  // Helper to format month labels
-  const formatMonthLabel = (key) => {
-    const monthNames = [
-      "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-    ];
-    const [year, month] = key.split("-");
-    return month 
-      ? `${monthNames[parseInt(month, 10) - 1]} ${year}` 
-      : key;
+  const getEngagementTitle = () => {
+    if (timeView === 'day') {
+      return 'User Engagement by Month';
+    } else {
+      return 'User Engagement (Past 12 Months)';
+    }
   };
 
-  // Process data based on current view
-  const processedUniqueUsersData = processUniqueUsersData(unique_users_per_month, timeView);
-  const processedMessagesData = processMessagesData(messages_per_role_per_month, timeView);
+  // Function to calculate max value for Y-axis with padding
+  const getYAxisMax = (data, key) => {
+    if (!data || data.length === 0) return 10;
+    
+    const maxVal = Math.max(...data.map(item => Number(item[key] || 0)));
+    // Add 20% padding to the maximum value to prevent out-of-bounds issues
+    return Math.ceil(maxVal * 1.2);
+  };
 
-  const maxValue = getMaxValue(processedMessagesData, [
+  const usersYAxisMax = getYAxisMax(unique_users_per_time, "unique_users");
+  
+  const maxMessageValue = getMaxValue(messages_per_role_per_time, [
     "public",
     "educator",
     "admin",
   ]);
+  
+  // Add 20% padding to messages chart
+  const messagesYAxisMax = Math.ceil(maxMessageValue * 1.2);
 
   return (
     <main className="ml-12 flex-1 p-6 w-full">
-      {/* Toggle for Month/Year View */}
+      {/* Toggle for Day/Month View */}
       <div className="flex justify-end mb-4 space-x-2 items-center">
         <span className="text-sm font-medium">View:</span>
         <div className="border rounded-md">
+          <button
+            onClick={() => setTimeView('day')}
+            className={`px-3 py-1 text-sm ${
+              timeView === 'day' 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-transparent'
+            }`}
+          >
+            Current Month
+          </button>
           <button
             onClick={() => setTimeView('month')}
             className={`px-3 py-1 text-sm ${
               timeView === 'month' 
                 ? 'bg-primary text-primary-foreground' 
                 : 'bg-transparent'
-            } rounded-l-md`}
-          >
-            Month
-          </button>
-          <button
-            onClick={() => setTimeView('year')}
-            className={`px-3 py-1 text-sm ${
-              timeView === 'year' 
-                ? 'bg-primary text-primary-foreground' 
-                : 'bg-transparent'
             } rounded-r-md`}
           >
-            Year
+            Past 12 Months
           </button>
         </div>
       </div>
 
-      <div className="text-lg mb-4">Number of Users by {timeView === 'month' ? 'Month' : 'Year'}</div>
+      <div className="text-lg mb-4">
+        {getUsersTitle()}
+      </div>
       <ChartContainer
         config={{
           unique_users: {
@@ -212,12 +170,13 @@ export default function AnalyticsDashboard() {
         className="h-[350px] w-10/12"
       >
         <LineChart
-          data={processedUniqueUsersData}
+          data={unique_users_per_time}
           margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
         >
           <XAxis
-            dataKey="month"
-            label={{ value: timeView === 'month' ? "Month" : "Year", position: "bottom", offset: 0 }}
+            dataKey={timeView === 'day' ? 'day' : 'month'}
+            label={{ value: timeView === 'day' ? "Day" : "Month", position: "bottom", offset: 0 }}
+            tickFormatter={formatXAxisLabel}
           />
           <YAxis
             label={{
@@ -225,6 +184,8 @@ export default function AnalyticsDashboard() {
               angle: -90,
               position: "insideLeft",
             }}
+            domain={[0, usersYAxisMax]}
+            allowDataOverflow={false}
           />
           <Line
             type="monotone"
@@ -237,7 +198,9 @@ export default function AnalyticsDashboard() {
         </LineChart>
       </ChartContainer>
 
-      <div className="text-lg mb-4">User Engagement by {timeView === 'month' ? 'Month' : 'Year'}</div>
+      <div className="text-lg mb-4">
+        {getEngagementTitle()}
+      </div>
       <ChartContainer
         config={{
           public: {
@@ -256,12 +219,13 @@ export default function AnalyticsDashboard() {
         className="h-[350px] w-10/12"
       >
         <LineChart
-          data={processedMessagesData}
+          data={messages_per_role_per_time}
           margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
         >
           <XAxis
-            dataKey="month"
-            label={{ value: timeView === 'month' ? "Month" : "Year", position: "bottom", offset: 0 }}
+            dataKey={timeView === 'day' ? 'day' : 'month'}
+            label={{ value: timeView === 'day' ? "Day" : "Month", position: "bottom", offset: 0 }}
+            tickFormatter={formatXAxisLabel}
           />
           <YAxis
             label={{
@@ -269,7 +233,8 @@ export default function AnalyticsDashboard() {
               angle: -90,
               position: "insideLeft",
             }}
-            domain={[0, maxValue]}
+            domain={[0, messagesYAxisMax]}
+            allowDataOverflow={false}
           />
           <Line
             type="monotone"

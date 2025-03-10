@@ -33,81 +33,209 @@ exports.handler = async (event) => {
     const pathData = event.httpMethod + " " + event.resource;
     switch (pathData) {
       case "GET /admin/analytics":
-        try {
-          // Get current date, subtract one year for the time range
-          const currentDate = new Date();
-          const oneYearAgo = new Date();
-          oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-          // SQL query to get the number of unique users per month
-          const uniqueUsersPerMonth = await sqlConnectionTableCreator`
-      WITH months AS (
-        SELECT generate_series(
-          date_trunc('month', ${oneYearAgo}::date),
-          date_trunc('month', ${currentDate}::date),
-          '1 month'
-        ) AS month
-      )
-      SELECT 
-        m.month,
-        COALESCE(COUNT(DISTINCT uel.user_info), 0) AS unique_users
-      FROM months m
-      LEFT JOIN user_engagement_log uel
-        ON DATE_TRUNC('month', uel.timestamp) = m.month
-      GROUP BY m.month
-      ORDER BY m.month;
-    `;
-
-          // SQL query to get the number of messages per month per user_role
-          const messagesPerRolePerMonth = await sqlConnectionTableCreator`
-      WITH months AS (
-            SELECT generate_series(
-                date_trunc('month', ${oneYearAgo}::date),
-                date_trunc('month', ${currentDate}::date),
-                '1 month'
-            ) AS month
+  try {
+    // Get the view parameter from the query string
+    const viewParam = event.queryStringParameters?.view || 'month';
+    
+    // Get current date
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Determine time range based on view parameter
+    let startDate;
+    let responseKey = 'unique_users_per_month'; // Default key name for backward compatibility
+    let responseMessageKey = 'messages_per_role_per_month'; // Default key name for messages
+    
+    if (viewParam === 'day') {
+      // For 'day' view, get data for current month by days
+      startDate = new Date(currentYear, currentMonth, 1); // 1st day of current month
+      responseKey = 'unique_users_per_time_unit';
+      responseMessageKey = 'messages_per_role_per_time_unit';
+    } else if (viewParam === 'month') {
+      // For 'month' view, get past 12 months
+      startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 11); // 12 months including current month
+      responseKey = 'unique_users_per_time_unit';
+      responseMessageKey = 'messages_per_role_per_time_unit';
+    } else {
+      // For 'year' view, get data for current year only
+      startDate = new Date(currentYear, 0, 1); // Jan 1st of current year
+      responseKey = 'unique_users_per_time_unit';
+      responseMessageKey = 'messages_per_role_per_time_unit';
+    }
+    
+    // Format dates for SQL
+    const formattedStartDate = startDate.toISOString().split('T')[0];
+    const formattedCurrentDate = currentDate.toISOString().split('T')[0];
+    
+    let uniqueUsersQuery;
+    let messagesPerRoleQuery;
+    
+    if (viewParam === 'day') {
+      // Query for daily data in current month
+      uniqueUsersQuery = await sqlConnectionTableCreator`
+        WITH days AS (
+          SELECT generate_series(
+            date_trunc('day', ${formattedStartDate}::date),
+            date_trunc('day', ${formattedCurrentDate}::date),
+            '1 day'
+          ) AS day
         )
         SELECT 
-            m.month,
-            COALESCE(uel.user_role, 'unknown') AS user_role,
-            COUNT(CASE WHEN uel.engagement_type = 'message creation' THEN 1 END) AS message_count
+          EXTRACT(DAY FROM d.day) AS day,
+          COALESCE(COUNT(DISTINCT uel.user_info), 0) AS unique_users
+        FROM days d
+        LEFT JOIN user_engagement_log uel
+          ON DATE_TRUNC('day', uel.timestamp) = d.day
+        GROUP BY d.day
+        ORDER BY d.day;
+      `;
+      
+      messagesPerRoleQuery = await sqlConnectionTableCreator`
+        WITH days AS (
+          SELECT generate_series(
+            date_trunc('day', ${formattedStartDate}::date),
+            date_trunc('day', ${formattedCurrentDate}::date),
+            '1 day'
+          ) AS day
+        )
+        SELECT 
+          EXTRACT(DAY FROM d.day) AS day,
+          COALESCE(uel.user_role, 'unknown') AS user_role,
+          COUNT(CASE WHEN uel.engagement_type = 'message creation' THEN 1 END) AS message_count
+        FROM days d
+        LEFT JOIN user_engagement_log uel
+          ON DATE_TRUNC('day', uel.timestamp) = d.day
+        GROUP BY d.day, uel.user_role
+        ORDER BY d.day, uel.user_role;
+      `;
+    } else {
+      // Query for monthly data (either past 12 months or current year)
+      uniqueUsersQuery = await sqlConnectionTableCreator`
+        WITH months AS (
+          SELECT generate_series(
+            date_trunc('month', ${formattedStartDate}::date),
+            date_trunc('month', ${formattedCurrentDate}::date),
+            '1 month'
+          ) AS month
+        )
+        SELECT 
+          to_char(m.month, 'Mon YYYY') AS month,
+          COALESCE(COUNT(DISTINCT uel.user_info), 0) AS unique_users
         FROM months m
         LEFT JOIN user_engagement_log uel
-            ON DATE_TRUNC('month', uel.timestamp) = m.month
+          ON DATE_TRUNC('month', uel.timestamp) = m.month
+        GROUP BY m.month
+        ORDER BY m.month;
+      `;
+      
+      messagesPerRoleQuery = await sqlConnectionTableCreator`
+        WITH months AS (
+          SELECT generate_series(
+            date_trunc('month', ${formattedStartDate}::date),
+            date_trunc('month', ${formattedCurrentDate}::date),
+            '1 month'
+          ) AS month
+        )
+        SELECT 
+          to_char(m.month, 'Mon YYYY') AS month,
+          COALESCE(uel.user_role, 'unknown') AS user_role,
+          COUNT(CASE WHEN uel.engagement_type = 'message creation' THEN 1 END) AS message_count
+        FROM months m
+        LEFT JOIN user_engagement_log uel
+          ON DATE_TRUNC('month', uel.timestamp) = m.month
         GROUP BY m.month, uel.user_role
         ORDER BY m.month, uel.user_role;
-    `;
+      `;
+    }
 
-          // SQL query to get the total average feedback rating for each user_role
-          const totalFeedbackAveragePerRole = await sqlConnectionTableCreator`
-    SELECT 
+    // Process messages per role per time unit for chart display
+    const processedMessagesPerTimeUnit = [];
+    
+    if (viewParam === 'day') {
+      // For day view, process daily data
+      const daysSet = new Set(messagesPerRoleQuery.map(item => item.day));
+      
+      daysSet.forEach(day => {
+        const dayData = messagesPerRoleQuery.filter(item => item.day == day);
+        
+        const publicData = dayData.find(item => item.user_role === 'public');
+        const educatorData = dayData.find(item => item.user_role === 'educator');
+        const adminData = dayData.find(item => item.user_role === 'admin');
+        
+        processedMessagesPerTimeUnit.push({
+          day: day,
+          public: publicData ? parseInt(publicData.message_count) : 0,
+          educator: educatorData ? parseInt(educatorData.message_count) : 0,
+          admin: adminData ? parseInt(adminData.message_count) : 0
+        });
+      });
+      
+      // Sort by day numerically
+      processedMessagesPerTimeUnit.sort((a, b) => a.day - b.day);
+    } else {
+      // For month view, process monthly data
+      const monthsSet = new Set(messagesPerRoleQuery.map(item => item.month));
+      
+      monthsSet.forEach(month => {
+        const monthData = messagesPerRoleQuery.filter(item => item.month === month);
+        
+        const publicData = monthData.find(item => item.user_role === 'public');
+        const educatorData = monthData.find(item => item.user_role === 'educator');
+        const adminData = monthData.find(item => item.user_role === 'admin');
+        
+        processedMessagesPerTimeUnit.push({
+          month: month,
+          public: publicData ? parseInt(publicData.message_count) : 0,
+          educator: educatorData ? parseInt(educatorData.message_count) : 0,
+          admin: adminData ? parseInt(adminData.message_count) : 0
+        });
+      });
+      
+      // Sort by month chronologically
+      processedMessagesPerTimeUnit.sort((a, b) => {
+        const dateA = new Date(a.month);
+        const dateB = new Date(b.month);
+        return dateA - dateB;
+      });
+    }
+
+    // SQL query to get the total average feedback rating for each user_role
+    const totalFeedbackAveragePerRole = await sqlConnectionTableCreator`
+      SELECT 
         COALESCE(uel.user_role, 'unknown') AS user_role,
         AVG(fb.feedback_rating) AS avg_feedback_rating
-    FROM feedback fb
-    LEFT JOIN user_engagement_log uel
+      FROM feedback fb
+      LEFT JOIN user_engagement_log uel
         ON fb.session_id = uel.session_id
-    GROUP BY uel.user_role;
-`;
-          const formattedFeedback = totalFeedbackAveragePerRole.map((role) => ({
-            user_role: role.user_role,
-            avg_feedback_rating:
-              role.avg_feedback_rating !== null
-                ? role.avg_feedback_rating
-                : "no feedback yet",
-          }));
+      GROUP BY uel.user_role;
+    `;
+    
+    const formattedFeedback = totalFeedbackAveragePerRole.map((role) => ({
+      user_role: role.user_role,
+      avg_feedback_rating:
+        role.avg_feedback_rating !== null
+          ? role.avg_feedback_rating
+          : "no feedback yet",
+    }));
 
-          // Return the combined data in the response
-          response.body = JSON.stringify({
-            unique_users_per_month: uniqueUsersPerMonth,
-            messages_per_role_per_month: messagesPerRolePerMonth,
-            avg_feedback_per_role: formattedFeedback,
-          });
-        } catch (err) {
-          response.statusCode = 500;
-          console.error(err);
-          response.body = JSON.stringify({ error: "Internal server error" });
-        }
-        break;
+    // Return the combined data in the response
+    const responseData = {
+      avg_feedback_per_role: formattedFeedback,
+    };
+    
+    // Add time-dependent data with appropriate keys
+    responseData[responseKey] = uniqueUsersQuery;
+    responseData[responseMessageKey] = processedMessagesPerTimeUnit;
+    
+    response.body = JSON.stringify(responseData);
+  } catch (err) {
+    response.statusCode = 500;
+    console.error(err);
+    response.body = JSON.stringify({ error: "Internal server error" });
+  }
+  break;
       case "POST /admin/create_category":
         if (
           event.queryStringParameters.category_name &&

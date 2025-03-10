@@ -721,6 +721,16 @@ paths:
         - Admin
       summary: Get analytics data
       operationId: admin_get_analytics_GET
+      parameters:
+        - name: view
+          in: query
+          description: Determines the time aggregation view (month or year)
+          required: false
+          schema:
+            type: string
+            enum: [month, year]
+            default: month
+      
       responses:
         "200":
           description: Analytics data retrieved successfully
