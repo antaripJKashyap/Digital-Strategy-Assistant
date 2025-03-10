@@ -23,12 +23,6 @@ These variables are set in the Lambda environment. They are accessed by `main.py
 | `EMBEDDING_BUCKET_NAME`        | Indicates the S3 bucket where extracted text files or embedding artifacts are stored.                                  | Used in intermediate steps for storing `.txt` page outputs.          | Must be a valid S3 bucket name.                                          | **`main.py`** (referenced in `update_vectorstore_from_s3()`), **`documents.py` (store_doc_texts)** |
 | `EMBEDDING_MODEL_PARAM`        | Points to a parameter in AWS Systems Manager (SSM) that holds the Bedrock embedding model ID.                         | Fetched by `get_parameter()` and used by `BedrockEmbeddings`.        | Must match a valid SSM Parameter name; the value is often something like `"amazon.titan-embed-text-v1"`. | **`main.py`** (used in `update_vectorstore_from_s3()` / `BedrockEmbeddings`) |
 
-### Modification Location
-
-- **AWS Lambda Environment**: In the Lambda console, under **Configuration** > **Environment variables**.  
-- **AWS Secrets Manager**: The credentials are stored in the secret named by `SM_DB_CREDENTIALS`.  
-- **AWS Systems Manager**: The parameter specified by `EMBEDDING_MODEL_PARAM` can be updated as needed (e.g., to switch embedding models).
-
 ---
 
 ## 2. Vectorstore (PGVector) Configuration
@@ -49,12 +43,6 @@ vectorstore = PGVector(
 | `collection_name`   | Identifies the collection (schema/table) used by PGVector. | Set to a string from `vectorstore_config_dict`. | Any valid string (e.g., `"my_collection"`). | **`helpers/helper.py`** in `get_vectorstore()` |
 | `use_jsonb`         | Determines if chunk metadata is stored in a JSONB column. | `True`                             | `True` or `False`                       | **`helpers/helper.py`** in `PGVector(...)`  |
 | `connection`        | Connection string for the PostgreSQL database.          | Derived from the environment’s secrets and parameters. | Must be a valid Postgres connection URI. | **`helpers/helper.py`** in `get_vectorstore()`  |
-
-### Modification Location
-
-- **File**: `helpers/helper.py`  
-- **Function**: `get_vectorstore`  
-- **Relevant Lines**: Instantiation of `PGVector(...)`.
 
 ---
 
@@ -79,9 +67,3 @@ idx = index(
 |---------------------|------------------------------------------------------|-------------------|-----------------------|-------------------------------|
 | `cleanup`           | Determines how stale records are removed.           | `"full"`          | `"full"`, `"none"`, `"incremental"`, or `"scoped_full"`  | **`documents.py`** in the `index(...)` call |
 | `source_id_key`     | Identifies the source key in each chunk’s metadata. | `"source"`        | Any string matching a metadata field         | **`documents.py`** in the `index(...)` call |
-
-### Modification Location
-
-- **File**: `documents.py`  
-- **Function**: `process_documents`  
-- **Relevant Lines**: Where `index(...)` is invoked.
