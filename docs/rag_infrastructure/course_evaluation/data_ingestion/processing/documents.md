@@ -17,9 +17,8 @@
 This script provides functionality for managing and applying AI guardrails using AWS Bedrock. It also processes documents from an S3 bucket, checks them for restricted content (financial advice, offensive material, and PII), and, if safe, stores them in a vector store (`PGVector`) for later retrieval.
 
 ### Import Libraries <a name="import-libraries"></a>
-- **os, tempfile, logging, uuid, time**: Standard Python libraries for file handling, temporary file creation, logging, generating unique identifiers, and time-based operations.
-- **BytesIO**: Used to handle in-memory streams.
-- **typing (List, Optional, Dict)**: Provides type annotations for better code clarity.
+- **logging, uuid, time**: Standard Python libraries for logging, generating unique identifiers, and time-based operations.
+- **typing (List)**: Provides type annotations for better code clarity.
 - **boto3**: AWS SDK for Python, for interacting with AWS services like S3 and Bedrock.
 - **pymupdf**: Used to read and process PDF files.
 - **langchain_postgres.PGVector**: A vector store used to store document embeddings in a PostgreSQL database.
@@ -92,7 +91,7 @@ Processes a set of documents stored in an S3 bucket under a given prefix. For ea
 1. **Guardrail Setup**: Retrieves or creates a comprehensive guardrail via `setup_guardrail`.
 2. **Document Listing**: Uses S3 pagination to list all document keys under the specified prefix (`category_id`).
 3. **Document Parsing**:
-   - Downloads each PDF file to a temporary path.
+   - Loads each document from the S3 folder.
    - Iterates over each page:
      - Extracts text and applies guardrail checks.
      - If restricted content is detected:

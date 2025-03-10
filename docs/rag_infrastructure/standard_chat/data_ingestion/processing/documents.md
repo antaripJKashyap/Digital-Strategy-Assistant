@@ -8,7 +8,6 @@
   - [Main Functions](#main-functions)
   - [Execution Flow](#execution-flow)
 - [Detailed Function Descriptions](#detailed-function-descriptions)
-  - [Function: `extract_txt`](#extract_txt)
   - [Function: `store_doc_texts`](#store_doc_texts)
   - [Function: `add_document`](#add_document)
   - [Function: `store_doc_chunks`](#store_doc_chunks)
@@ -20,12 +19,11 @@
 This script provides a framework for processing documents stored in an AWS S3 bucket. It extracts text from documents (e.g., PDFs), splits the text into semantic chunks, and updates a vectorstore with generated embeddings. The solution leverages AWS services for storage, LangChain modules for text processing and embeddings, and a PostgreSQL-based vectorstore for indexing document chunks.
 
 ### Import Libraries <a name="import-libraries"></a>
-- **os, tempfile, logging, uuid**: Standard Python libraries used for file handling, temporary file creation, logging, and generating unique identifiers.
+- **os, logging, uuid**: Standard Python libraries used for file handling, logging, and generating unique identifiers.
 - **BytesIO (from io)**: For in-memory binary stream operations.
 - **List (from typing)**: For type annotations.
 - **boto3**: AWS SDK used for interacting with S3.
 - **pymupdf**: Library for reading and extracting text from PDF documents.
-- **json**: For JSON serialization and deserialization.
 - **BedrockEmbeddings (from langchain_aws)**: Class for generating text embeddings using an AWS model.
 - **PGVector (from langchain_postgres)**: Represents the vectorstore for document embeddings.
 - **Document (from langchain_core.documents)**: Container class for document chunks.
@@ -37,7 +35,6 @@ This script provides a framework for processing documents stored in an AWS S3 bu
 - It retrieves the `EMBEDDING_BUCKET_NAME` from the environment variables, which is used to store intermediate extracted text files.
 
 ### Helper Functions <a name="helper-functions"></a>
-- **extract_txt**: Downloads a file from S3, reads its content as text, and returns the extracted text.
 - **store_doc_texts**: Downloads a document (e.g., a PDF) from S3, extracts text from each page using **pymupdf**, and uploads each page's text as a separate file back to S3.
 - **store_doc_chunks**: Downloads each text file from S3, splits the content into semantic chunks using **SemanticChunker**, and attaches metadata to each chunk before adding them to the vectorstore.
 
@@ -46,53 +43,13 @@ This script provides a framework for processing documents stored in an AWS S3 bu
 - **process_documents**: The primary function that iterates over all documents in a specified category folder within an S3 bucket, processes each document via **add_document**, and updates the vectorstore index using a **SQLRecordManager**.
 
 ### Execution Flow <a name="execution-flow"></a>
-1. **Document Extraction**: The script downloads documents from a specified S3 bucket and extracts text content using **extract_txt** and **store_doc_texts**.
+1. **Document Extraction**: The script downloads documents from a specified S3 bucket and extracts page-level text content using **store_doc_texts**.
 2. **Semantic Chunking**: The extracted text is divided into semantic chunks by **store_doc_chunks**.
 3. **Vectorstore Update**: Each document's chunks are processed by **add_document** and then indexed using **process_documents**, which integrates with a PostgreSQL-backed vectorstore and a SQLRecordManager.
-4. **Cleanup**: Temporary files are removed, and processed text files are deleted from the S3 bucket to maintain storage hygiene.
 
 ---
 
 ## Detailed Function Descriptions <a name="detailed-function-descriptions"></a>
-
-### Function: `extract_txt` <a name="extract_txt"></a>
-```python
-def extract_txt(
-    bucket: str,
-    document_key: str
-) -> str:
-    """
-    Extract text from a file stored in an S3 bucket.
-
-    This function downloads a file from the specified S3 bucket using the provided key,
-    reads its content as UTF-8 text, and returns the extracted text.
-
-    Args:
-        bucket (str): The name of the S3 bucket.
-        document_key (str): The key of the file in the S3 bucket.
-
-    Returns:
-        str: The extracted text from the file.
-    """
-```
-
-#### Purpose
-Downloads a file from S3, reads its content, and returns the text. It is useful for simple text-based documents stored in S3.
-
-#### Process Flow
-1. Create a temporary file.
-2. Download the file using the provided S3 bucket and key.
-3. Open and read the file content as UTF-8.
-4. Clean up the temporary file and return the text.
-
-#### Inputs and Outputs
-- **Inputs**:
-  - `bucket` (str): S3 bucket name.
-  - `document_key` (str): S3 key for the document.
-- **Outputs**:
-  - Returns the extracted text (str).
-
----
 
 ### Function: `store_doc_texts` <a name="store_doc_texts"></a>
 ```python
@@ -103,18 +60,27 @@ def store_doc_texts(
     output_bucket: str
 ) -> List[str]:
     """
-    Extract and store the text from each page of a document in an S3 bucket.
+    Extract and store the text from each document page in an S3 bucket.
 
-    This function downloads a document from the specified S3 bucket and category folder,
-    extracts text from each page using pymupdf, and stores each page's text as a separate file 
-    in the output S3 bucket. The generated file keys follow the pattern: 
-    `<category_id>/<document_name>_page_<page_num>.txt`.
+    This function constructs the S3 key from the given prefix (`category_id`) and 
+    file name (`document_name`), then uses PyMuPDF to extract the text from each 
+    page of the document. Each page's text is uploaded to the `output_bucket` as a 
+    separate file. The resulting objects follow the pattern:
+    
+        <category_id>/<document_name>_page_<page_num>.txt
+        
+    Example:
+        If category_id = "docs" and document_name = "example.pdf", the full S3 key 
+        will be "docs/example.pdf", and the resulting page texts will be stored as:
+
+            docs/example.pdf_page_1.txt
+            docs/example.pdf_page_2.txt
 
     Args:
-        bucket (str): The S3 bucket containing the document.
-        category_id (str): The folder or category ID in the S3 bucket.
+        bucket (str): The name of the S3 bucket containing the document.
+        category_id (str): The folder or category ID in the S3 bucket where the document is stored.
         document_name (str): The name of the document file.
-        output_bucket (str): The S3 bucket where the extracted text files will be stored.
+        output_bucket (str): The name of the S3 bucket where the extracted text files will be stored.
 
     Returns:
         List[str]: A list of keys corresponding to the stored text files for each page.
@@ -125,11 +91,11 @@ def store_doc_texts(
 Splits a document (e.g., a PDF) into separate text files for each page and uploads them to an S3 bucket.
 
 #### Process Flow
-1. Download the document using a temporary file.
+1. Finds the document in the S3 folder.
 2. Open the document with pymupdf.
 3. Extract text from each page and write it to a BytesIO buffer.
 4. Upload each page’s text to the output S3 bucket.
-5. Delete the temporary file and return a list of generated file keys.
+5. Return a list of generated file keys.
 
 #### Inputs and Outputs
 - **Inputs**:
@@ -162,10 +128,10 @@ def add_document(
       4. Ingesting the chunks into the provided vectorstore.
 
     Args:
-        bucket (str): The S3 bucket containing the document.
-        category_id (str): The folder or category ID in the S3 bucket.
+        bucket (str): The name of the S3 bucket containing the document.
+        category_id (str): The folder or category ID in the S3 bucket where the document is stored.
         document_name (str): The name of the document file.
-        vectorstore (PGVector): The vectorstore instance for storing document chunks.
+        vectorstore (PGVector): The vectorstore instance where document chunks will be stored.
         embeddings (BedrockEmbeddings): The embeddings instance used to generate document embeddings.
         output_bucket (str, optional): The S3 bucket for storing intermediate extracted text files.
                                        Defaults to the EMBEDDING_BUCKET_NAME environment variable.
@@ -182,6 +148,7 @@ Coordinates the extraction of text from a document and its conversion into seman
 1. Call **store_doc_texts** to extract and store text pages.
 2. Call **store_doc_chunks** to split each page into semantic chunks.
 3. Return the list of document chunks ready for indexing.
+4. Note: The final indexing is triggered later in `process_documents`.
 
 #### Inputs and Outputs
 - **Inputs**:
@@ -205,13 +172,13 @@ def store_doc_chunks(
     """
     Process text files by splitting them into semantic chunks and adding them to the vectorstore.
 
-    This function downloads each text file from the specified S3 bucket, uses a semantic text splitter
-    to create chunks, attaches metadata (including source S3 URL and a unique document ID) to each chunk,
-    and then adds these chunks to the vectorstore. After processing, the original text file is deleted.
+    This function downloads each text file (each representing a page of a document) from the specified S3 bucket,
+    uses a semantic text splitter to create chunks, attaches metadata including the source S3 URL and a unique document ID,
+    and then adds these chunks to the vectorstore. After processing, the original text file is deleted from the bucket.
 
     Args:
-        bucket (str): The S3 bucket containing the text files.
-        documentnames (List[str]): A list of S3 keys for the text files.
+        bucket (str): The name of the S3 bucket containing the text files.
+        documentnames (List[str]): A list of keys for the text files in the bucket.
         vectorstore (PGVector): The vectorstore instance to which document chunks will be added.
         embeddings (BedrockEmbeddings): The embeddings instance used for generating semantic chunks.
 
@@ -254,12 +221,12 @@ def process_documents(
     Process all documents in a specified category from an S3 bucket and update the vectorstore index.
 
     This function uses an S3 paginator to iterate through all documents in the given category folder,
-    processes each document by extracting its text and splitting it into semantic chunks (via `add_document`),
+    processes each document by extracting its text and splitting it into chunks (via `add_document`),
     and then indexes all document chunks in the vectorstore using the provided record manager.
     If no document chunks are found, a cleanup indexing operation is still performed.
 
     Args:
-        bucket (str): The S3 bucket containing the documents.
+        bucket (str): The name of the S3 bucket containing the documents.
         category_id (str): The category folder in the S3 bucket to process.
         vectorstore (PGVector): The vectorstore instance for storing document chunks.
         embeddings (BedrockEmbeddings): The embeddings instance used to generate document embeddings.
@@ -276,6 +243,7 @@ Orchestrates the document processing workflow by iterating over S3 documents in 
 3. Accumulate all document chunks.
 4. Update or clean up the vectorstore index using the provided **SQLRecordManager**.
 5. Log the indexing result or the absence of documents.
+6. Note: This function calls `add_document` for each file and then calls `index(...)`.
 
 #### Inputs and Outputs
 - **Inputs**:

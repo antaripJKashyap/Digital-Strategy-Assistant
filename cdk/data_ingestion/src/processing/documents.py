@@ -1,7 +1,7 @@
-import os, tempfile, logging, uuid
+import os, logging, uuid
 from io import BytesIO
 from typing import List
-import boto3, pymupdf, json
+import boto3, pymupdf
 from langchain_aws import BedrockEmbeddings
 from langchain_postgres import PGVector
 from langchain_core.documents import Document
@@ -17,26 +17,6 @@ s3 = boto3.client('s3')
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 print('EMBEDDING_BUCKET_NAME', EMBEDDING_BUCKET_NAME)
 
-def extract_txt(
-    bucket: str,
-    document_key: str
-) -> str:
-    """
-    Extract text from a file stored in an S3 bucket.
-
-    This function downloads a file from the specified S3 bucket using the provided key,
-    reads its content as UTF-8 text, and returns the extracted text.
-
-    Args:
-        bucket (str): The name of the S3 bucket.
-        document_key (str): The key of the file in the S3 bucket.
-
-    Returns:
-        str: The extracted text from the file.
-    """
-    response = s3.get_object(Bucket=bucket, Key=document_key)
-    return response['Body'].read().decode('utf-8')
-
 def store_doc_texts(
     bucket: str,
     category_id: str, 
@@ -44,11 +24,21 @@ def store_doc_texts(
     output_bucket: str
 ) -> List[str]:
     """
-    Extract and store the text from each page of a document in an S3 bucket.
+    Extract and store the text from each document page in an S3 bucket.
 
-    This function downloads a document (such as a PDF) from the specified S3 bucket and category folder,
-    extracts the text from each page using pymupdf, and stores each page's text as a separate file in the output S3 bucket.
-    The generated file keys follow the pattern: `<category_id>/<document_name>_page_<page_num>.txt`.
+    This function constructs the S3 key from the given prefix (`category_id`) and 
+    file name (`document_name`), then uses PyMuPDF to extract the text from each 
+    page of the document. Each page's text is uploaded to the `output_bucket` as a 
+    separate file. The resulting objects follow the pattern:
+    
+        <category_id>/<document_name>_page_<page_num>.txt
+        
+    Example:
+        If category_id = "docs" and document_name = "example.pdf", the full S3 key 
+        will be "docs/example.pdf", and the resulting page texts will be stored as:
+
+            docs/example.pdf_page_1.txt
+            docs/example.pdf_page_2.txt
 
     Args:
         bucket (str): The name of the S3 bucket containing the document.
@@ -75,7 +65,7 @@ def store_doc_texts(
         with BytesIO(text) as page_output_buffer:
             s3.upload_fileobj(page_output_buffer, output_bucket, page_output_key)
 
-    return [f'{category_id}/{document_name}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1]
+    return [f'{category_id}/{document_name}_page_{page_num}.txt' for page_num in range(1, len(doc) + 1)]
 
 def add_document(
     bucket: str,
@@ -201,7 +191,6 @@ def process_documents(
     
     try:
         for page in page_iterator:
-            print("checking paginator  003")
             if "Contents" not in page:
                 continue  # Skip pages without any content
             for document in page['Contents']:
