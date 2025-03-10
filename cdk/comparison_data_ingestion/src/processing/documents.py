@@ -1,5 +1,4 @@
 import logging, uuid, time
-from io import BytesIO
 from typing import List
 import boto3, pymupdf
 from langchain_postgres import PGVector
@@ -25,7 +24,6 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
     Returns:
         A tuple (guardrail_id (str), guardrail_version (str)).
     """
-    guardrail_name = guardrail_name
     guardrail_name_exists = False
     guardrail_id = None
     guardrail_version = None
