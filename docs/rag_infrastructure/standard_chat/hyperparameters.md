@@ -1,4 +1,4 @@
-# Hyperparameters in standard_chat
+# Hyperparameters in `standard_chat`
 
 This document describes the primary parameters and configuration values used throughout the data ingestion and vectorstore update pipeline. The information below includes:
 
