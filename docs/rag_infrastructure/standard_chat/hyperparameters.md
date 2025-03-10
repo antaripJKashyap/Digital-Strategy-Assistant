@@ -60,10 +60,7 @@ idx = index(
 )
 ```
 
-- **`cleanup="full"`**: Removes any previous records not present in the new chunk set.  
-- **`source_id_key="source"`**: Points to the metadata key used for deduplication.
-
 | **Parameter**       | **Purpose**                                          | **Current Value** | **Acceptable Values** | **Location**                  |
 |---------------------|------------------------------------------------------|-------------------|-----------------------|-------------------------------|
-| `cleanup`           | Determines how stale records are removed.           | `"full"`          | `"full"`, `"none"`, `"incremental"`, or `"scoped_full"`  | **`documents.py`** in the `index(...)` call |
+| `cleanup`           | Determines how stale records are removed.           | `"full"` (Removes any previous records not present in the new chunk set. )         | `"full"`, `"none"`, `"incremental"`, or `"scoped_full"`  | **`documents.py`** in the `index(...)` call |
 | `source_id_key`     | Identifies the source key in each chunk’s metadata. | `"source"`        | Any string matching a metadata field         | **`documents.py`** in the `index(...)` call |
