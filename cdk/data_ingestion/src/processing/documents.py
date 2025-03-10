@@ -191,7 +191,6 @@ def process_documents(
     
     try:
         for page in page_iterator:
-            print("checking paginator  003")
             if "Contents" not in page:
                 continue  # Skip pages without any content
             for document in page['Contents']:
