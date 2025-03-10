@@ -9,9 +9,9 @@
 1. The user sends a request to the application hosted on AWS Amplify.
 2. Amplify integrates with the backend API Gateway.
 3. Admins can upload course materials to the application, which are stored in an S3 bucket using a pre-signed upload URL.
-4. Adding a new DSA file to the S3 bucket triggers the data ingestion workflow. Amessage is sent to Amazon SQS which triggers the Lambda function. The Lambda function runs a Docker container with Amazon Elastic Container Registry (ECR). 
-5. A message is sent to Amazon SQS for document evaluation and the Lambda function embeds the text from uploaded files into vectors using Amazon Bedrock. This project uses the Amazon Titan Text Embeddings V2 model to generate embeddings.
-6. The lambda function stores the vectors in the PostgreSQL database.
+4. Adding a new DSA file to the S3 bucket triggers the data ingestion workflow. A message is sent to Amazon SQS which triggers the Lambda function. The Lambda function runs a Docker container with Amazon Elastic Container Registry (ECR) and embeds the text from uploaded files into vectors.This project uses the Amazon Titan Text Embeddings V2 model to generate embeddings.
+5. A message is sent to Amazon SQS for using a Lambda function. Another Lambda function is triggered from the message in SQS which triggers the document evaluation in Amazon Bedrock.
+6. The lambda function retrieves the vectors from PostgreSQL database.
 7. The document evaluation is streamed to the frontend via AWS AppSync.
 8. Admins can perform DSA management/access actions by sending an API request which invokes a lambda function.
 9. This lambda function interacts with Amazon RDS.
