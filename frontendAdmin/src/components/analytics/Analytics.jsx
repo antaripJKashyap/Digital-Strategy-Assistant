@@ -142,7 +142,7 @@ export default function AnalyticsDashboard() {
                 : 'bg-transparent'
             }`}
           >
-            Current Month
+            Month
           </button>
           <button
             onClick={() => setTimeView('month')}
