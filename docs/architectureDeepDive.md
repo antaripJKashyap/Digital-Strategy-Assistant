@@ -6,7 +6,7 @@
 
 ## Description
 1. The user request is first sent through a security layer which comprises of AWS WAF, Amazon Cloudfront, and AWS Shield for flagging any potential threats.
-2. The user request is sent to the application hosted on AWS Amplify.
+2. The user request is then sent to the application hosted on AWS Amplify.
 3. Amplify integrates with the backend API Gateway.
 4. Admins can upload course materials to the application, which are stored in an S3 bucket using a pre-signed upload URL.
 5. Adding a new DSA file to the S3 bucket triggers the data ingestion workflow. A message is sent to Amazon SQS which triggers the Lambda function. The Lambda function runs a Docker container with Amazon Elastic Container Registry (ECR) and embeds the text from uploaded files into vectors.This project uses the Amazon Titan Text Embeddings V2 model to generate embeddings.
