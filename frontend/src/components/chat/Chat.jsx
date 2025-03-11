@@ -687,7 +687,8 @@ ws.onmessage = (event) => {
               setIsEvaluationActive(false);
               setEvaluationComplete(true);
               setIsLoading(false);
-              
+              setTextSyllabus("");
+              setSyllabusFiles([]);
               ws.close();
               clearTimeout(timeoutId);
               
