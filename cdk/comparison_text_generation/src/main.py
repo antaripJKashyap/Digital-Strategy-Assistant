@@ -315,19 +315,31 @@ def handler(event, context):
 
             all_responses = []
             try:
+                last_header = None  # to keep track of the last printed header
+
                 # Process each guideline evaluation individually
                 for individual_response in get_response_evaluation(
                     llm=llm,
                     retriever=ordinary_retriever,
                     guidelines_file=guidelines
                 ):
-                    print(f"Processed guideline response:", individual_response)
-                    
-                    # Send immediate notification for each guideline
-                    invoke_event_notification(session_id, individual_response["llm_output"])  # Send just the markdown
-                    
+                    # Extract the current header from the response (assuming it's stored in "header")
+                    current_header = individual_response.get("header")
+
+                    # If there's a header and it differs from the last header, print/notify it once.
+                    if current_header and current_header != last_header:
+                        header_msg = f"header_center: **{current_header}**"  # formatting header in markdown if needed 
+                        invoke_event_notification(session_id, header_msg)
+                        print("New header:", header_msg)
+                        last_header = current_header  # update the last printed header
+
+                    print("Processed guideline response:", individual_response)
+                    # Send immediate notification for each guideline output (excluding header, already sent)
+                    invoke_event_notification(session_id, individual_response["llm_output"])
+
                     # Store for final response
                     all_responses.append(individual_response)
+
 
             except Exception as e:
                 # Handle per-guideline errors without stopping

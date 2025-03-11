@@ -29,6 +29,51 @@ const MainMessage = ({ text }) => {
     window.speechSynthesis.speak(msg);
   };
 
+  // Process the text to identify and handle centered headers
+  const processText = (content) => {
+    // Check if there are any header_center directives
+    if (content.includes("header_center:")) {
+      // Split the content to process each line
+      return content.split("\n").map((line, i) => {
+        if (line.includes("header_center:")) {
+          // Extract the header content from the line
+          const headerMatch = line.match(/header_center:\s*\*\*(.*?)\*\*/);
+          if (headerMatch && headerMatch[1]) {
+            // Return a div with the centered header, removing the directive
+            return (
+              <div key={i} className="text-center font-bold text-xl my-4 mb-6">
+                {headerMatch[1]}
+              </div>
+            );
+          }
+        }
+        // Return regular lines as-is to be processed by Markdown
+        return line;
+      }).reduce((acc, item, i, arr) => {
+        // Join the processed content back together
+        if (typeof item === 'string') {
+          // If it's a regular string line, add it to the accumulator
+          if (acc.length > 0 && typeof acc[acc.length - 1] === 'string') {
+            // Join adjacent string lines with newlines
+            acc[acc.length - 1] += '\n' + item;
+          } else {
+            // Start a new string section
+            acc.push(item);
+          }
+        } else {
+          // If it's a React element (processed header), add it directly
+          acc.push(item);
+        }
+        return acc;
+      }, []);
+    }
+    
+    // If no header_center directives, return the original text
+    return content;
+  };
+
+  const processedContent = processText(text);
+
   return (
     <div className="flex flex-col w-9/12">
       <div className="mt-4 mb-2 pl-4 pr-8 py-4 whitespace-pre-line bg-customMessage border border-customMain rounded-tr-lg rounded-br-lg rounded-bl-lg">
@@ -39,37 +84,85 @@ const MainMessage = ({ text }) => {
           width={40}
           height={40}
         />
-        <Markdown
-        className="main-message text-md"
-        components={{
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              {children}
-            </a>
-          ),
-          ul: ({ children }) => (
-            <ul className="list-disc main-message">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="list-decimal main-message">{children}</ol>
-          ),
-          li: ({ children }) => {
-            // Remove any duplicate dash or number prefix
-            const cleanText = typeof children === "string"
-              ? children.replace(/^[-•]\s+/, "").replace(/^\d+\.\s*/, "")
-              : children;
+        
+        {Array.isArray(processedContent) ? (
+          // If we have pre-processed content with headers
+          processedContent.map((item, index) => {
+            if (typeof item === 'string') {
+              // Render strings through Markdown
+              return (
+                <Markdown
+                  key={index}
+                  className="main-message text-md"
+                  components={{
+                    a: ({ href, children }) => (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        {children}
+                      </a>
+                    ),
+                    ul: ({ children }) => (
+                      <ul className="list-disc main-message">{children}</ul>
+                    ),
+                    ol: ({ children }) => (
+                      <ol className="list-decimal main-message">{children}</ol>
+                    ),
+                    li: ({ children }) => {
+                      // Remove any duplicate dash or number prefix
+                      const cleanText = typeof children === "string"
+                        ? children.replace(/^[-•]\s+/, "").replace(/^\d+\.\s*/, "")
+                        : children;
 
-            return <li className="main-message">{cleanText}</li>;
-          },
-        }}
-      >
-        {text}
-      </Markdown>
+                      return <li className="main-message">{cleanText}</li>;
+                    },
+                  }}
+                >
+                  {item}
+                </Markdown>
+              );
+            } else {
+              // Render React elements (headers) directly
+              return item;
+            }
+          })
+        ) : (
+          // Standard Markdown rendering if no preprocessing
+          <Markdown
+            className="main-message text-md"
+            components={{
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  {children}
+                </a>
+              ),
+              ul: ({ children }) => (
+                <ul className="list-disc main-message">{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="list-decimal main-message">{children}</ol>
+              ),
+              li: ({ children }) => {
+                // Remove any duplicate dash or number prefix
+                const cleanText = typeof children === "string"
+                  ? children.replace(/^[-•]\s+/, "").replace(/^\d+\.\s*/, "")
+                  : children;
+
+                return <li className="main-message">{cleanText}</li>;
+              },
+            }}
+          >
+            {text}
+          </Markdown>
+        )}
       </div>
       <div className="flex space-x-4 mt-2 ml-2">
         <button
