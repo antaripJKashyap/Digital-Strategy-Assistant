@@ -71,7 +71,7 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
                 'piiEntitiesConfig': [
                     {'type': 'EMAIL', 'action': 'BLOCK'},
                     {'type': 'PHONE', 'action': 'BLOCK'},
-                    {'type': 'NAME', 'action': 'ANONYMIZE'}
+                    {'type': 'NAME', 'action': 'BLOCK'}
                 ]
             },
             blockedInputMessaging='Sorry, I cannot respond to that.',
