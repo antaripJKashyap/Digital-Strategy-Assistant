@@ -96,7 +96,7 @@ export default function AnalyticsDashboard() {
     if (timeView === 'day') {
       return 'Number of Users by Month';
     } else {
-      return 'Number of Users (Past 12 Months)';
+      return 'Number of Users by Year';
     }
   };
 
@@ -104,7 +104,7 @@ export default function AnalyticsDashboard() {
     if (timeView === 'day') {
       return 'User Engagement by Month';
     } else {
-      return 'User Engagement (Past 12 Months)';
+      return 'User Engagement by Year';
     }
   };
 
@@ -152,7 +152,7 @@ export default function AnalyticsDashboard() {
                 : 'bg-transparent'
             } rounded-r-md`}
           >
-            Past 12 Months
+            Year
           </button>
         </div>
       </div>
