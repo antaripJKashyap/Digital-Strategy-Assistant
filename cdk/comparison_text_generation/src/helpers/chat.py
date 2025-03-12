@@ -59,9 +59,9 @@ def format_to_markdown(evaluation_results: dict) -> str:
 def parse_single_evaluation(response: str, guideline_name: str) -> dict:
     """
     Parses and formats a single guideline evaluation from the LLM's raw response.
-
     This function removes extra whitespace from each line, then combines them
     into a single string. It prefixes the response with the guideline name in bold.
+    It also removes any HTML-like tags from the response.
 
     Args:
         response (str): The raw LLM response that should be parsed.
@@ -72,15 +72,18 @@ def parse_single_evaluation(response: str, guideline_name: str) -> dict:
             - "llm_output": The formatted evaluation text, which includes the guideline name.
             - "options": An empty list (included for extensibility).
     """
+    # First sanitize the response to remove any HTML-like tags
+    sanitized_response = re.sub(r'<[^>]+>', '', response)
+    
+    # Then format the response as before
     formatted_response = "\n".join(
-        line.strip() for line in response.split("\n")
+        line.strip() for line in sanitized_response.split("\n")
     )
 
     return {
         "llm_output": f"**{guideline_name}:**\n{formatted_response}",
         "options": []
     }
-
 
 def format_docs(docs: List[Any]) -> str:
     """
