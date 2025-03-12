@@ -745,7 +745,7 @@ ws.onmessage = (event) => {
 
   return (
     <div className="w-full h-screen flex flex-col">
-      <Header setPage={setPage} />
+      <Header setPage={setPage} onReset={handleSessionReset} />
 
       {/* 3. Attach ref & onScroll to the main scrollable div */}
       <div
@@ -784,11 +784,6 @@ ws.onmessage = (event) => {
       {/* Your footer / input area */}
       <div className="flex flex-col">
         <div className="border-t border-b border-black w-full flex items-center justify-between px-8">
-          <div className="flex items-center space-x-2">
-            <button onClick={handleSessionReset}>
-              <LuListRestart size={20} />
-            </button>
-          </div>
           <div className="flex-grow mx-4 flex items-center">
             <textarea
               ref={textareaRef}
