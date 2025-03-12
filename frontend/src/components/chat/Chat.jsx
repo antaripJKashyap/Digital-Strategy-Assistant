@@ -534,6 +534,7 @@ const Chat = ({ setPage }) => {
     setEvaluationComplete(false);
     setIsLoading(false);
     setDocumentProcessing(false);
+    setIsEvaluationActive(false);
     // 3. Clear out old messages, leaving only the initial prompt
     setMessages([INITIAL_MESSAGE]);
   
