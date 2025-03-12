@@ -84,7 +84,7 @@ exports.handler = async (event) => {
         )
         SELECT 
           EXTRACT(DAY FROM d.day) AS day,
-          COALESCE(COUNT(DISTINCT uel.user_info), 0) AS unique_users
+          COALESCE(COUNT(DISTINCT uel.session_id), 0) AS unique_users
         FROM days d
         LEFT JOIN user_engagement_log uel
           ON DATE_TRUNC('day', uel.timestamp) = d.day
@@ -122,7 +122,7 @@ exports.handler = async (event) => {
         )
         SELECT 
           to_char(m.month, 'Mon YYYY') AS month,
-          COALESCE(COUNT(DISTINCT uel.user_info), 0) AS unique_users
+          COALESCE(COUNT(DISTINCT uel.session_id), 0) AS unique_users
         FROM months m
         LEFT JOIN user_engagement_log uel
           ON DATE_TRUNC('month', uel.timestamp) = m.month
