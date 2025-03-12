@@ -100,7 +100,7 @@ const Chat = ({ setPage }) => {
     user_role: "",
   };
 
-  
+  const wsRef = useRef(null);
 
   const handleFeedbackSubmit = async () => {
     if (!feedback.rating || isSendingFeedback) return;
@@ -165,9 +165,12 @@ const Chat = ({ setPage }) => {
     return `${urlObj.toString()}?header=${encodedHeader}&payload=${payload}`;
   };
 
+  const controllerRef = useRef(null);
   const sendMessage = async (content, isOption = false, isComparison = false) => {
     if (!session || !fingerprint || (!content.trim() && !isOption)) return;
-  
+    
+    controllerRef.current = new AbortController();
+    const signal = controllerRef.current.signal;
     const currentMessages = [...messages];
     const userRole = getUserRole(currentMessages);
   
@@ -207,6 +210,7 @@ const Chat = ({ setPage }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(requestBody),
+          signal,
         }
       );
   
@@ -220,12 +224,12 @@ const Chat = ({ setPage }) => {
         setIsEvaluationActive(true);
         let evaluationBuffer = "";
         const wsUrl = constructCompTextGenWebSocketUrl();
-        const ws = new WebSocket(wsUrl, "graphql-ws");
+        wsRef.current = new WebSocket(wsUrl, "graphql-ws");
   
         const evaluationPromise = new Promise((resolve) => {
-          ws.onopen = () => {
-            ws.send(JSON.stringify({ type: "connection_init" }));
-            ws.send(
+          wsRef.current.onopen = () => {
+            wsRef.current.send(JSON.stringify({ type: "connection_init" }));
+            wsRef.current.send(
               JSON.stringify({
                 id: session,
                 type: "start",
@@ -253,7 +257,7 @@ const Chat = ({ setPage }) => {
   
           // Handle incoming messages
           // Inside your sendMessage function (comparison branch)
-ws.onmessage = (event) => {
+          wsRef.current.onmessage = (event) => {
   console.log("WebSocket event received:", event);
   let messageData;
   try {
@@ -274,7 +278,7 @@ ws.onmessage = (event) => {
       setIsEvaluationActive(false);
       setEvaluationComplete(true);
       setIsLoading(false);
-      ws.close();
+      wsRef.current.close();
       resolve(true);
       return;
     }
@@ -307,9 +311,9 @@ ws.onmessage = (event) => {
 
 
           // Handle WebSocket errors
-          ws.onerror = (error) => {
+          wsRef.current.onerror = (error) => {
             console.error("WebSocket error:", error);
-            ws.close();
+            wsRef.current.close();
             setIsLoading(false);
             resolve(false); // Resolve without rejecting on error
           };
@@ -336,6 +340,11 @@ ws.onmessage = (event) => {
         ]);
       }
     } catch (error) {
+      if (error.name === "AbortError") {
+        // It's an intentional abort (session reset). Do NOT toast or log an error.
+        console.log("Fetch aborted by session reset. Ignoring.");
+        return;
+      }
       console.error("Error sending message:", error);
       setMessages((prev) => [
         ...prev,
@@ -403,7 +412,7 @@ ws.onmessage = (event) => {
           },
         }
       );
-
+      
       if (!textGenResponse.ok) {
         throw new Error(`HTTP error! status: ${textGenResponse.status}`);
       }
@@ -508,6 +517,14 @@ ws.onmessage = (event) => {
   
   const handleSessionReset = async () => {
     // 1. Clear local feedback state, etc.
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+    }
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     setShowFeedback(false);
   
     // 2. Remove old session from localStorage
@@ -515,7 +532,7 @@ ws.onmessage = (event) => {
     
      // Reset evaluationComplete so "My task is done" won't appear right away
     setEvaluationComplete(false);
-
+    setIsLoading(false);
     // 3. Clear out old messages, leaving only the initial prompt
     setMessages([INITIAL_MESSAGE]);
   
@@ -610,7 +627,7 @@ ws.onmessage = (event) => {
   };
 
   const handleSyllabusSubmit = async () => {
-    let ws = null;
+    
   
     try {
       // First set loading state to disable message input
@@ -634,19 +651,19 @@ ws.onmessage = (event) => {
       await processAndUploadFiles(syllabusFiles, textSyllabus, session);
 
       const wsUrl = constructWebSocketUrl();
-      ws = new WebSocket(wsUrl, "graphql-ws");
+      wsRef.current = new WebSocket(wsUrl, "graphql-ws");
 
       // Rest of websocket code remains the same
       await new Promise((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           reject(new Error("WebSocket connection timeout"));
         }, 180000);
-        ws.onopen = () => {
+        wsRef.current.onopen = () => {
           console.log("WebSocket connection established");
 
           const initMessage = { type: "connection_init" };
           console.log("Sent:", initMessage);
-          ws.send(JSON.stringify(initMessage));
+          wsRef.current.send(JSON.stringify(initMessage));
 
           const subscriptionMessage = {
             id: session,
@@ -663,10 +680,10 @@ ws.onmessage = (event) => {
             },
           };
           console.log("Sent:", subscriptionMessage);
-          ws.send(JSON.stringify(subscriptionMessage));
+          wsRef.current.send(JSON.stringify(subscriptionMessage));
         };
 
-        ws.onmessage = (event) => {
+        wsRef.current.onmessage = (event) => {
           const message = JSON.parse(event.data);
           console.log("Received:", message);
 
@@ -675,7 +692,7 @@ ws.onmessage = (event) => {
             
             if (receivedMessage === "Embeddings created successfully") {
               clearTimeout(timeoutId);
-              ws.close();
+              wsRef.current.close();
               resolve(message);
             } else {
               // Add non-embedding messages as AI responses
@@ -689,13 +706,13 @@ ws.onmessage = (event) => {
               setIsLoading(false);
               setTextSyllabus("");
               setSyllabusFiles([]);
-              ws.close();
+              wsRef.current.close();
               clearTimeout(timeoutId);
               
             }
           }
         };
-        ws.onerror = (error) => {
+        wsRef.current.onerror = (error) => {
           clearTimeout(timeoutId);
           console.error("WebSocket error:", error);
           reject(error);
@@ -735,8 +752,8 @@ ws.onmessage = (event) => {
       console.error("Syllabus upload error:", error);
       toast.error("Failed to upload syllabus: " + error.message);
     } finally {
-      if (ws) {
-        ws.close();
+      if (wsRef.current) {
+        wsRef.current.close();
       }
       setIsLoading(false);
       setDocumentProcessing(false);
