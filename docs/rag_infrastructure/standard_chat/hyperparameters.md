@@ -1,16 +1,8 @@
 # Hyperparameters in `standard_chat`
 
-This document describes the primary parameters and configuration values used throughout the data ingestion and vectorstore update pipeline. The information below includes:
+## Data Ingestion
 
-- **Environment Variables**
-- **Vectorstore (PGVector) Configuration**  
-- **Indexing Behavior**  
-
-Each section explains the parameter’s purpose, its current default or typical value, acceptable ranges (if applicable), and where it is defined in the code base.
-
----
-
-## 1. Environment Variables
+### 1. Environment Variables
 
 These variables are set in the Lambda environment. They are accessed by `main.py` (and other modules) to configure the pipeline.
 
@@ -25,7 +17,7 @@ These variables are set in the Lambda environment. They are accessed by `main.py
 
 ---
 
-## 2. Vectorstore (PGVector) Configuration
+### 2. Vectorstore (PGVector) Configuration
 
 In `helpers/helper.py`, the `get_vectorstore` function initializes the `PGVector` instance:
 
@@ -46,7 +38,7 @@ vectorstore = PGVector(
 
 ---
 
-## 3. Indexing Behavior
+### 3. Indexing Behavior
 
 In `documents.py`, the `process_documents` function calls the `index(...)` utility:
 
@@ -64,3 +56,61 @@ idx = index(
 |---------------------|------------------------------------------------------|-------------------|-----------------------|-------------------------------|
 | `cleanup`           | Determines how stale records are removed.           | `"full"` (Removes any previous records not present in the new chunk set. )         | `"full"`, `"none"`, `"incremental"`, or `"scoped_full"`  | **`documents.py`** in the `index(...)` call |
 | `source_id_key`     | Identifies the source key in each chunk’s metadata. | `"source"`        | Any string matching a metadata field         | **`documents.py`** in the `index(...)` call |
+
+---
+
+## Text Generation
+
+### 1. Environment Variables
+
+These variables are set in the Lambda environment. They are accessed by `main.py` (and other modules) to configure the pipeline.
+
+| **Variable**                 | **Purpose**                                                                                               | **Typical Usage**                                                                                                                                                                                                                                       | **Acceptable Values**                                                                                          | **Code Location**                                                                           |
+|------------------------------|-----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| `COMP_TEXT_GEN_QUEUE_URL`    | Specifies the SQS queue used to handle “comparison” requests.                                            | When `comparison` is detected in the request, `main.py` sends a message (with deduplication) to this FIFO queue and immediately returns a response.                                                                                                      | Must be a valid FIFO SQS queue URL.                                                                                                | **`main.py`** (`handler()` logic for `comparison` flag)                                     |
+| `DB_SECRET_NAME` (or `SM_DB_CREDENTIALS`) | Refers to the AWS Secrets Manager secret containing DB credentials (user, password, etc.).        | Fetched via `get_secret(DB_SECRET_NAME)` to obtain connection parameters for `psycopg2.connect()` in **`connect_to_db()`**.                                                                                                                             | Must match the name of a valid secret in AWS Secrets Manager.                                                                      | **`main.py`** (used in `connect_to_db()`)                                                   |
+| `REGION`                     | Specifies the AWS Region (e.g., `"us-east-1"`, `"us-west-2"`) for Bedrock, SSM, Secrets Manager, etc.     | Passed to `boto3.client("bedrock-runtime", region_name=REGION)` and `boto3.client("ssm", region_name=REGION)`.                                                                                                                                            | Must be a valid AWS Region string.                                                                                                 | **`main.py`** (used in various AWS client initializations)                                  |
+| `RDS_PROXY_ENDPOINT`         | The RDS Proxy endpoint for the primary Postgres database.                                                | Used in **`connect_to_db()`** as the `host` parameter for `psycopg2.connect()`.                                                                                                                                                                          | Must be a valid RDS Proxy endpoint (e.g., `myproxy.proxy-xxx.region.rds.amazonaws.com`).                                           | **`main.py`** (referenced in `connect_to_db()`)                                            |
+| `BEDROCK_LLM_PARAM`          | Points to an SSM Parameter containing the Bedrock LLM model ID.                                          | Retrieved by **`get_parameter(BEDROCK_LLM_PARAM, BEDROCK_LLM_ID)`**. The returned value is passed to `get_bedrock_llm()` to instantiate the Chat LLM.                                                                                                     | Must be a valid SSM Parameter name; value is typically a Bedrock model ID (e.g., `"anthropic.claude-v1"`).                           | **`main.py`** (used in `initialize_constants()`)                                            |
+| `EMBEDDING_MODEL_PARAM`      | Points to an SSM Parameter containing the Bedrock embedding model ID.                                    | Retrieved by **`get_parameter(EMBEDDING_MODEL_PARAM, EMBEDDING_MODEL_ID)`**. The returned value is used by `BedrockEmbeddings`.                                                                                                                         | Must be a valid SSM Parameter name; for example `"amazon.titan-embed-text-v1"`.                                   | **`main.py`** (used in `initialize_constants()`)                                            |
+| `TABLE_NAME_PARAM`           | Points to an SSM Parameter indicating the DynamoDB table name for chat history.                          | Retrieved in **`initialize_constants()`**. The returned string is used in `create_dynamodb_history_table()` and `RunnableWithMessageHistory`.                                                                                                            | Must be a valid SSM Parameter name; the table name can be any valid DynamoDB name.                                                | **`main.py`** (used in `initialize_constants()`)                                            |
+
+---
+
+## Vectorstore (PGVector) Configuration
+
+In `helpers/helper.py`, the `get_vectorstore` function initializes the `PGVector` instance:
+
+```python
+vectorstore = PGVector(
+    embeddings=embeddings,
+    collection_name=collection_name,
+    connection=connection_string,
+    use_jsonb=True
+)
+```
+
+| **Parameter**     | **Purpose**                                                           | **Current Value**                                                    | **Acceptable Values**                           | **Location**                                         |
+|-------------------|-----------------------------------------------------------------------|----------------------------------------------------------------------|-------------------------------------------------|------------------------------------------------------|
+| `collection_name` | Identifies which schema or table PGVector uses for storing embeddings. | Derived from `vectorstore_config_dict['collection_name']` in `main.py`. | Any valid Postgres identifier (e.g., `"all"`).   | **`helpers/helper.py`** (`get_vectorstore()`)        |
+| `connection`      | PostgreSQL connection string passed to PGVector.                      | Built in `get_vectorstore()` using secrets: `dbname`, `user`, `password`, etc.         | Must be a valid Postgres connection URI.         | **`helpers/helper.py`** (`get_vectorstore()`)        |
+| `use_jsonb`       | Determines if chunk metadata is stored as JSONB in Postgres.          | `True`                                                            | `True` or `False`.                              | **`helpers/helper.py`** (`PGVector(...)`)            |
+
+---
+
+## LLM Configuration
+
+In **`helpers/chat.py`**, the Bedrock LLM is configured with:
+
+```python
+def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
+    return ChatBedrock(
+        model_id=bedrock_llm_id,
+        model_kwargs=dict(temperature=temperature),
+    )
+```
+
+| **Parameter**    | **Purpose**                                                                  | **Current Value**                | **Acceptable Values**                                                                                           | **Location**                               |
+|------------------|------------------------------------------------------------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------|--------------------------------------------|
+| `bedrock_llm_id` | Identifies which Bedrock model (e.g., Claude, Titan, etc.) to use for chat.   | Retrieved from `BEDROCK_LLM_PARAM` at runtime. | Must match a valid Bedrock model ID (e.g., `"anthropic.claude-v1"`, `"amazon.titan-text-large-v1"`).            | **`helpers/chat.py`** (`get_bedrock_llm()`) |
+| `temperature`    | Controls randomness of the generated text.                                   | `0` (default)                    | A float typically between 0 and 1, though some models accept 0–5.0. Higher values = more creative outputs.        | **`helpers/chat.py`** (`get_bedrock_llm()`) |
