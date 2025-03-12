@@ -533,6 +533,7 @@ const Chat = ({ setPage }) => {
      // Reset evaluationComplete so "My task is done" won't appear right away
     setEvaluationComplete(false);
     setIsLoading(false);
+    setDocumentProcessing(false);
     // 3. Clear out old messages, leaving only the initial prompt
     setMessages([INITIAL_MESSAGE]);
   
