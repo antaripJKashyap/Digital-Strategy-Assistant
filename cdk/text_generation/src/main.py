@@ -18,10 +18,8 @@ logger = logging.getLogger()
 
 COMP_TEXT_GEN_QUEUE_URL = os.environ["COMP_TEXT_GEN_QUEUE_URL"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
-DB_COMP_SECRET_NAME = os.environ["SM_DB_COMP_CREDENTIALS"]
 REGION = os.environ["REGION"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
-RDS_PROXY_COMP_ENDPOINT = os.environ["RDS_PROXY_COMP_ENDPOINT"]
 BEDROCK_LLM_PARAM = os.environ["BEDROCK_LLM_PARAM"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
 TABLE_NAME_PARAM = os.environ["TABLE_NAME_PARAM"]
@@ -32,9 +30,7 @@ ssm_client = boto3.client("ssm", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
 # Cached resources
 connection = None
-connection_comparison = None
 db_secret = None
-db_secret_comparison = None
 BEDROCK_LLM_ID = None
 EMBEDDING_MODEL_ID = None
 TABLE_NAME = None
@@ -54,20 +50,6 @@ def get_secret(secret_name, expect_json=True):
             logger.error(f"Error fetching secret {secret_name}: {e}")
             raise
     return db_secret
-
-def get_secret_comparison(secret_name, expect_json=True):
-    global db_secret_comparison
-    if db_secret_comparison is None:
-        try:
-            response = secrets_manager_client.get_secret_value(SecretId=secret_name)["SecretString"]
-            db_secret_comparison = json.loads(response) if expect_json else response
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON for secret {secret_name}: {e}")
-            raise ValueError(f"Secret {secret_name} is not properly formatted as JSON.")
-        except Exception as e:
-            logger.error(f"Error fetching secret {secret_name}: {e}")
-            raise
-    return db_secret_comparison
 
 def get_parameter(param_name, cached_var):
     """
@@ -120,30 +102,6 @@ def connect_to_db():
                 connection.close()
             raise
     return connection
-
-
-def connect_to_comparison_db():
-    global connection_comparison
-    if connection_comparison is None or connection_comparison.closed:
-        try:
-            secret = get_secret_comparison(DB_COMP_SECRET_NAME)
-            connection_params = {
-                'dbname': secret["dbname"],
-                'user': secret["username"],
-                'password': secret["password"],
-                'host': RDS_PROXY_COMP_ENDPOINT,
-                'port': secret["port"]
-            }
-            connection_string = " ".join([f"{key}={value}" for key, value in connection_params.items()])
-            connection_comparison = psycopg2.connect(connection_string)
-            logger.info("Connected to the database!")
-        except Exception as e:
-            logger.error(f"Failed to connect to database: {e}")
-            if connection_comparison:
-                connection_comparison.rollback()
-                connection_comparison.close()
-            raise
-    return connection_comparison
 
 def log_user_engagement(
     session_id, 
@@ -312,55 +270,6 @@ def get_prompt_for_role(user_role):
             connection.close()
         logger.info("Connection closed.")
 
-def delete_collection_by_id(session_id):
-    """
-    Delete a collection by its ID from the langchain_pg_embedding table.
-    
-    Args:
-        collection_id (str): The ID of the collection to delete.
-    
-    Returns:
-        bool: True if the deletion was successful, False otherwise.
-    """
-    connection_comparison = connect_to_comparison_db()
-    if connection_comparison is None:
-        logger.error("No database connection available for comparison.")
-        return {
-            "statusCode": 500,
-            "body": json.dumps("Database connection failed.")
-        }
-
-    try:
-        
-        print(f"Deleting collection with ID: {session_id}")
-        cur = connection_comparison.cursor()
-            # Construct and execute the DELETE query
-        query = """
-            DELETE FROM langchain_pg_embedding 
-            WHERE collection_id = %s;
-        """
-        
-        print(f"Executing query: {query} with collection_id: {session_id}")
-        cur.execute(query, (session_id,))
-            
-        # Commit the transaction
-        connection_comparison.commit()
-        print(f"Collection with ID {session_id} deleted successfully.")
-        return True
-
-    except Exception as e:
-        # Rollback in case of any failure
-        connection_comparison.rollback()
-        logger.error(f"Error deleting collection with ID {session_id}: {e}")
-        return False
-
-    finally:
-        # Close the connection
-        if connection_comparison:
-            connection_comparison.close()
-            logger.info("Comparison database connection closed.")
-
-
 def check_embeddings():
     connection = connect_to_db()
     if connection is None:
@@ -485,122 +394,6 @@ def handler(event, context):
                 },
                 'body': json.dumps('Error sending message to SQS')
             }
-
-
-        # print(f"session_id Comparison", session_id)
-        # guidelines = get_combined_guidelines(criteria)
-        # logger.info(f"Comparison document received: {comparison}")
-        # # Try obtaining vectorstore config for the user uploaded document vectorstore
-        # try:
-        #     logger.info("Retrieving vectorstore config.")
-        #     db_secret = get_secret_comparison(DB_COMP_SECRET_NAME)
-            
-        #     vectorstore_config_dict = {
-        #         'collection_name': session_id,
-        #         'dbname': db_secret["dbname"],
-        #         'user': db_secret["username"],
-        #         'password': db_secret["password"],
-        #         'host': RDS_PROXY_COMP_ENDPOINT,
-        #         'port': db_secret["port"]
-        #     }
-        #     print(f"session_id:", session_id)
-        #     print(f"print: vectorstore_config_dict COMP", vectorstore_config_dict)
-        # except Exception as e:
-        #     logger.error(f"Error retrieving vectorstore config: {e}")
-        #     return {
-        #         'statusCode': 500,
-        #         "headers": {
-        #             "Content-Type": "application/json",
-        #             "Access-Control-Allow-Headers": "*",
-        #             "Access-Control-Allow-Origin": "*",
-        #             "Access-Control-Allow-Methods": "*",
-        #         },
-        #         'body': json.dumps('Error retrieving user uploaded document vectorstore config')
-        #     }
-        # try:
-        #     logger.info("Creating Bedrock LLM instance.")
-        #     llm = get_bedrock_llm(bedrock_llm_id=BEDROCK_LLM_ID, enable_guardrails=True)
-        # except Exception as e:
-        #     logger.error(f"Error getting LLM from Bedrock: {e}")
-        #     return {
-        #         'statusCode': 500,
-        #         "headers": {
-        #             "Content-Type": "application/json",
-        #             "Access-Control-Allow-Headers": "*",
-        #             "Access-Control-Allow-Origin": "*",
-        #             "Access-Control-Allow-Methods": "*",
-        #         },
-        #         'body': json.dumps('Error getting LLM from Bedrock')
-        #     }
-        # # Try obtaining the ordinary retriever given this vectorstore config dict
-        # try:
-        #     logger.info("Creating ordinary retriever for user uploaded vectorstore.")
-        #     ordinary_retriever, user_uploaded_vectorstore = get_vectorstore_retriever_ordinary(
-        #         llm=llm,
-        #         vectorstore_config_dict=vectorstore_config_dict,
-        #         embeddings=embeddings
-        #     )
-        # except Exception as e:
-        #     logger.error(f"Error creating ordinary retriever for user uploaded vectorstore: {e}")
-        #     return {
-        #         'statusCode': 500,
-        #         "headers": {
-        #             "Content-Type": "application/json",
-        #             "Access-Control-Allow-Headers": "*",
-        #             "Access-Control-Allow-Origin": "*",
-        #             "Access-Control-Allow-Methods": "*",
-        #         },
-        #         'body': json.dumps('Error creating ordinary retriever for user uploaded vectorstore')
-        #     }
-
-        # # Try getting an evaluation result from the LLM
-        # try:
-        #     logger.info("Generating response from the LLM.")
-        #     response = get_response_evaluation(
-        #         llm=llm,
-        #         retriever=ordinary_retriever,
-        #         guidelines_file=guidelines
-        #     )
-        #     logger.info(f"User role {user_role} logged in engagement log.")
-
-        #     # Delete the collection from the vectorstore after the embeddings have been used for evaluation
-        #     try:
-        #         delete_collection_by_id(session_id)
-        #     except Exception as e:
-        #         print(f"User uploaded vectorstore collection could not be deleted. Exception details: {e}.")
-        # except Exception as e:
-        #      logger.error(f"Error getting response: {e}")
-        #      return {
-        #             'statusCode': 500,
-        #             "headers": {
-        #                 "Content-Type": "application/json",
-        #                 "Access-Control-Allow-Headers": "*",
-        #                 "Access-Control-Allow-Origin": "*",
-        #                 "Access-Control-Allow-Methods": "*",
-        #             },
-        #             'body': json.dumps('Error getting response')
-        #         }
-        
-        # logger.info("Returning the generated evaluation.")
-
-        # # This part below might have to be fixed
-        # # If LLM did generate a response, return it
-        # return {
-        #     "statusCode": 200,
-        #     "headers": {
-        #             "Content-Type": "application/json",
-        #             "Access-Control-Allow-Headers": "*",
-        #             "Access-Control-Allow-Origin": "*",
-        #             "Access-Control-Allow-Methods": "*",
-        #         },
-        #     "body": json.dumps({
-        #         "type": "ai",
-        #         "content": response.get("llm_output", "LLM failed to create response"),
-        #         "options": [],
-        #         "user_role": user_role
-        #     })
-        # }
-        
     
     logger.info("Fetching prompts from the database.")
     user_prompt = get_prompt_for_role(user_role)
