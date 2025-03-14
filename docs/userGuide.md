@@ -54,6 +54,8 @@ Clicking the "Files" button on the sidebar will allow the administrator to view 
 Clicking the "Feedback" button on the sidebar will allow the administrator to view all the feedbacks in every user role as well as their descriptions.
 ![image](./images/feedback_admin.png)
 
+Clicking the "Get Chat History" button on the sidebar will allow the administrator to download the entire chat history of the all the users and all the roles as a .csv file.
+![image](./images/chat_history.png)
 
 ## Public View
 Upon opening the public view of the app, users are greeted with a home page. Clicking on "About" or "T&C" will open a modal which either describes the DSA or shows the terms and conditions of using the assistant.
