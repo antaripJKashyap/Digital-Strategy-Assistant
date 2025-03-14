@@ -40,6 +40,7 @@ export const createS3Buckets = (scope: Construct, id: string) => {
     ],
     removalPolicy: cdk.RemovalPolicy.DESTROY,
     enforceSSL: true,
+    versioned: true,
     autoDeleteObjects: true,
   });
 
@@ -79,6 +80,7 @@ export const createS3Buckets = (scope: Construct, id: string) => {
     ],
     removalPolicy: cdk.RemovalPolicy.DESTROY,
     enforceSSL: true,
+    versioned: true,
     autoDeleteObjects: true,
   });
 
