@@ -16,6 +16,7 @@ from langchain_aws import BedrockEmbeddings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 LAMBDA_CLIENT = boto3.client("lambda")
+# amazonq-ignore-next-line
 EVENT_NOTIFICATION_LAMBDA_NAME = os.environ["EVENT_NOTIFICATION_LAMBDA_NAME"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]

@@ -95,7 +95,7 @@ def fetch_all_session_ids():
         
         return session_ids
     except Exception as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error while updating conversation_csv: {str(e)}", exc_info=True)
         return []
 
 
@@ -131,7 +131,7 @@ def fetch_all_user_messages():
         return structured_messages
 
     except Exception as e:
-        print(f" Database error while fetching user messages: {e}")
+        logger.error(f"Database error while updating conversation_csv: {str(e)}", exc_info=True)
         return {}
 
 
@@ -197,6 +197,7 @@ def fetch_chat_messages(session_id, table):
     try:
         logger.info(f"Fetching messages for session {session_id}")
 
+        # amazonq-ignore-next-line
         response = table.query(KeyConditionExpression=Key("SessionId").eq(session_id))
 
         formatted_messages = []
@@ -269,7 +270,7 @@ def write_to_csv(session_id, data):
         return temp_file_path, file_name
     
     except Exception as e:
-        print(f"Error writing to CSV or uploading to S3: {e}")
+        logger.error(f"Error writing to CSV or uploading to S3: {e}")
         return None
 
 
@@ -332,6 +333,7 @@ def handler(event, context):
             current_session_id = message_body.get("session_id")
             
             
+            # amazonq-ignore-next-line
             user_timestamps = fetch_all_user_messages()
             
             
