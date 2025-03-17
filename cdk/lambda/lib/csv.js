@@ -8,7 +8,7 @@ let sqlConnection = global.sqlConnection;
 exports.handler = async (event) => {
   try {
     // Parse the incoming event
-    console.log("Parsing session_id");
+    
     const { session_id } = JSON.parse(event.body);
 
     // Validate input
@@ -31,7 +31,7 @@ exports.handler = async (event) => {
     }
 
     // Insert the record into the chatlogs_notifications table
-    console.log("Inserting record into the chatlogs_notifications table with completion status FALSE");
+    
     await sqlConnection`
       INSERT INTO "conversation_csv" ("session_id", "notified", "timestamp")
       VALUES (${session_id}, false, NOW())
@@ -47,10 +47,10 @@ exports.handler = async (event) => {
     };
 
     // Send the message to SQS
-    console.log("Sending message to SQS");
+    
     const command = new SendMessageCommand(params);
     await sqsClient.send(command);
-    console.log("Message sent to SQS");
+    
 
     // Return success response
     return {

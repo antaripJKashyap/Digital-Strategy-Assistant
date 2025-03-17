@@ -72,20 +72,15 @@ const Chat = ({ setPage }) => {
   };
     // Additionally, add a useEffect to monitor isLoading changes:
   useEffect(() => {
-    console.log("isLoading state changed to:", isLoading);
+    
   }, [isLoading]);
   
   useEffect(() => {
-    console.log(
-      "State changed:",
-      "isLoading =", isLoading,
-      "| isCreatingSession =", isCreatingSession,
-      "| documentProcessing =", documentProcessing
-    );
+    
   }, [isLoading, isCreatingSession, documentProcessing]);
 
   useEffect(() => {
-    console.log("isCreatingSession changed to:", isCreatingSession);
+   
   }, [isCreatingSession]);
 
   const INITIAL_MESSAGE = {
@@ -258,7 +253,7 @@ const Chat = ({ setPage }) => {
           // Handle incoming messages
           // Inside your sendMessage function (comparison branch)
           wsRef.current.onmessage = (event) => {
-  console.log("WebSocket event received:", event);
+  
   let messageData;
   try {
     messageData = JSON.parse(event.data);
@@ -266,15 +261,15 @@ const Chat = ({ setPage }) => {
     console.error("Failed to parse event data:", err);
     return;
   }
-  console.log("Parsed message data:", messageData);
+  
 
   if (messageData.type === "data" && messageData.payload?.data?.onNotify) {
     const receivedMessage = messageData.payload.data.onNotify.message;
-    console.log("Received message content:", receivedMessage);
+    
     
     // Check if the message indicates evaluation complete
     if (receivedMessage.includes("EVALUATION_COMPLETE")) {
-      console.log("EVALUATION_COMPLETE detected, stopping loading indicator.");
+      
       setIsEvaluationActive(false);
       setEvaluationComplete(true);
       setIsLoading(false);
@@ -286,7 +281,7 @@ const Chat = ({ setPage }) => {
     
     // Update evaluationBuffer and messages
     evaluationBuffer += evaluationBuffer ? `\n\n${receivedMessage}` : receivedMessage;
-    console.log("Updated evaluationBuffer:", evaluationBuffer);
+    
     
     setMessages((prev) => {
       const lastMessage = prev[prev.length - 1];
@@ -295,14 +290,14 @@ const Chat = ({ setPage }) => {
           ...prev.slice(0, -1),
           { ...lastMessage, Content: evaluationBuffer },
         ];
-        console.log("Updated messages with combined message:", updatedMessages);
+        
         return updatedMessages;
       } else {
         const updatedMessages = [
           ...prev,
           { Type: "ai", Content: evaluationBuffer, isCombined: true },
         ];
-        console.log("Appended new combined message:", updatedMessages);
+        
         return updatedMessages;
               }
             });
@@ -342,7 +337,7 @@ const Chat = ({ setPage }) => {
     } catch (error) {
       if (error.name === "AbortError") {
         // It's an intentional abort (session reset). Do NOT toast or log an error.
-        console.log("Fetch aborted by session reset. Ignoring.");
+        
         return;
       }
       console.error("Error sending message:", error);
@@ -356,7 +351,7 @@ const Chat = ({ setPage }) => {
       ]);
       toast.error(error.message);
     } finally {
-      console.log("Reached finally block in sendMessage. Setting isLoading(false).");
+      
       setIsLoading(false);
     }
   };
@@ -645,9 +640,6 @@ const Chat = ({ setPage }) => {
         },
       ]);
   
-      // Make sure textSyllabus is being passed even when files array is empty
-      console.log("Text syllabus before upload:", textSyllabus); // Add this for debugging
-      console.log("Files before upload:", syllabusFiles); // Add this for debugging
       
       // Process and upload files (including text if available)
       await processAndUploadFiles(syllabusFiles, textSyllabus, session);
@@ -661,10 +653,10 @@ const Chat = ({ setPage }) => {
           reject(new Error("WebSocket connection timeout"));
         }, 180000);
         wsRef.current.onopen = () => {
-          console.log("WebSocket connection established");
+          
 
           const initMessage = { type: "connection_init" };
-          console.log("Sent:", initMessage);
+          
           wsRef.current.send(JSON.stringify(initMessage));
 
           const subscriptionMessage = {
@@ -681,13 +673,13 @@ const Chat = ({ setPage }) => {
               },
             },
           };
-          console.log("Sent:", subscriptionMessage);
+          
           wsRef.current.send(JSON.stringify(subscriptionMessage));
         };
 
         wsRef.current.onmessage = (event) => {
           const message = JSON.parse(event.data);
-          console.log("Received:", message);
+          
 
           if (message.type === "data" && message.payload?.data?.onNotify) {
             const receivedMessage = message.payload.data.onNotify.message;
@@ -745,7 +737,7 @@ const Chat = ({ setPage }) => {
         true,
         true
       );
-      console.log("Sent: 'I've uploaded course files for comparison'");
+      
       
       // Reset state
       setTextSyllabus("");

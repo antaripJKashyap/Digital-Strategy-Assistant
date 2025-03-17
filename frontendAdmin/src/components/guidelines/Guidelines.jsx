@@ -63,7 +63,7 @@ const Guidelines = () => {
   };
 
   useEffect(() => {
-    console.log("criteriaList", criteriaList);
+    
   }, [criteriaList]);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ const Guidelines = () => {
       );
       if (response.ok) {
         const data = await response.json();
-        console.log("data", data);
+        
 
         // Group guidelines by criteria
         const criteriaMap = new Map();

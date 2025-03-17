@@ -63,7 +63,7 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
 
         if (response.ok) {
             const data = await response.json();
-            console.log("Chat logs fetched:", data);
+            
 
             if (data.log_files) {
                 const formattedLogs = Object.entries(data.log_files).map(([fileName, presignedUrl]) => {
@@ -123,7 +123,7 @@ const convertToLocalTime = (fileName) => {
       const token = session.tokens.idToken;
       // Generate a unique session_id
       const session_id = uuidv4();
-      console.log("session_id:", session_id);
+      
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/chat_history`,
         {
@@ -137,10 +137,10 @@ const convertToLocalTime = (fileName) => {
       );
   
       if (response.ok) {
-        console.log("Job submitted successfully");
+        
         setIsDownloadEnabled(false);
         openWebSocket(session_id, setNotificationForSession, () => {
-          console.log("Waiting before checking notification status...");
+          
           setTimeout(() => {
             checkNotificationStatus();
             fetchPreviousFiles();

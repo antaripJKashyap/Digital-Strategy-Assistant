@@ -103,7 +103,6 @@ const AdminHome = () => {
   
     // Handle WebSocket connection
     ws.onopen = () => {
-      console.log("WebSocket connection established");
   
       // Initialize WebSocket connection
       const initMessage = { type: "connection_init" };
@@ -135,17 +134,17 @@ const AdminHome = () => {
       };
   
       ws.send(JSON.stringify(subscriptionMessage));
-      console.log("Subscribed to WebSocket notifications");
+      
     };
   
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      console.log("WebSocket message received:", message);
+      
   
       // Handle notification
       if (message.type === "data" && message.payload?.data?.onNotify) {
         const receivedMessage = message.payload.data.onNotify.message;
-        console.log("Notification received:", receivedMessage);
+        
         
         // Sets icon to show new file on ChatLogs page
         setNotificationForSession(true);
@@ -168,7 +167,7 @@ const AdminHome = () => {
   
         // Close WebSocket after receiving the notification
         ws.close();
-        console.log("WebSocket connection closed after handling notification");
+        
   
         // Call the callback function after WebSocket completes
         if (typeof onComplete === "function") {
@@ -208,7 +207,7 @@ const AdminHome = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.completionStatus === true) {
-          console.log(`Getting chatlogs is completed. Notifying the user and removing row from database.`);
+          
 
           // Sets icon to show new file on Allmessages page
           setNotificationForSession(true);
@@ -231,7 +230,7 @@ const AdminHome = () => {
 
         } else if (data.completionStatus === false) {
           // Reopen WebSocket to listen for notifications
-          console.log(`Getting chatlogs is not completed. Re-opening the websocket.`);
+          
           openWebSocket(session_id, setNotificationForSession);
         } else {
           console.log(`Either chatlogs for  were not requested or instructor already received notification. No need to notify instructor or re-open websocket.`);

@@ -37,13 +37,13 @@ exports.handler = async (event, context) => {
         MessageDeduplicationId: `${fullKey}-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, 
       };
 
-      console.log(message);
+      
 
       // Send message to SQS
       const command = new SendMessageCommand(params);
       const response = await sqsClient.send(command);
 
-      console.log(`Message sent to SQS for ${fullKey}:`, response);
+      
     }
 
     return {

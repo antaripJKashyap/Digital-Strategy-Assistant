@@ -1061,7 +1061,7 @@ exports.handler = async (event) => {
               ) {
                   // Delete a specific notification for a session_id
                   const { session_id } = event.queryStringParameters;
-                  console.log(`Deleting notification for session_id: ${session_id}`);
+                  
       
                   const deleteResult = await sqlConnectionTableCreator`
                     DELETE FROM "conversation_csv"
@@ -1078,7 +1078,7 @@ exports.handler = async (event) => {
                   }
               } else {
                   // If no session_id provided, delete all completed notifications
-                  console.log("Deleting all completed notifications from conversation_csv");
+                  
       
                   const deleteAllResult = await sqlConnectionTableCreator`
                     DELETE FROM "conversation_csv"
@@ -1107,6 +1107,6 @@ exports.handler = async (event) => {
     console.log(error);
     response.body = JSON.stringify(error.message);
   }
-  console.log(response);
+  
   return response;
 };

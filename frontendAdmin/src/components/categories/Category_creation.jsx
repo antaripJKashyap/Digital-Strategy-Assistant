@@ -155,7 +155,7 @@ export default function Category_creation({
     if (!response.ok) throw new Error("Failed to generate presigned URL");
     const data = await response.json();
     const url = data.presignedurl;
-    console.log("url", url);
+    
     return url;
   };
 
@@ -221,7 +221,7 @@ export default function Category_creation({
 
       // Step 1: Create Category
       const { category_id } = await createCategory(token);
-      console.log(category_id);
+      
       // Step 2: Upload Files
       await Promise.all(
         files.map(async (file) => {
@@ -230,7 +230,7 @@ export default function Category_creation({
             category_id,
             token
           );
-          console.log(presigned_url);
+          
           await uploadFile(file, presigned_url);
         })
       );

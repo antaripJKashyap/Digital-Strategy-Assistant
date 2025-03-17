@@ -32,8 +32,7 @@ const SyllabusComparisonModal = ({
   const MAX_WORD_COUNT = 2000;
   
   useEffect(() => {
-    console.log("guidelines", guidelines);
-    console.log("selectedCriteria", selectedCriteria);
+    
   }, [guidelines, selectedCriteria]);
   
   useEffect(() => {

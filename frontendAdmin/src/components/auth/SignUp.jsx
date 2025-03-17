@@ -113,7 +113,7 @@ const SignUp = ({
           email: email,
         },
       });
-      console.log("User signed up:", isSignUpComplete, userId, nextStep);
+      
       if (!isSignUpComplete) {
         if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
           setLoading(false);
