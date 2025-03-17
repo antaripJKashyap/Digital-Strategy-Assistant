@@ -148,7 +148,7 @@ exports.handler = async (event) => {
     console.log(error);
     response.body = JSON.stringify(error.message);
   }
-  console.log(response);
+  
 
   return response;
 };

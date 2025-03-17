@@ -141,7 +141,7 @@ export default function History() {
         }
 
         const data = await response.json();
-        console.log(data);
+        
         data.sort(
           (a, b) =>
             new Date(b.last_message_time) - new Date(a.last_message_time)
