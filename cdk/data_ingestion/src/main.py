@@ -210,7 +210,7 @@ def handler(event, context):
 
         # Only process files from the DSA_DATA_INGESTION_BUCKET
         if bucket_name != DSA_DATA_INGESTION_BUCKET:
-            print(f"Ignoring event from non-target bucket: {bucket_name}")
+            
             continue  # Ignore this event and move to the next one
         document_key = record['s3']['object']['key']
 

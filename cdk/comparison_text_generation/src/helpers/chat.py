@@ -178,7 +178,7 @@ def get_response_evaluation(
     )
 
     # Iterate through all guidelines and yield the evaluation result for each
-    print("guidelines_file 9999999999999999999", guidelines_file)
+    
     for master_key, master_value in guidelines_file.items():
         for guideline in master_value:
             guideline_name = guideline.split(":")[0]

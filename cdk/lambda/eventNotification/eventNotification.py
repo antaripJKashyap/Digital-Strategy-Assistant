@@ -5,7 +5,7 @@ import boto3
 
 def lambda_handler(event, context):
 
-    print(f"Event Received: {json.dumps(event)}")
+    
 
     try:
         # Extract arguments from the AppSync payload
@@ -14,7 +14,7 @@ def lambda_handler(event, context):
         message = arguments.get("message", "Default message")
 
         # Log the extracted values for debugging
-        print(f"Extracted sessionId: {session_id}, message: {message}")
+        
 
         # Return the values back to AppSync
         return {

@@ -37,7 +37,7 @@ def get_secret(secret_name):
     global db_secret
     if db_secret is None:
         try:
-            print(f"Fetching secret: {secret_name}")
+            
             response = secrets_manager_client.get_secret_value(SecretId=secret_name)
             db_secret = json.loads(response["SecretString"])
         except Exception as e:
@@ -51,7 +51,7 @@ def connect_to_db():
     if connection is None or connection.closed:
         try:
             secret = get_secret(DB_SECRET_NAME)
-            print("Connecting to database...")
+            
             connection = psycopg2.connect(
                 dbname=secret["dbname"],
                 user=secret["username"],
@@ -79,7 +79,7 @@ def update_conversation_csv(session_id):
         cur.execute(query, (session_id, False, datetime.now(timezone.utc)))
         connection.commit()
         cur.close()
-        print(f" Successfully inserted CSV record for session {session_id}")
+        
     except Exception as e:
         print(f" Database error while updating conversation_csv: {e}")
     
@@ -88,11 +88,11 @@ def fetch_all_session_ids():
     connection = connect_to_db()
     try:
         cur = connection.cursor()
-        print("Fetching session IDs from database...")
+        
         cur.execute(query)
         session_ids = [row[0] for row in cur.fetchall()]
         cur.close()
-        print(f"Fetched {len(session_ids)} session IDs.")
+        
         return session_ids
     except Exception as e:
         print(f"Database error: {e}")
@@ -110,7 +110,7 @@ def fetch_all_user_messages():
     connection = connect_to_db()
     try:
         cur = connection.cursor()
-        print("Fetching user messages with timestamps and roles for all sessions...")
+        
         cur.execute(query)
         rows = cur.fetchall()
         cur.close()
@@ -127,7 +127,7 @@ def fetch_all_user_messages():
                 "UserRole": user_role  # Directly use user_role without mapping
             }
         
-        print(f" Successfully fetched timestamps and user roles for {len(structured_messages)} sessions.")
+        
         return structured_messages
 
     except Exception as e:
@@ -245,7 +245,7 @@ def write_to_csv(session_id, data):
     s3_key = f"{session_id}/{file_name}"  # Final path in S3
 
     try:
-        print("Writing data to CSV...")
+        
         
         # Write CSV to /tmp/
         with open(temp_file_path, "w", newline="", encoding="utf-8") as file:
@@ -260,11 +260,11 @@ def write_to_csv(session_id, data):
                     row["Timestamp"].strftime("%Y-%m-%d %H:%M:%S") if row["Timestamp"] else "",
                 ])
         
-        print(f"CSV file created at {temp_file_path}")
+        
 
         # Upload to S3
         s3_client.upload_file(temp_file_path, S3_BUCKET, s3_key)
-        print(f"File uploaded to s3://{S3_BUCKET}/{s3_key}")
+        
 
         return temp_file_path, file_name
     
@@ -276,9 +276,9 @@ def write_to_csv(session_id, data):
 
 def upload_to_s3(file_path, bucket_name, s3_file_path):
     try:
-        print(f"Uploading {file_path} to S3 bucket {bucket_name}...")
+        
         s3_client.upload_file(file_path, bucket_name, s3_file_path)
-        print(f"File uploaded successfully: s3://{bucket_name}/{s3_file_path}")
+        
     except Exception as e:
         print(f"S3 Upload Error: {e}")
 
@@ -331,10 +331,10 @@ def handler(event, context):
             message_body = json.loads(record["body"])
             current_session_id = message_body.get("session_id")
             
-            print("🔍 Fetching all user message timestamps and roles...")
+            
             user_timestamps = fetch_all_user_messages()
             
-            print("🔍 Fetching all session IDs...")
+            
             session_ids = fetch_all_session_ids()
 
             chat_data = []
@@ -353,14 +353,10 @@ def handler(event, context):
 
                     chat_data.append(message)
 
-            print("Merging complete. Writing data to CSV...")
+            
             csv_path, csv_name = write_to_csv(current_session_id,chat_data)
 
             if csv_path:
-                print("Uploading CSV to S3...")
-                
-                
-                print("CSV successfully uploaded!")
                 
                 invoke_event_notification(current_session_id, message=f"chat logs uploaded to s3")
                 return {

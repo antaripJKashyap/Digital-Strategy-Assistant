@@ -8,7 +8,7 @@ import secrets
 DB_SECRET_NAME = os.environ["DB_SECRET_NAME"]
 DB_USER_SECRET_NAME = os.environ["DB_USER_SECRET_NAME"]
 DB_PROXY = os.environ["DB_PROXY"]
-print(psycopg2.__version__)
+
 
 
 def getDbSecret():
@@ -46,7 +46,7 @@ def insert_into_prompts(public_prompt, educator_prompt, admin_prompt):
         """
         cursor.execute(insert_query, (public_prompt, educator_prompt, admin_prompt))
         connection.commit()
-        print("Values inserted into prompts table successfully.")
+        
     except Exception as e:
         print(f"Error inserting into prompts table: {e}")
     finally:
@@ -372,6 +372,6 @@ def handler(event, context):
         cursor.close()
         connection.close()
 
-        print("Initialization completed")
+        
     except Exception as e:
         print(e)

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Initialize the S3 client
 s3 = boto3.client('s3')
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
-print('EMBEDDING_BUCKET_NAME', EMBEDDING_BUCKET_NAME)
+
 
 def store_doc_texts(
     bucket: str,
@@ -157,7 +157,7 @@ def store_doc_chunks(
                 logger.warning(f"Empty chunk for {documentname}")
         
         s3.delete_object(Bucket=bucket, Key=documentname)
-        print(f"Deleting {documentname} from {bucket}")
+        
         this_doc_chunks.extend(doc_chunks)
        
     return this_doc_chunks
@@ -184,7 +184,7 @@ def process_documents(
         embeddings (BedrockEmbeddings): The embeddings instance used to generate document embeddings.
         record_manager (SQLRecordManager): Manager for maintaining records of documents in the vectorstore.
     """
-    print("start processing document")
+    
     paginator = s3.get_paginator('list_objects_v2')
     page_iterator = paginator.paginate(Bucket=bucket, Prefix=f"{category_id}/")
     all_doc_chunks = []

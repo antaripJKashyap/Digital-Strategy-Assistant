@@ -38,12 +38,12 @@ def get_vectorstore(
         Optional[Tuple[PGVector, str]]: A tuple containing the initialized PGVector instance
         and its connection string, or None if an error occurs during initialization.
     """
-    print("inside get_vectorstore")
+    
     try:
         connection_string = (
             f"postgresql+psycopg://{user}:{password}@{host}:{port}/{dbname}"
         )
-        print("connection string inside get_vectorstore", connection_string)
+        
         
         logger.info("Initializing the VectorStore")
         vectorstore = PGVector(

@@ -7,7 +7,7 @@ import secrets
 
 DB_SECRET_NAME = os.environ["DB_SECRET_NAME"]
 DB_USER_SECRET_NAME = os.environ["DB_USER_SECRET_NAME"]
-print(psycopg2.__version__)
+
 
 
 def getDbSecret():
@@ -35,7 +35,7 @@ connection = createConnection()
 
 def handler(event, context):
     global connection
-    print(connection)
+    
     if connection.closed:
         connection = createConnection()
     
@@ -155,6 +155,6 @@ def handler(event, context):
         cursor.close()
         connection.close()
 
-        print("Initialization completed")
+        
     except Exception as e:
         print(e)

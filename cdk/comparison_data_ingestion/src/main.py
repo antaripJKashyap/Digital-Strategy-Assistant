@@ -128,15 +128,14 @@ def update_vectorstore_from_s3(bucket, session_id):
     }
 
     try:
-        print(f"session_id Comparison data ingestion", session_id)
+        
         message = update_vectorstore(
             bucket=bucket,
             category_id=session_id,
             vectorstore_config_dict=vectorstore_config_dict,
             embeddings=embeddings
         )
-        print(f"Updating vectorstore for session: {session_id}")
-        print(f"session_id for sending to AppSync: {session_id}")
+        
         if message == "SUCCESS":
             invoke_event_notification(session_id, "Embeddings created successfully")
 

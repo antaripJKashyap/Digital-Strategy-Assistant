@@ -94,7 +94,7 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
         guardrail_version = version_response['version']
         logger.info(f"Version: {guardrail_version}")
 
-    print(f"\n\nReturning guardrail with name = {guardrail_name}, id = {guardrail_id}, version = {guardrail_version}.")
+    
     return guardrail_id, guardrail_version
 
 def process_documents(

@@ -73,7 +73,7 @@ def invoke_event_notification(session_id, message):
             if response.status_code != 200 or "errors" in response_data:
                 raise Exception(f"Failed to send notification: {response_data}")
 
-            print(f"Notification sent successfully: {response_data}")
+            
             return response_data["data"]["sendNotification"]
 
     except Exception as e:
@@ -236,7 +236,7 @@ def get_combined_guidelines(criteria_list):
 
 def handler(event, context):
     time.sleep(1)
-    print("Comparison Text Generation Lambda function is called!")
+    
     initialize_constants()
     user_uploaded_vectorstore = None
     
@@ -247,7 +247,7 @@ def handler(event, context):
         user_role = message_body['user_role']
         criteria = message_body['criteria']
 
-        print(f"Processing message for session_id: {session_id}, user_role: {user_role}, criteria: {criteria}")
+        
         try:
             guidelines = get_combined_guidelines(criteria)
             logger.info("Retrieving vectorstore config.")
@@ -261,8 +261,7 @@ def handler(event, context):
                 'host': RDS_PROXY_COMP_ENDPOINT,
                 'port': db_secret["port"]
             }
-            print(f"session_id:", session_id)
-            print(f"print: vectorstore_config_dict COMP", vectorstore_config_dict)
+            
         except Exception as e:
             logger.error(f"Error retrieving vectorstore config: {e}")
             return {
@@ -330,10 +329,10 @@ def handler(event, context):
                     if current_header and current_header != last_header:
                         header_msg = f"header_center: **{current_header}**"  # formatting header in markdown if needed 
                         invoke_event_notification(session_id, header_msg)
-                        print("New header:", header_msg)
+                        
                         last_header = current_header  # update the last printed header
 
-                    print("Processed guideline response:", individual_response)
+                    
                     # Send immediate notification for each guideline output (excluding header, already sent)
                     invoke_event_notification(session_id, individual_response["llm_output"])
 
@@ -364,7 +363,7 @@ def handler(event, context):
             # Delete the collection from the user_uploaded_vectorstore after the embeddings have been used for evaluation
             if user_uploaded_vectorstore:
                 user_uploaded_vectorstore.delete_collection()
-                print("User uploaded vector store collection deleted after evaluation was generated successfully.")
+                
             else:
                 print("User uploaded vector store collection not found! Could not delete it as a result.")
         except Exception as e:
