@@ -34,7 +34,7 @@ This script implements a chat system that integrates Amazon Bedrock language mod
   - `datetime`: Handles date and time operations.
 
 - **LangChain and AWS Modules**:  
-  - `langchain_aws`: Supplies `ChatBedrock` and `BedrockLLM` for working with Amazon Bedrock language models.
+  - `langchain_aws`: Supplies `ChatBedrockConverse` for working with Amazon Bedrock language models.
   - `langchain_core.prompts`: Contains prompt templates and message placeholders (`PromptTemplate`, `ChatPromptTemplate`, `MessagesPlaceholder`).
   - `langchain.chains.combine_documents`: Provides `create_stuff_documents_chain` to combine document contexts.
   - `langchain_core.output_parsers`: Includes `StrOutputParser` to parse text outputs.
@@ -52,7 +52,7 @@ This script implements a chat system that integrates Amazon Bedrock language mod
   The function `create_dynamodb_history_table` ensures that a DynamoDB table (keyed by `SessionId`) exists to store conversation history using on-demand billing.
 
 - **Amazon Bedrock Integration**:  
-  The functions `get_bedrock_llm` and related components utilize Amazon Bedrock models (via `ChatBedrock` and `BedrockLLM`) to generate responses based on user queries and contextual data.
+  The functions `get_bedrock_llm` and related components utilize Amazon Bedrock models (via `ChatBedrockConverse`) to generate responses based on user queries and contextual data.
 
 ### Helper Functions <a name="helper-functions"></a>
 - **get_user_query**: Formats raw user queries by prefixing them with a "user" tag.
@@ -122,7 +122,7 @@ def create_dynamodb_history_table(table_name: str) -> None:
 def get_bedrock_llm(
     bedrock_llm_id: str,
     temperature: float = 0
-) -> ChatBedrock:
+) -> ChatBedrockConverse:
     """
     Retrieve a Bedrock LLM instance configured with the given model ID and temperature.
 
@@ -132,22 +132,22 @@ def get_bedrock_llm(
             of generated responses (default is 0).
 
     Returns:
-        ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
+        ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
 ```
 #### Purpose
-- Instantiates a `ChatBedrock` object using a specified model ID and a temperature parameter to control response variability.
+- Instantiates a `ChatBedrockConverse` object using a specified model ID and a temperature parameter to control response variability.
 
 #### Process Flow
 1. Logs the initialization parameters.
-2. Returns a configured `ChatBedrock` instance.
+2. Returns a configured `ChatBedrockConverse` instance.
 
 #### Inputs and Outputs
 - **Inputs**:  
   - `bedrock_llm_id`: Unique identifier for the language model.
   - `temperature`: Optional parameter to control response randomness.
 - **Outputs**:  
-  - A `ChatBedrock` instance.
+  - A `ChatBedrockConverse` instance.
 
 ---
 
@@ -214,7 +214,7 @@ def get_initial_user_query() -> str:
 ```python
 def get_response(
     query: str,
-    llm: ChatBedrock,
+    llm: ChatBedrockConverse,
     history_aware_retriever,
     table_name: str,
     session_id: str,
@@ -231,7 +231,7 @@ def get_response(
 
     Args:
         query (str): The user's query.
-        llm (ChatBedrock): The language model instance.
+        llm (ChatBedrockConverse): The language model instance.
         history_aware_retriever: The retriever that supplies relevant context documents.
         table_name (str): The name of the DynamoDB table for message history.
         session_id (str): A unique identifier for the conversation session.
