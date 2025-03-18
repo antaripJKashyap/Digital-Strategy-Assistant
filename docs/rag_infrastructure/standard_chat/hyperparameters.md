@@ -30,6 +30,7 @@ def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
 | `temperature`    | Controls randomness of the generated text.                                   | `0` (default)                                       | A float typically between 0 and 1 (some models accept up to 5.0). Higher values = more creative outputs. | **`cdk/text_generation/src/helpers/chat.py`** (`get_bedrock_llm()`) |
 
 [🔼 Back to top](#table-of-contents)
+
 ---
 
 ## 2. PGVector Configuration <a name="pgvector-configuration"></a>
@@ -76,7 +77,9 @@ vectorstore = PGVector(
 | `connection`      | PostgreSQL connection string passed to PGVector.                      | Built in `get_vectorstore()` using secrets (`dbname`, `user`, `password`, etc.).            | Must be a valid Postgres connection URI.         | **`cdk/text_generation/src/helpers/helper.py`** (`get_vectorstore()`) |
 | `use_jsonb`       | Determines if chunk metadata is stored as JSONB in Postgres.          | `True`                                                                                      | `True` or `False`.                               | **`cdk/text_generation/src/helpers/helper.py`** (`PGVector(...)`)     |
 
+
 [🔼 Back to top](#table-of-contents)
+
 ---
 
 ## 3. Indexing Behavior <a name="indexing-behavior"></a>
@@ -98,7 +101,9 @@ idx = index(
 | `cleanup`           | Determines how stale records are removed.           | `"full"` (Removes any previous records not present in the new chunk set.) | `"full"`, `"none"`, `"incremental"`, or `"scoped_full"`        | **`cdk/data_ingestion/src/processing/documents.py`** in the `index(...)` call |
 | `source_id_key`     | Identifies the source key in each chunk’s metadata. | `"source"`                                        | Any string matching a metadata field                          | **`cdk/data_ingestion/src/processing/documents.py`** in the `index(...)` call |
 
+
 [🔼 Back to top](#table-of-contents)
+
 ---
 
 ## 4. Environment Variables <a name="environment-variables"></a>
