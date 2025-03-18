@@ -67,10 +67,11 @@ def create_dynamodb_history_table(table_name: str) -> None:
     else:
         logger.info("DynamoDB table '%s' already exists. No action taken.", table_name)
 
-
 def get_bedrock_llm(
     bedrock_llm_id: str,
-    temperature: float = 0
+    temperature: Optional[float] = 0,
+    max_tokens: Optional[int] = None,
+    top_p : Optional[float] = None
 ) -> ChatBedrockConverse:
     """
     Retrieve a Bedrock LLM instance configured with the given model ID and temperature.
@@ -79,19 +80,27 @@ def get_bedrock_llm(
         bedrock_llm_id (str): The unique identifier for the Bedrock LLM model.
         temperature (float, optional): A parameter that controls the randomness 
             of generated responses (default is 0).
+        max_tokens (int, optional): Sets an upper bound on how many tokens the model will generate in its response (default is None).
+        top_p (float, optional): Indicates the percentage of most-likely candidates that are considered for the next token (default is None).
 
     Returns:
         ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    logger.info("Initializing ChatBedrockConverse with model_id '%s' and temperature '%s'.", bedrock_llm_id, temperature)
+    logger.info(
+        "Initializing ChatBedrockConverse with model_id '%s', temperature '%s', max_tokens '%s', top_p '%s'.",
+        bedrock_llm_id, 
+        temperature,
+        max_tokens, 
+        top_p
+    )
+    
     return ChatBedrockConverse(
         model=bedrock_llm_id,
         temperature=temperature,
         # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
-        max_tokens=None,
-        top_p=None
+        max_tokens=max_tokens,
+        top_p=top_p
     )
-
 
 def get_user_query(raw_query: str) -> str:
     """
