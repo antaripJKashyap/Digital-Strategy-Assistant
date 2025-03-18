@@ -70,6 +70,14 @@ def get_bedrock_llm(
         max_tokens, 
         top_p
     )
+
+    return ChatBedrockConverse(
+        model=bedrock_llm_id,
+        temperature=temperature,
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
+        max_tokens=max_tokens,
+        top_p=top_p
+    )
 ```
 #### Purpose
 - Instantiates a `ChatBedrockConverse` object using a specified model ID and a temperature parameter to control response variability.
