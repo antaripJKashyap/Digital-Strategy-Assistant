@@ -3,16 +3,16 @@
 ## Table of Contents
 1. [LLM Configuration](#llm-configuration)
 2. [PGVector Configuration](#pgvector-configuration)  
-   2.1. [Data Ingestion PGVector](#data-ingestion-pgvector)  
-   2.2. [Text Generation PGVector](#text-generation-pgvector)
+   2.1. Data Ingestion PGVector  
+   2.2. Text Generation PGVector
 3. [Indexing Behavior](#indexing-behavior)
 4. [Environment Variables](#environment-variables)  
-   4.1. [Data Ingestion Environment Variables](#data-ingestion-environment-variables)  
-   4.2. [Text Generation Environment Variables](#text-generation-environment-variables)
+   4.1. Data Ingestion Environment Variables
+   4.2. Text Generation Environment Variables
 
 ---
 
-## 1. LLM Configuration
+## 1. LLM Configuration <a name="llm-configuration"></a>
 
 In **`cdk/text_generation/src/helpers/chat.py`**, the Bedrock LLM is configured with:
 
@@ -31,7 +31,7 @@ def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
 
 ---
 
-## 2. PGVector Configuration
+## 2. PGVector Configuration <a name="pgvector-configuration"></a>
 
 This section covers how `PGVector` is configured in both the Data Ingestion and Text Generation pipelines.
 
@@ -77,7 +77,7 @@ vectorstore = PGVector(
 
 ---
 
-## 3. Indexing Behavior
+## 3. Indexing Behavior <a name="indexing-behavior"></a>
 
 In **`cdk/data_ingestion/src/processing/documents.py`**, the `process_documents` function calls the `index(...)` utility:
 
@@ -98,7 +98,7 @@ idx = index(
 
 ---
 
-## 4. Environment Variables
+## 4. Environment Variables <a name="environment-variables"></a>
 
 Below are the environment variables used in both the Data Ingestion and Text Generation workflows.
 
