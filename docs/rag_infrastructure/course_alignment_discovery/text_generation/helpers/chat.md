@@ -60,8 +60,11 @@ def get_bedrock_llm(
         ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
     return ChatBedrockConverse(
-        model_id=bedrock_llm_id,
-        model_kwargs=dict(temperature=temperature),
+        model=bedrock_llm_id,
+        temperature=temperature,
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
+        max_tokens=None,
+        top_p=None
     )
 ```
 #### Purpose
