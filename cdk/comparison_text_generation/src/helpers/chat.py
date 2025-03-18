@@ -15,27 +15,32 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.pydantic_v1 import BaseModel, Field
 
-
-def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrockConverse:
+def get_bedrock_llm(
+    bedrock_llm_id: str,
+    temperature: Optional[float] = 0,
+    max_tokens: Optional[int] = None,
+    top_p : Optional[float] = None
+) -> ChatBedrockConverse:
     """
-    Retrieve a Bedrock LLM instance based on the provided model ID.
+    Retrieve a Bedrock LLM instance configured with the given model ID and temperature.
 
     Args:
         bedrock_llm_id (str): The unique identifier for the Bedrock LLM model.
-        temperature (float, optional): The temperature parameter for the LLM, controlling
-            the randomness of the generated responses. Defaults to 0.
+        temperature (float, optional): A parameter that controls the randomness 
+            of generated responses (default is 0).
+        max_tokens (int, optional): Sets an upper bound on how many tokens the model will generate in its response (default is None).
+        top_p (float, optional): Indicates the percentage of most-likely candidates that are considered for the next token (default is None).
 
     Returns:
         ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    return ChatBedrockConverse(
-        model=bedrock_llm_id,
-        temperature=temperature,
-        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
-        max_tokens=None,
-        top_p=None
+    logger.info(
+        "Initializing ChatBedrockConverse with model_id '%s', temperature '%s', max_tokens '%s', top_p '%s'.",
+        bedrock_llm_id, 
+        temperature,
+        max_tokens, 
+        top_p
     )
-
 
 def format_to_markdown(evaluation_results: dict) -> str:
     """
