@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Dict, Any, Generator, List
 
 # LangChain/AWS-related imports
-from langchain_aws import ChatBedrock, BedrockLLM
+from langchain_aws import ChatBedrockConverse
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.output_parsers import StrOutputParser
@@ -16,7 +16,7 @@ from langchain_community.chat_message_histories import DynamoDBChatMessageHistor
 from langchain_core.pydantic_v1 import BaseModel, Field
 
 
-def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
+def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrockConverse:
     """
     Retrieve a Bedrock LLM instance based on the provided model ID.
 
@@ -26,11 +26,13 @@ def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
             the randomness of the generated responses. Defaults to 0.
 
     Returns:
-        ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
+        ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    return ChatBedrock(
-        model_id=bedrock_llm_id,
-        model_kwargs=dict(temperature=temperature),
+    return ChatBedrockConverse(
+        model=bedrock_llm_id,
+        temperature=temperature,
+        max_tokens=None
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
     )
 
 
@@ -115,7 +117,7 @@ def get_response_evaluation(
       4. Yields a dictionary containing the formatted LLM output for each guideline.
 
     Args:
-        llm: An LLM instance (e.g., ChatBedrock) used for evaluation.
+        llm: An LLM instance (e.g., ChatBedrockConverse) used for evaluation.
         retriever: A retriever instance providing the relevant documents/context.
         guidelines_file (str | dict): A JSON string or dictionary containing 
             guideline categories and guidelines.
