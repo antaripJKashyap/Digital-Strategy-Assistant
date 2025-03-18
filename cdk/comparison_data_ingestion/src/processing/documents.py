@@ -191,11 +191,11 @@ def process_documents(
                             if 'topicPolicy' in assessment:
                                 for topic in assessment['topicPolicy'].get('topics', []):
                                     if topic.get('name') == 'FinancialAdvice' and topic.get('action') == 'BLOCKED':
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected financial advice in them."
+                                        error_message = "Sorry, I cannot process your document(s) because they contain financial advice. Kindly remove the relevant content and try again."
                                         break
 
                                     elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected offensive content in them."
+                                        error_message = "Sorry, I cannot process your document(s) because they contain offensive content. Kindly remove the relevant content and try again."
                                         break
                                 if error_message:
                                     break
@@ -204,14 +204,14 @@ def process_documents(
                             if not error_message and 'sensitiveInformationPolicy' in assessment:
                                 for pii in assessment['sensitiveInformationPolicy'].get('piiEntities', []):
                                     if pii.get('action') in ['BLOCKED', 'ANONYMIZED']:
-                                        error_message = "Sorry, I cannot process your document(s) because I've detected sensitive (personally identifiable) information in them."
+                                        error_message = "Sorry, I cannot process your document(s) because they contain sensitive (personally identifiable) information. Kindly remove the relevant content and try again."
                                         break
                                 if error_message:
                                     break
 
                         # If we still have no specific message but there's an intervention
                         if not error_message:
-                            error_message = "Sorry, I cannot process your document(s) due to restricted content."
+                            error_message = "Sorry, I cannot process your document(s) because they contain restricted content. Kindly remove the relevant content and try again."
 
                         # Cleanup before aborting
                         doc_pdf.close()
