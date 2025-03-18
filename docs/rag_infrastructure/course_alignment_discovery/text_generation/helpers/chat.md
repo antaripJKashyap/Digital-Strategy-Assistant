@@ -18,7 +18,7 @@ This script provides utilities for evaluating a collection of documents against 
 
 ### Import Libraries <a name="import-libraries"></a>
 - **boto3, re, json, datetime**: Standard Python libraries for AWS interactions, regular expressions, JSON handling, and date/time operations.
-- **langchain_aws**: Contains classes like `ChatBedrock` for interfacing with Bedrock LLM models.
+- **langchain_aws**: Contains classes like `ChatBedrockConverse` for interfacing with Bedrock LLM models.
 - **langchain_core**: Provides prompts, output parsers, and runnables to structure LLM calls and parse their outputs.
 - **langchain.chains**: Higher-level chain abstractions, like `create_retrieval_chain`.
 - **langchain_community.chat_message_histories**: Provides chat message history implementations for storing conversation logs.
@@ -47,7 +47,7 @@ This script provides utilities for evaluating a collection of documents against 
 def get_bedrock_llm(
     bedrock_llm_id: str,
     temperature: float = 0
-) -> ChatBedrock:
+) -> ChatBedrockConverse:
     """
     Retrieve a Bedrock LLM instance based on the provided model ID.
 
@@ -57,22 +57,22 @@ def get_bedrock_llm(
             the randomness of the generated responses. Defaults to 0.
 
     Returns:
-        ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
+        ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    return ChatBedrock(
+    return ChatBedrockConverse(
         model_id=bedrock_llm_id,
         model_kwargs=dict(temperature=temperature),
     )
 ```
 #### Purpose
-Initializes and returns a `ChatBedrock` LLM client using the specified `bedrock_llm_id`.
+Initializes and returns a `ChatBedrockConverse` LLM client using the specified `bedrock_llm_id`.
 
 #### Inputs and Outputs
 - **Inputs**:
   - `bedrock_llm_id`: The unique model identifier for the Bedrock LLM.
   - `temperature`: A float value controlling the randomness in LLM generation.
 - **Outputs**:
-  - Returns a `ChatBedrock` instance configured with the provided parameters.
+  - Returns a `ChatBedrockConverse` instance configured with the provided parameters.
 
 ---
 
@@ -255,7 +255,7 @@ Orchestrates the evaluation of documents against multiple guidelines. It uses a 
 
 #### Inputs and Outputs
 - **Inputs**:
-  - `llm`: The LLM instance (e.g., `ChatBedrock`).
+  - `llm`: The LLM instance (e.g., `ChatBedrockConverse`).
   - `retriever`: A retriever object for obtaining relevant documents.
   - `guidelines_file`: A JSON string or dictionary containing the guidelines to check.
 - **Outputs**:
