@@ -121,7 +121,9 @@ def create_dynamodb_history_table(table_name: str) -> None:
 ```python
 def get_bedrock_llm(
     bedrock_llm_id: str,
-    temperature: float = 0
+    temperature: Optional[float] = 0,
+    max_tokens: Optional[int] = None,
+    top_p : Optional[float] = None
 ) -> ChatBedrockConverse:
     """
     Retrieve a Bedrock LLM instance configured with the given model ID and temperature.
@@ -130,10 +132,27 @@ def get_bedrock_llm(
         bedrock_llm_id (str): The unique identifier for the Bedrock LLM model.
         temperature (float, optional): A parameter that controls the randomness 
             of generated responses (default is 0).
+        max_tokens (int, optional): Sets an upper bound on how many tokens the model will generate in its response (default is None).
+        top_p (float, optional): Indicates the percentage of most-likely candidates that are considered for the next token (default is None).
 
     Returns:
         ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
+    logger.info(
+        "Initializing ChatBedrockConverse with model_id '%s', temperature '%s', max_tokens '%s', top_p '%s'.",
+        bedrock_llm_id, 
+        temperature,
+        max_tokens, 
+        top_p
+    )
+
+    return ChatBedrockConverse(
+        model=bedrock_llm_id,
+        temperature=temperature,
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
+        max_tokens=max_tokens,
+        top_p=top_p
+    )
 ```
 #### Purpose
 - Instantiates a `ChatBedrockConverse` object using a specified model ID and a temperature parameter to control response variability.
@@ -146,6 +165,8 @@ def get_bedrock_llm(
 - **Inputs**:  
   - `bedrock_llm_id`: Unique identifier for the language model.
   - `temperature`: Optional parameter to control response randomness.
+  - `max_tokens`: Optional parameter to set an upper bound on how many tokens the model will generate in its response.
+  - `top_p`: Optional parameter to indicate the percentage of most-likely candidates that are considered for the next token.
 - **Outputs**:  
   - A `ChatBedrockConverse` instance.
 
