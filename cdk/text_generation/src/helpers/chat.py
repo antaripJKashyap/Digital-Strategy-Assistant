@@ -3,7 +3,7 @@ import boto3
 import re
 import json
 from datetime import datetime
-from langchain_aws import ChatBedrock, BedrockLLM
+from langchain_aws import ChatBedrockConverse, BedrockLLM
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.output_parsers import StrOutputParser
@@ -71,7 +71,7 @@ def create_dynamodb_history_table(table_name: str) -> None:
 def get_bedrock_llm(
     bedrock_llm_id: str,
     temperature: float = 0
-) -> ChatBedrock:
+) -> ChatBedrockConverse:
     """
     Retrieve a Bedrock LLM instance configured with the given model ID and temperature.
 
@@ -81,12 +81,14 @@ def get_bedrock_llm(
             of generated responses (default is 0).
 
     Returns:
-        ChatBedrock: An instance of the Bedrock LLM corresponding to the provided model ID.
+        ChatBedrockConverse: An instance of the Bedrock LLM corresponding to the provided model ID.
     """
-    logger.info("Initializing ChatBedrock with model_id '%s' and temperature '%s'.", bedrock_llm_id, temperature)
-    return ChatBedrock(
-        model_id=bedrock_llm_id,
-        model_kwargs=dict(temperature=temperature),
+    logger.info("Initializing ChatBedrockConverse with model_id '%s' and temperature '%s'.", bedrock_llm_id, temperature)
+    return ChatBedrockConverse(
+        model=bedrock_llm_id,
+        temperature=temperature,
+        max_tokens=None
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
     )
 
 
@@ -137,7 +139,7 @@ def get_initial_user_query() -> str:
 
 def get_response(
     query: str,
-    llm: ChatBedrock,
+    llm: ChatBedrockConverse,
     history_aware_retriever,
     table_name: str,
     session_id: str,
@@ -154,7 +156,7 @@ def get_response(
 
     Args:
         query (str): The user's query.
-        llm (ChatBedrock): The language model instance.
+        llm (ChatBedrockConverse): The language model instance.
         history_aware_retriever: The retriever that supplies relevant context documents.
         table_name (str): The name of the DynamoDB table for message history.
         session_id (str): A unique identifier for the conversation session.
