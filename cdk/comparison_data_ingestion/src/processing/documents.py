@@ -49,10 +49,15 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
                 'topicsConfig': [
                     {
                         'name': 'FinancialAdvice',
-                        'definition': 'Providing personalized financial guidance or investment recommendations.',
+                        'definition': 'Providing personalized advice or recommendations on managing financial assets, investments, or trusts in a fiduciary capacity or assuming related obligations and liabilities.',
                         'examples': [
                             'Which mutual fund should I invest in for retirement?',
-                            'Can you advise on the best way to reduce my debt?'
+                            'Can you advise on the best way to reduce my debt?',
+                            'What stocks should I invest in for my retirement?',
+                            'Is it a good idea to put my money in a mutual fund?',
+                            'How should I allocate my 401(k) investments?',
+                            'What type of trust fund should I set up for my children?',
+                            'Should I hire a financial advisor to manage my investments?'
                         ],
                         'type': 'DENY'
                     },
