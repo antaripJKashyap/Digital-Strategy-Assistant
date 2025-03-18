@@ -1,20 +1,20 @@
 # Hyperparameters in `course_alignment_discovery`
 
-## Table of Contents
+## Table of Contents <a name="table-of-contents"></a>
 1. [LLM-Related Hyperparameters](#llm-related-hyperparameters)  
-   1.1. [Chat LLM Configuration (Text Generation)](#chat-llm-configuration-text-generation)  
-   1.2. [Embeddings for Ingestion (Data Ingestion)](#embeddings-for-ingestion-data-ingestion)  
+   1.1. Chat LLM Configuration (Text Generation)  
+   1.2. Embeddings for Ingestion (Data Ingestion)
 2. [PGVector-Related Hyperparameters](#pgvector-related-hyperparameters)  
-   2.1. [Data Ingestion Vectorstore](#data-ingestion-vectorstore)  
-   2.2. [Text Generation Vectorstore](#text-generation-vectorstore)  
+   2.1. Data Ingestion Vectorstore
+   2.2. Text Generation Vectorstore
 3. [Environment Variables](#environment-variables)  
-   3.1. [Data Ingestion Environment Variables](#data-ingestion-environment-variables)  
-   3.2. [Text Generation Environment Variables](#text-generation-environment-variables)  
+   3.1. Data Ingestion Environment Variables  
+   3.2. Text Generation Environment Variables 
 4. [Document Processing & Guardrail Behavior](#document-processing--guardrail-behavior)
 
 ---
 
-## 1. LLM-Related Hyperparameters 
+## 1. LLM-Related Hyperparameters <a name="llm-related-hyperparameters"></a>
 
 ### 1.1. Chat LLM Configuration (Text Generation)
 
@@ -42,9 +42,11 @@ When ingesting documents, the pipeline uses a Bedrock embedding model to generat
 - **Usage:** Passed into `BedrockEmbeddings(...)` in **`cdk/comparison_data_ingestion/src/main.py`**  
 - **Acceptable Values:** Must be a recognized Bedrock Embedding model ID (e.g., `"amazon.titan-embed-text-v1"`, `"ai21.embedding-gecko"`).
 
+[🔼 Back to top](#table-of-contents)
+
 ---
 
-## 2. PGVector-Related Hyperparameters
+## 2. PGVector-Related Hyperparameters <a name="pgvector-related-hyperparameters"></a>
 
 ### 2.1. Data Ingestion Vectorstore
 
@@ -87,9 +89,11 @@ def get_vectorstore_retriever_ordinary(
 | `search_kwargs`   | Defines search parameters (like top-K documents).                   | `{'k': 5}`                                                  | Positive integer for top-K retrieval.                    | **`vectorstore.as_retriever(...)`** call in `get_vectorstore_retriever_ordinary()`  |
 | `embeddings`      | Converts queries into vectors for retrieval.                        | Sourced from the Bedrock embedding model (`EMBEDDING_MODEL_PARAM`). | Must match a recognized Bedrock embedding model.         | **`cdk/comparison_text_generation/src/helpers/vectorstore.py`**                     |
 
+[🔼 Back to top](#table-of-contents)
+
 ---
 
-## 3. Environment Variables
+## 3. Environment Variables <a name="environment-variables"></a>
 
 Below are the environment variables used across the **Data Ingestion** and **Text Generation** workflows.
 
@@ -127,9 +131,11 @@ Used by **`cdk/comparison_text_generation/src/main.py`** (and helpers) to config
 | `EMBEDDING_MODEL_PARAM`   | Points to an SSM Parameter with the Bedrock embedding model ID (e.g., `"amazon.titan-embed-text-v1"`).           | Used to instantiate `BedrockEmbeddings` for vector retrieval.                                                        | Must match a valid SSM Parameter name whose value is a recognized Bedrock embedding model.                      | **`cdk/comparison_text_generation/src/main.py`** (`initialize_constants()`)                                        |
 | `TABLE_NAME_PARAM`        | Points to an SSM Parameter for a DynamoDB table name used for chat or notification history.                      | Fetched by `get_parameter(TABLE_NAME_PARAM)`. May be used in `create_dynamodb_history_table()` or chat history logic. | Must be a valid SSM Parameter name; the table name can be any valid DynamoDB name.                              | **`cdk/comparison_text_generation/src/main.py`** (`initialize_constants()`)                                        |
 
+[🔼 Back to top](#table-of-contents)
+
 ---
 
-## 4. Document Processing & Guardrail Behavior
+## 4. Document Processing & Guardrail Behavior <a name="document-processing--guardrail-behavior"></a>
 
 Though not strictly “hyperparameters,” these settings in **`cdk/comparison_data_ingestion/src/processing/documents.py`** significantly affect ingestion behavior:
 
@@ -144,3 +150,5 @@ Though not strictly “hyperparameters,” these settings in **`cdk/comparison_d
 | Topics & Sensitive Info  | Defines categories or PII to block (e.g., `EMAIL`).     | `FinancialAdvice`, `OffensiveContent`, PII checks (EMAIL, PHONE, NAME) | Additional or fewer guardrails can be configured as needed. | **`documents.py`** in `create_guardrail(...)` call |
 | PDF Split Granularity    | Splits PDF by page (`pymupdf`).                         | One chunk (page) per split.                           | Could be adjusted for different chunk sizes.                | **`process_documents()`** in `documents.py`       |
 | Page Rejection Threshold | If **any** page is blocked, the entire batch fails.     | Strict: removes the entire S3 folder of docs.         | Could be changed to remove only the offending doc.          | **`process_documents()`** in `documents.py`       |
+
+[🔼 Back to top](#table-of-contents)
