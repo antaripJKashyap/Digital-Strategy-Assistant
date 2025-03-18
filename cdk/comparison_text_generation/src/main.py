@@ -335,7 +335,7 @@ def handler(event, context):
                     
                     # Send immediate notification for each guideline output (excluding header, already sent)
                     invoke_event_notification(session_id, individual_response["llm_output"])
-
+                    
                     # Store for final response
                     all_responses.append(individual_response)
 

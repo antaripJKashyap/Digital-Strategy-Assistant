@@ -534,7 +534,7 @@ def handler(event, context):
             session_id=session_id,
             user_prompt=user_prompt
         )
-        
+        print("Response:", response)
     except Exception as e:
         logger.error(f"Error getting response: {e}")
         return {

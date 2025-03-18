@@ -1,8 +1,9 @@
 import boto3
 import re
 import json
+import logging
 from datetime import datetime
-from typing import Dict, Any, Generator, List
+from typing import Dict, Any, Generator, List, Optional
 
 # LangChain/AWS-related imports
 from langchain_aws import ChatBedrockConverse
@@ -14,7 +15,8 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import DynamoDBChatMessageHistory
 from langchain_core.pydantic_v1 import BaseModel, Field
-
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger()
 def get_bedrock_llm(
     bedrock_llm_id: str,
     temperature: Optional[float] = 0,
@@ -92,12 +94,15 @@ def parse_single_evaluation(response: str, guideline_name: str) -> dict:
     sanitized_response = re.sub(r'<[^>]+>', '', response)
     
     # Then format the response as before
-    formatted_response = "\n".join(
-        line.strip() for line in sanitized_response.split("\n")
-    )
+    # formatted_response = "\n".join(
+    #     line.strip() for line in sanitized_response.split("\n")
+    # )
+    lines = [line.strip() for line in sanitized_response.split("\n") if line.strip()]
+    # Rejoin with a single newline, then strip any leading/trailing whitespace
+    formatted_response = "\n".join(lines).strip()
 
     return {
-        "llm_output": f"**{guideline_name}:**\n{formatted_response}",
+        "llm_output": f"**{guideline_name}:** {formatted_response}",
         "options": []
     }
 
