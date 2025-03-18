@@ -17,10 +17,12 @@
 In **`cdk/text_generation/src/helpers/chat.py`**, the Bedrock LLM is configured with:
 
 ```python
-def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
-    return ChatBedrock(
-        model_id=bedrock_llm_id,
-        model_kwargs=dict(temperature=temperature),
+def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrockConverse:
+    return ChatBedrockConverse(
+        model=bedrock_llm_id,
+        temperature=temperature,
+        max_tokens=None
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
     )
 ```
 
