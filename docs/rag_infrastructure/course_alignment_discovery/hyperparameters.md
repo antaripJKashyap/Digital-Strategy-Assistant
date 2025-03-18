@@ -21,17 +21,22 @@
 Within **`cdk/comparison_text_generation/src/helpers/chat.py`**, the `get_bedrock_llm(...)` function defines the Chat LLM:
 
 ```python
-def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrock:
-    return ChatBedrock(
-        model_id=bedrock_llm_id,
-        model_kwargs=dict(temperature=temperature),
+def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrockConverse:
+    return ChatBedrockConverse(
+        model=bedrock_llm_id,
+        temperature=temperature,
+        # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
+        max_tokens=None,
+        top_p=None
     )
 ```
 
 | **Parameter**   | **Purpose**                                                                                 | **Current Value**        | **Acceptable Values**                                                                                             | **Location**                                              |
 |-----------------|---------------------------------------------------------------------------------------------|---------------------------|--------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------|
 | `bedrock_llm_id`| Identifies which Bedrock model to use for chat completions (e.g., Claude, Titan, etc.).    | Fetched from an SSM Param (e.g., `BEDROCK_LLM_PARAM`). | Must be a valid Bedrock model ID (e.g., `"anthropic.claude-v2"`, `"amazon.titan-text-large-v1"`).                | **`cdk/comparison_text_generation/src/helpers/chat.py`** |
-| `temperature`   | Controls randomness/creativity in responses.                                               | `0` (hardcoded default)   | Typically a float between 0 and 2 (some models allow up to 5). Higher = more creative responses.                  | **`cdk/comparison_text_generation/src/helpers/chat.py`** |
+| `temperature`   | Controls randomness of the generated text.                                              | `0` (default)   | A float between 0 and 1. Higher values = more creative outputs.                  | **`cdk/comparison_text_generation/src/helpers/chat.py`** |
+| `max_tokens`    | Max tokens to generate. `max_tokens` sets an upper bound on how many tokens the model will generate in its response. If you specify an integer (e.g., `max_tokens=1000`), the model will stop generating once it reaches that limit. If you set `max_tokens=None`, the model will not enforce a specific token cutoff (although the model’s overall context window may still limit it).                                   | `None` (default)                                       | Any non-negative integer (e.g., 1, 50, 5000, etc.). | **`cdk/comparison_text_generation/src/helpers/chat.py`** (`get_bedrock_llm()`) |
+| `top_p`    | The percentage of most-likely candidates that are considered for the next token. Must be 0 to 1. For example, if you choose a value of 0.8 for `top_p`, the model selects from the top 80% of the probability distribution of tokens that could be next in the sequence. | `None` (default)                                       | A float between 0 and 1. Higher values = more diverse and creative outputs, but sometimes at the cost of coherence. | **`cdk/comparison_text_generation/src/helpers/chat.py`** (`get_bedrock_llm()`) |
 
 ---
 
