@@ -87,8 +87,9 @@ def get_bedrock_llm(
     return ChatBedrockConverse(
         model=bedrock_llm_id,
         temperature=temperature,
-        max_tokens=None
         # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
+        max_tokens=None,
+        top_p=None
     )
 
 
