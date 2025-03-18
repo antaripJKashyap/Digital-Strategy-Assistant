@@ -21,13 +21,19 @@
 Within **`cdk/comparison_text_generation/src/helpers/chat.py`**, the `get_bedrock_llm(...)` function defines the Chat LLM:
 
 ```python
-def get_bedrock_llm(bedrock_llm_id: str, temperature: float = 0) -> ChatBedrockConverse:
+def get_bedrock_llm(
+    bedrock_llm_id: str,
+    temperature: Optional[float] = 0,
+    max_tokens: Optional[int] = None,
+    top_p : Optional[float] = None
+) -> ChatBedrockConverse:
+
     return ChatBedrockConverse(
         model=bedrock_llm_id,
         temperature=temperature,
         # Additional kwargs: https://api.python.langchain.com/en/latest/aws/chat_models/langchain_aws.chat_models.bedrock_converse.ChatBedrockConverse.html
-        max_tokens=None,
-        top_p=None
+        max_tokens=max_tokens,
+        top_p=top_p
     )
 ```
 
