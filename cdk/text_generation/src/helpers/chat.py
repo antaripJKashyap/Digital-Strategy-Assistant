@@ -3,7 +3,7 @@ import boto3
 import re
 import json
 from datetime import datetime
-from langchain_aws import ChatBedrockConverse, BedrockLLM
+from langchain_aws import ChatBedrockConverse
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.output_parsers import StrOutputParser
