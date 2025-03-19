@@ -18,7 +18,7 @@
 - Data Protection
 - Identity & Access Management
 - Application Security
-- Network Security Configuration:
+- Network Security Configuration
 
 [Learn more](https://aws.amazon.com/compliance/shared-responsibility-model/)
 
