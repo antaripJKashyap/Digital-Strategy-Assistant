@@ -387,8 +387,6 @@ AWS Cognito provides user authentication and authorization, enabling **secure ac
   - **JWT tokens** expire 30 days after a user signs in [Learn more](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-with-identity-providers.html)
   - Access is logged and monitored via **CloudWatch**
 
----
-
 
 ### 9.3 Cognito Integration in CDK (ApiGatewayStack)
 
@@ -516,8 +514,6 @@ Amazon Elastic Container Registry (ECR) provides a secure, scalable private cont
 
 5. **Lifecycle Policies**  
    - Automatically remove outdated images to minimize storage costs and reduce the attack surface
-
----
 
 
 **Recommendation:**  
