@@ -29,3 +29,16 @@ This document outlines the existing network and security configurations implemen
 ## 1. Network Architecture
 
 ![Network Architecture Diagram](images/NetworkDiagram.png)
+
+### 1.1 VPC & Subnets  
+VPC Configuration:  
+- Create a new VPC for the deployment
+
+#### Subnet Configuration:  
+
+| Subnet Type | AZ             | Key Services                       |
+|-------------|----------------|------------------------------------|
+| Private     | ca-central-1a  | Lambda                             |
+| Private     | ca-central-1b  | RDS Proxy for data ingestion, RDS Proxy for document evaluation, Amazon RDS for data ingestion, Amazon RDS for document evaluation  |
+| Private     | ca-central-1c  | Backup RDS for data ingestion, Backup RDS for document evaluation |
+| Public      | ca-central-1   | NAT Gateway, Internet Gateway      |
