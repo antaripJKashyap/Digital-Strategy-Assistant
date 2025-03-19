@@ -151,7 +151,7 @@ This diagram illustrates how our architecture handles key security aspects by le
 
 ## 2. Security Controls
 
-### 2.1 Network Security
+### Network Security
 
 **Security Groups:**
 
