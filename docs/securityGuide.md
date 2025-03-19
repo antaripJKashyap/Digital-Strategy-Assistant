@@ -368,7 +368,6 @@ AWS Cognito provides user authentication and authorization, enabling **secure ac
 
 [Learn more](https://docs.aws.amazon.com/cognito/latest/developerguide/authentication.html)
 
----
 
 ### 9.2 How Cognito Secures Lambda Invocations
 
