@@ -99,7 +99,7 @@ VPC Configuration:
   - [Download and upload objects with presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html)
   
   
-  Additional security measures:
+  - **Additional security measures**:
   - All data is encrypted at rest using SSE-S3 (AES-256)
   - Public access is blocked for all S3 buckets
   - SSL connections are enforced for secure data transfer
@@ -130,9 +130,9 @@ VPC Configuration:
   - Secured with Lambda authorizers
 
 - **Amazon SQS:**
-  -Provides real-time data queries and synchronizes data between clients and backend
-  -Integrated with IAM for authentication and runs in the public cloud space
-  -Only specific Lambda functions are granted permissions to send or receive messages
+  - Provides real-time data queries and synchronizes data between clients and backend
+  - Integrated with IAM for authentication and runs in the public cloud space
+  - Only specific Lambda functions are granted permissions to send or receive messages
   
 - **Amazon ECR:**
   - Lambda functions utilize Docker images stored in Amazon ECR 
