@@ -44,15 +44,20 @@ def setup_guardrail(guardrail_name: str) -> tuple[str, str]:
         logger.info(f"Creating new guardrail\nName: {guardrail_name}")
         response = bedrock_client.create_guardrail(
             name=guardrail_name,
-            description='Block financial advice and PII',
+            description='Block financial advice, offensive content, and PII',
             topicPolicyConfig={
                 'topicsConfig': [
                     {
                         'name': 'FinancialAdvice',
-                        'definition': 'Providing personalized financial guidance or investment recommendations.',
+                        'definition': 'Providing personalized advice or recommendations on managing financial assets, investments, or trusts in a fiduciary capacity or assuming related obligations and liabilities.',
                         'examples': [
                             'Which mutual fund should I invest in for retirement?',
-                            'Can you advise on the best way to reduce my debt?'
+                            'Can you advise on the best way to reduce my debt?',
+                            'What stocks should I invest in for my retirement?',
+                            'Is it a good idea to put my money in a mutual fund?',
+                            'How should I allocate my 401(k) investments?',
+                            'What type of trust fund should I set up for my children?',
+                            'Should I hire a financial advisor to manage my investments?'
                         ],
                         'type': 'DENY'
                     },
@@ -191,7 +196,7 @@ def process_documents(
                             if 'topicPolicy' in assessment:
                                 for topic in assessment['topicPolicy'].get('topics', []):
                                     if topic.get('name') == 'FinancialAdvice' and topic.get('action') == 'BLOCKED':
-                                        error_message = "Sorry, I cannot process your document(s) because they contain financial advice. Kindly remove the relevant content and try again."
+                                        error_message = "Sorry, I cannot process your document(s) because they contain financial content. Kindly remove the relevant content and try again."
                                         break
 
                                     elif topic.get('name') == 'OffensiveContent' and topic.get('action') == 'BLOCKED':
@@ -203,7 +208,7 @@ def process_documents(
                             # Sensitive information policy (PII) checks
                             if not error_message and 'sensitiveInformationPolicy' in assessment:
                                 for pii in assessment['sensitiveInformationPolicy'].get('piiEntities', []):
-                                    if pii.get('action') in ['BLOCKED', 'ANONYMIZED']:
+                                    if pii.get('action') in ['BLOCKED']: # ['BLOCKED', 'ANONYMIZED']:
                                         error_message = "Sorry, I cannot process your document(s) because they contain sensitive (personally identifiable) information. Kindly remove the relevant content and try again."
                                         break
                                 if error_message:
