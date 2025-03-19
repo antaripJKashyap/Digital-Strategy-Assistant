@@ -499,8 +499,6 @@ Amazon Elastic Container Registry (ECR) provides a secure, scalable private cont
 
 [Learn more](https://docs.aws.amazon.com/AmazonECR/latest/userguide/infrastructure-security.html)
 
----
-
 **Key Security Measures:**
 1. **Private Repositories**  
    - Images are stored privately; access is controlled by IAM and resource-based policies.  
