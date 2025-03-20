@@ -47,68 +47,83 @@ export default function AllMessages({ notifications, setNotifications, openWebSo
 
   const fetchPreviousFiles = async () => {
     try {
-        const session = await fetchAuthSession();
-        const token = session.tokens.idToken;
-
-        const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/fetch_chatlogs`,
-            {
-                method: "GET",
-                headers: {
-                    Authorization: token,
-                    "Content-Type": "application/json",
-                },
-            }
-        );
-
-        if (response.ok) {
-            const data = await response.json();
-            
-
-            if (data.log_files) {
-                const formattedLogs = Object.entries(data.log_files).map(([fileName, presignedUrl]) => {
-                    const extractedTimestamp = fileName.split("/").pop(); // Extracts just the filename
-                    const dateObject = convertToLocalTime(extractedTimestamp); // Convert to Date object
-
-                    return {
-                        date: dateObject.toLocaleString(undefined, { timeZoneName: "short" }), // Formatted for display
-                        timestamp: dateObject.getTime(), // Store timestamp for sorting
-                        presignedUrl: presignedUrl,
-                    };
-                });
-
-                // Sort logs by timestamp (latest first)
-                formattedLogs.sort((a, b) => b.timestamp - a.timestamp);
-
-                setPreviousChatLogs(formattedLogs);
-            } else {
-                setPreviousChatLogs([]);
-            }
-        } else {
-            console.error("Failed to fetch chat logs:", response.statusText);
+      const session = await fetchAuthSession();
+      const token = session.tokens.idToken;
+  
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_ENDPOINT}/admin/fetch_chatlogs`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
         }
+      );
+  
+      if (response.ok) {
+        const data = await response.json();
+  
+        if (data.log_files) {
+          // Convert the returned object to an array of [fileName, presignedUrl] pairs
+          const allFiles = Object.entries(data.log_files);
+  
+          // Only keep the files ending with .zip
+          const zipFiles = allFiles.filter(([key]) => key.endsWith(".zip"));
+  
+          // Map them to your desired format
+          const formattedLogs = zipFiles.map(([fileName, presignedUrl]) => {
+            // e.g. fileName = "d20d9174-5386-4216-a88b-b475eaef46d2/2025-03-20_19-51-43_chatlogs.zip"
+            const extractedFilename = fileName.split("/").pop(); 
+            // => "2025-03-20_19-51-43_chatlogs.zip"
+  
+            // Parse the timestamp
+            const dateObject = parseZipTimestamp(extractedFilename);
+  
+            return {
+              date: dateObject.toLocaleString(undefined, { timeZoneName: "short" }),
+              timestamp: dateObject.getTime(),
+              presignedUrl,
+            };
+          });
+  
+          // Sort logs by timestamp (latest first)
+          formattedLogs.sort((a, b) => b.timestamp - a.timestamp);
+  
+          setPreviousChatLogs(formattedLogs);
+        } else {
+          setPreviousChatLogs([]);
+        }
+      } else {
+        console.error("Failed to fetch chat logs:", response.statusText);
+      }
     } catch (error) {
-        console.error("Error fetching chat logs:", error);
+      console.error("Error fetching chat logs:", error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
-
-const convertToLocalTime = (fileName) => {
-  try {
-      const match = fileName.match(/(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.csv/);
-      if (!match) return new Date(0); // Return an invalid date as fallback
-
-      let formattedTimestamp = match[1].replace(/_/g, " ");
-      formattedTimestamp = formattedTimestamp.replace(/(\d{2})-(\d{2})-(\d{2})$/, "$1:$2:$3");
-
-      const utcDate = new Date(formattedTimestamp + " UTC");
-      return isNaN(utcDate.getTime()) ? new Date(0) : utcDate;
-  } catch (error) {
-      console.error("Error parsing timestamp:", error);
+  };
+  
+  function parseZipTimestamp(filename) {
+    // Looks for YYYY-MM-DD_HH-MM-SS anywhere in the filename
+    const match = filename.match(/(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})/);
+    if (!match) {
+      // If we can't parse, return epoch (will display as 12/31/1969)
       return new Date(0);
+    }
+  
+    // match[1] = "2025-03-20"
+    // match[2] = "19", match[3] = "51", match[4] = "43"
+    const datePart = match[1]; // e.g. "2025-03-20"
+    const hour = match[2];
+    const minute = match[3];
+    const second = match[4];
+  
+    // Construct ISO string => "2025-03-20T19:51:43Z"
+    const isoString = `${datePart}T${hour}:${minute}:${second}Z`;
+    return new Date(isoString);
   }
-};
+  
 
   const handleDownload = async () => {
     try {
