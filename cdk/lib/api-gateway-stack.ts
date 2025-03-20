@@ -266,7 +266,6 @@ export class ApiGatewayStack extends cdk.Stack {
     });
   
 
-
     this.eventApi = new appsync.GraphqlApi(this, `${id}-EventApi`, {
       name: `${id}-EventApi`,
       definition: appsync.Definition.fromFile("./graphql/schema.graphql"),
@@ -390,6 +389,7 @@ export class ApiGatewayStack extends cdk.Stack {
       requestMappingTemplate: appsync.MappingTemplate.lambdaRequest(),
       responseMappingTemplate: appsync.MappingTemplate.lambdaResult(),
     });
+
 
     notificationLambdaDataSource.createResolver("ResolverEventApi", {
       typeName: "Mutation",
@@ -1786,6 +1786,51 @@ export class ApiGatewayStack extends cdk.Stack {
       principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       action: "lambda:InvokeFunction",
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${this.api.restApiId}/*/*/admin*`,
+    });
+    // Create the rate limiting rule for AppSync
+    const rateLimitRule = {
+      name: "RateLimitRule",
+      priority: 1,
+      action: { block: {} },
+      statement: {
+        rateBasedStatement: {
+          limit: 100, // Adjust the request limit per 5 minutes as needed
+          aggregateKeyType: "IP",
+        },
+      },
+      visibilityConfig: {
+        sampledRequestsEnabled: true,
+        cloudWatchMetricsEnabled: true,
+        metricName: "RateLimitRule",
+      },
+    };
+
+    const appSyncWebACL = new wafv2.CfnWebACL(this, `${id}-AppSyncWaf`, {
+      description: "Web ACL for rate limiting AppSync API",
+      scope: "REGIONAL",
+      defaultAction: { allow: {} },
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: `${id}-AppSyncWaf`,
+        sampledRequestsEnabled: true,
+      },
+      rules: [rateLimitRule],
+    });
+
+    // Associate the Web ACL with your AppSync API
+    new wafv2.CfnWebACLAssociation(this, `${id}-AppSyncWafAssociationEventApi`, {
+      resourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.eventApi.apiId}`,
+      webAclArn: appSyncWebACL.attrArn,
+    });
+
+    new wafv2.CfnWebACLAssociation(this, `${id}-AppSyncWafAssociationDownloadMessagesApi`, {
+      resourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.downloadMessagesApi.apiId}`,
+      webAclArn: appSyncWebACL.attrArn,
+    });
+
+    new wafv2.CfnWebACLAssociation(this, `${id}-AppSyncWafAssociationCompTextGenApi`, {
+      resourceArn: `arn:aws:appsync:${this.region}:${this.account}:apis/${this.compTextGenApi.apiId}`,
+      webAclArn: appSyncWebACL.attrArn,
     });
 
     // Waf Firewall
