@@ -99,7 +99,7 @@ VPC Configuration:
   - [Download and upload objects with presigned URLs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html)
   
   
-  Additional security measures:
+- **Additional security measures**:
   - All data is encrypted at rest using SSE-S3 (AES-256)
   - Public access is blocked for all S3 buckets
   - SSL connections are enforced for secure data transfer
@@ -130,9 +130,9 @@ VPC Configuration:
   - Secured with Lambda authorizers
 
 - **Amazon SQS:**
-  -Provides real-time data queries and synchronizes data between clients and backend
-  -Integrated with IAM for authentication and runs in the public cloud space
-  -Only specific Lambda functions are granted permissions to send or receive messages
+  - Provides real-time data queries and synchronizes data between clients and backend
+  - Integrated with IAM for authentication and runs in the public cloud space
+  - Only specific Lambda functions are granted permissions to send or receive messages
   
 - **Amazon ECR:**
   - Lambda functions utilize Docker images stored in Amazon ECR 
@@ -151,7 +151,7 @@ This diagram illustrates how our architecture handles key security aspects by le
 
 ## 2. Security Controls
 
-### 2.1 Network Security
+### Network Security
 
 **Security Groups:**
 
@@ -368,7 +368,6 @@ AWS Cognito provides user authentication and authorization, enabling **secure ac
 
 [Learn more](https://docs.aws.amazon.com/cognito/latest/developerguide/authentication.html)
 
----
 
 ### 9.2 How Cognito Secures Lambda Invocations
 
@@ -387,8 +386,6 @@ AWS Cognito provides user authentication and authorization, enabling **secure ac
   - Only **authorized users** can invoke specific Lambda endpoints
   - **JWT tokens** expire 30 days after a user signs in [Learn more](https://docs.aws.amazon.com/cognito/latest/developerguide/amazon-cognito-user-pools-using-tokens-with-identity-providers.html)
   - Access is logged and monitored via **CloudWatch**
-
----
 
 
 ### 9.3 Cognito Integration in CDK (ApiGatewayStack)
@@ -502,8 +499,6 @@ Amazon Elastic Container Registry (ECR) provides a secure, scalable private cont
 
 [Learn more](https://docs.aws.amazon.com/AmazonECR/latest/userguide/infrastructure-security.html)
 
----
-
 **Key Security Measures:**
 1. **Private Repositories**  
    - Images are stored privately; access is controlled by IAM and resource-based policies.  
@@ -517,8 +512,6 @@ Amazon Elastic Container Registry (ECR) provides a secure, scalable private cont
 
 5. **Lifecycle Policies**  
    - Automatically remove outdated images to minimize storage costs and reduce the attack surface
-
----
 
 
 **Recommendation:**  
