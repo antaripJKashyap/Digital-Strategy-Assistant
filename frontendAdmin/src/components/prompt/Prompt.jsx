@@ -12,8 +12,7 @@ export default function Component() {
   const [previousPrompts, setPreviousPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    console.log("prompts", prompts);
-    console.log("previousPrompts", previousPrompts);
+    
   }, [prompts, previousPrompts]);
 
   useEffect(() => {

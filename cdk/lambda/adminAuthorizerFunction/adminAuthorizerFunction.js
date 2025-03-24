@@ -6,28 +6,24 @@ const secretsManager = new SecretsManagerClient();
 
 let { SM_COGNITO_CREDENTIALS } = process.env;
 
-// Return response
-const responseStruct = {
-  "principalId": "yyyyyyyy", // The principal user identification associated with the token sent by the client.
-  "policyDocument": {
-    "Version": "2012-10-17",
-    "Statement": []
-  },
-  "context": {}
-};
-
-// Create the verifier outside the Lambda handler (= during cold start),
-// so the cache can be reused for subsequent invocations. Then, only during the
-// first invocation, will the verifier actually need to fetch the JWKS.
+// Cache variables declared outside the handler
+let cachedSecret;
 let jwtVerifier;
 
+// Function to retrieve and cache the secret
+async function getCachedSecret() {
+  if (!cachedSecret) {
+    const command = new GetSecretValueCommand({ SecretId: SM_COGNITO_CREDENTIALS });
+    const secretResponse = await secretsManager.send(command);
+    cachedSecret = JSON.parse(secretResponse.SecretString);
+  }
+  return cachedSecret;
+}
+
+// Initialize the JWT verifier if not already done
 async function initializeConnection() {
   try {
-    // Retrieve the secret from AWS Secrets Manager
-    const getSecretValueCommand = new GetSecretValueCommand({ SecretId: SM_COGNITO_CREDENTIALS });
-    const secretResponse = await secretsManager.send(getSecretValueCommand);
-
-    const credentials = JSON.parse(secretResponse.SecretString);
+    const credentials = await getCachedSecret();
 
     jwtVerifier = CognitoJwtVerifier.create({
       userPoolId: credentials.VITE_COGNITO_USER_POOL_ID,
@@ -52,24 +48,29 @@ exports.handler = async (event) => {
   try {
     payload = await jwtVerifier.verify(accessToken);
     
-    // Modify the response output
+    // Build resource string for policy
     const parts = event.methodArn.split('/');
     const resource = parts.slice(0, 2).join('/') + '*';
 
-    responseStruct["principalId"] = payload.sub;
-    responseStruct["policyDocument"]["Statement"].push({
-      "Action": "execute-api:Invoke",
-      "Effect": "Allow",
-      "Resource": resource
-    });
-    responseStruct["context"] = {
-      "userId": payload.sub
+    const responseStruct = {
+      "principalId": payload.sub, // principal user identification
+      "policyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [{
+          "Action": "execute-api:Invoke",
+          "Effect": "Allow",
+          "Resource": resource
+        }]
+      },
+      "context": {
+        "userId": payload.sub
+      }
     };
 
     return responseStruct;
   } catch (error) {
     console.error("Authorization error:", error);
-    // API Gateway wants this *exact* error message, otherwise it returns 500 instead of 401:
+    // Return an exact error message for API Gateway to respond with 401
     throw new Error("Unauthorized");
   }
 };

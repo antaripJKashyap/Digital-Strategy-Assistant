@@ -46,7 +46,6 @@ def connect_to_db():
                 connection.close()
             raise
     return connection
-
     
 
 def delete_document_from_db(category_id, document_name, document_type):

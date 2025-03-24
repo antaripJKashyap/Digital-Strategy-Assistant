@@ -123,6 +123,23 @@ exports.handler = async (event) => {
           });
         }
         break;
+      case "GET /user/guidelines":
+        try {
+          // SQL query to get all guidelines
+          const guidelines = await sqlConnection`
+      SELECT DISTINCT criteria_name
+      FROM guidelines;
+    `;
+
+          response.body = JSON.stringify({
+            guidelines,
+          });
+        } catch (err) {
+          response.statusCode = 500;
+          console.error(err);
+          response.body = JSON.stringify({ error: "Internal server error" });
+        }
+        break;
       default:
         throw new Error(`Unsupported route: "${pathData}"`);
     }
@@ -131,7 +148,7 @@ exports.handler = async (event) => {
     console.log(error);
     response.body = JSON.stringify(error.message);
   }
-  console.log(response);
+  
 
   return response;
 };

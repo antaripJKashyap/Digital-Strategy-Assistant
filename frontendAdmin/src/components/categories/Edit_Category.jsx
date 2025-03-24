@@ -66,7 +66,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
       if (response.ok) {
         const data = await response.json();
         const filesData = data.document_files;
-        console.log(filesData);
+        
         const tempFiles = [];
 
         for (const fileName in filesData) {
@@ -342,7 +342,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
           selectedCategory.category_id,
           token
         );
-        console.log(presignedUrl); // Log the presigned URL for debugging
+        
         await uploadFile(file, presignedUrl);
       });
 
@@ -404,7 +404,7 @@ export default function Edit_Category({ setSelectedPage, selectedCategory }) {
     if (!response.ok) throw new Error("Failed to generate presigned URL");
     const data = await response.json();
     const url = data.presignedurl;
-    console.log("Generated presigned URL:", url); // Log the presigned URL for debugging
+    
     return url;
   };
 

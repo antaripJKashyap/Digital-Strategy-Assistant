@@ -46,7 +46,7 @@ def insert_into_prompts(public_prompt, educator_prompt, admin_prompt):
         """
         cursor.execute(insert_query, (public_prompt, educator_prompt, admin_prompt))
         connection.commit()
-        print("Values inserted into prompts table successfully.")
+        
     except Exception as e:
         print(f"Error inserting into prompts table: {e}")
     finally:
@@ -69,6 +69,18 @@ def handler(event, context):
         sqlTableCreation = """
             CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
             CREATE EXTENSION IF NOT EXISTS "vector";
+            CREATE TABLE IF NOT EXISTS "conversation_csv" (
+                "session_id" uuid PRIMARY KEY ,
+                notified boolean,
+                timestamp timestamp
+            );
+            CREATE TABLE IF NOT EXISTS "guidelines" (
+                "guideline_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+                criteria_name varchar,
+                header varchar,
+                body text,
+                timestamp timestamp
+            );
             CREATE TABLE IF NOT EXISTS "users" (
                 "user_id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
                 "user_email" varchar,
@@ -360,6 +372,6 @@ def handler(event, context):
         cursor.close()
         connection.close()
 
-        print("Initialization completed")
+        
     except Exception as e:
         print(e)

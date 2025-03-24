@@ -8,6 +8,13 @@ from aws_lambda_powertools import Logger
 logger = Logger()
 
 REGION = os.environ["REGION"]
+BUCKET = os.environ["BUCKET"]
+DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
+RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
+# AWS Clients
+secrets_manager_client = boto3.client('secretsmanager')
+
+
 s3 = boto3.client(
     "s3",
     endpoint_url=f"https://s3.{REGION}.amazonaws.com",
@@ -15,6 +22,10 @@ s3 = boto3.client(
         s3={"addressing_style": "virtual"}, region_name=REGION, signature_version="s3v4"
     ),
 )
+
+# Global variables for caching
+connection = None
+db_secret = None
 
 BUCKET = os.environ["BUCKET"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
@@ -32,6 +43,7 @@ def get_secret():
         response = secrets_manager_client.get_secret_value(SecretId=DB_SECRET_NAME)["SecretString"]
         db_secret = json.loads(response)
     return db_secret
+
 
 def connect_to_db():
     global connection
@@ -109,8 +121,6 @@ def get_document_metadata_from_db(category_id, document_name, document_type):
         cur.execute(query, (category_id, document_name, document_type))
         result = cur.fetchone()
         cur.close()
-        
-
         if result:
             return result[0]
         else:

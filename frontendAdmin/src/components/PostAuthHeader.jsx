@@ -16,8 +16,12 @@ const PostAuthHeader = ({ page }) => {
         return "Files";
       case "category_creation":
         return "Create Category";
-        case "edit_category":
-          return "Edit Category";
+      case "edit_category":
+        return "Edit Category";
+      case "guidelines":
+        return "Guidelines";
+      case "allMessages":
+          return "All Messages";
       default:
         return "Administrator Dashboard";
     }
@@ -38,7 +42,10 @@ const PostAuthHeader = ({ page }) => {
         <h1 className="text-center text-3xl font-bold">
           {headerMapping(page)}
         </h1>
-        <Button className="bg-adminMain hover:bg-adminHover text-white text-md py-4" onClick={handleSignOut}>
+        <Button
+          className="bg-adminMain hover:bg-adminHover text-white text-md py-4"
+          onClick={handleSignOut}
+        >
           Sign Out
         </Button>
       </div>

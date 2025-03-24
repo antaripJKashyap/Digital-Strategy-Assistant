@@ -3,26 +3,28 @@ import json
 import boto3
 import logging
 import psycopg2
+import hashlib
+import time
 import uuid, datetime
 from langchain_aws import BedrockEmbeddings
 
 
 from helpers.vectorstore import get_vectorstore_retriever
-from helpers.chat import get_bedrock_llm, get_initial_student_query, get_student_query, create_dynamodb_history_table, get_response
+from helpers.chat import get_bedrock_llm, create_dynamodb_history_table, get_response, get_user_query, get_initial_user_query
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
-
+COMP_TEXT_GEN_QUEUE_URL = os.environ["COMP_TEXT_GEN_QUEUE_URL"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
-
 BEDROCK_LLM_PARAM = os.environ["BEDROCK_LLM_PARAM"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
 TABLE_NAME_PARAM = os.environ["TABLE_NAME_PARAM"]
 # AWS Clients
+sqs = boto3.client('sqs')
 secrets_manager_client = boto3.client("secretsmanager")
 ssm_client = boto3.client("ssm", region_name=REGION)
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
@@ -34,7 +36,6 @@ EMBEDDING_MODEL_ID = None
 TABLE_NAME = None
 # Cached embeddings instance
 embeddings = None
-
 
 def get_secret(secret_name, expect_json=True):
     global db_secret
@@ -62,6 +63,8 @@ def get_parameter(param_name, cached_var):
             logger.error(f"Error fetching parameter {param_name}: {e}")
             raise
     return cached_var
+
+
 def initialize_constants():
     global BEDROCK_LLM_ID, EMBEDDING_MODEL_ID, TABLE_NAME, embeddings
     BEDROCK_LLM_ID = get_parameter(BEDROCK_LLM_PARAM, BEDROCK_LLM_ID)
@@ -75,6 +78,8 @@ def initialize_constants():
         )
     
     create_dynamodb_history_table(TABLE_NAME)
+
+
 def connect_to_db():
     global connection
     if connection is None or connection.closed:
@@ -114,7 +119,7 @@ def log_user_engagement(
             "body": json.dumps("Database connection failed.")
         }
 
-    try: 
+    try:
         cur = connection.cursor()
 
         # Define the SQL query
@@ -149,13 +154,62 @@ def log_user_engagement(
         logger.info("User engagement logged successfully.")
 
     except Exception as e:
-        if connection:
-            connection.rollback()
+        connection.rollback()
         logger.error(f"Error logging user engagement: {e}")
     finally:
         if cur:
             cur.close()
-        
+
+def get_combined_guidelines(criteria_list):
+    """
+    Fetch and organize headers and bodies of all guidelines matching the given criteria names.
+
+    Args:
+        criteria_list (list): A list of criteria names to search for in the guidelines table.
+
+    Returns:
+        dict: A dictionary organizing headers and bodies under their respective criteria names.
+    """
+    connection = connect_to_db()
+    if connection is None:
+        logger.error("No database connection available.")
+        return {}
+
+    try:
+        cur = connection.cursor()
+
+        # Define the SQL query with IN clause
+        query = """
+        SELECT criteria_name, header, body
+        FROM guidelines
+        WHERE criteria_name = ANY(%s)
+        ORDER BY criteria_name, timestamp DESC;
+        """
+
+        # Execute the query with the criteria list as a parameter
+        cur.execute(query, (criteria_list,))
+        results = cur.fetchall()
+
+        # Organize results into a dictionary
+        guidelines_dict = {}
+        for criteria_name, header, body in results:
+            if criteria_name not in guidelines_dict:
+                guidelines_dict[criteria_name] = []
+            # Combine header and body in the desired format
+            guidelines_dict[criteria_name].append(f"{header}: {body}")
+
+        # Return the dictionary
+        return guidelines_dict
+
+    except Exception as e:
+        logger.error(f"Error fetching guidelines: {e}")
+        return {}
+
+    finally:
+        if cur:
+            cur.close()
+        if connection:
+            connection.close()
 
 
 def get_prompt_for_role(user_role):
@@ -166,35 +220,10 @@ def get_prompt_for_role(user_role):
             "statusCode": 500,
             "body": json.dumps("Database connection failed.")
         }
+        
     try:
         cur = connection.cursor()
         logger.info("Connected to RDS instance!")
-
-        # Define a list of allowed role values (whitelist)
-        # VALID_ROLES = ["public", "educator", "admin"]  # add all valid column names
-        # if user_role not in VALID_ROLES:
-        #     raise ValueError(f"Invalid role specified: {user_role}")
-
-        # query = """
-        #     SELECT {}
-        #     FROM prompts
-        #     WHERE {} IS NOT NULL
-        #     ORDER BY time_created DESC NULLS LAST
-        #     LIMIT 1;
-        # """.format(psycopg2.extensions.quote_ident(user_role, cur),
-        #         psycopg2.extensions.quote_ident(user_role, cur))
-
-        # cur.execute(query)
-        # result = cur.fetchone()
-        # logger.info(f"Query result for role {user_role}: {result}")
-
-        # if result:
-        #     prompt = str(result[0])
-        #     logger.info(f"{user_role.capitalize()} prompt fetched successfully.")
-        #     return prompt
-        # else:
-        #     logger.warning(f"No prompts found for role: {user_role}.")
-        #     return None
 
         # Map valid roles to column names
         role_column_mapping = {
@@ -283,8 +312,6 @@ def check_embeddings():
     finally:
         if cur:
             cur.close()
-        if connection:
-            connection.close()
         logger.info("Connection closed.")
 
 
@@ -292,12 +319,14 @@ def check_embeddings():
 def handler(event, context):
     initialize_constants()
     logger.info("Text Generation Lambda function is called!")
+    initialize_constants()
 
     query_params = event.get("queryStringParameters", {})
 
     
     session_id = query_params.get("session_id", "")
     user_info = query_params.get("user_info", "")
+
 
     if not session_id:
         logger.error("Missing required parameter: session_id")
@@ -311,59 +340,62 @@ def handler(event, context):
             },
             'body': json.dumps('Missing required parameter: session_id')
         }
-
-    
-
-    # if public_prompt is None:
-    #     logger.error(f"Error fetching public prompt for you!")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Error fetching public prompt')
-    #     }
-
-    # if educator_prompt is None:
-    #     logger.error(f"Error fetching educator prompt for you!")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Error fetching educator prompt')
-    #     }
-    
-    # if admin_prompt is None:
-    #     logger.error(f"Error fetching admin prompt for you!")
-    #     return {
-    #         'statusCode': 400,
-    #         "headers": {
-    #             "Content-Type": "application/json",
-    #             "Access-Control-Allow-Headers": "*",
-    #             "Access-Control-Allow-Origin": "*",
-    #             "Access-Control-Allow-Methods": "*",
-    #         },
-    #         'body': json.dumps('Error fetching admin prompt')
-    #     }
-    
     
     body = {} if event.get("body") is None else json.loads(event.get("body"))
     question = body.get("message_content", "")
     user_role = body.get("user_role", "")
+    comparison = body.get("comparison", "")
+    criteria = body.get("criteria", "")
+    
+    
     
     # Check if user_role is provided after the initial greeting
     if user_role:
         logger.info(f"User role received: {user_role}")
+       
     else:
         logger.info("Awaiting user role selection.")
+        
+    if comparison:
+        
+        try:
+            message_body = {
+                'session_id': session_id,
+                'user_role': user_role,
+                'criteria': criteria
+            }
+            unique_dedup_string = f"{json.dumps(message_body)}-{time.time_ns()}-{uuid.uuid4()}"
 
+            message_deduplication_id = hashlib.md5(unique_dedup_string.encode('utf-8')).hexdigest()
+            sqs.send_message(
+                QueueUrl=os.environ["COMP_TEXT_GEN_QUEUE_URL"],
+                MessageBody=json.dumps(message_body),
+                MessageGroupId=session_id,  # Add MessageGroupId for FIFO queue
+                MessageDeduplicationId=message_deduplication_id
+            )
+            return {
+                'statusCode': 200,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps({'session_id': session_id})
+            }
+        except Exception as e:
+            logger.error(f"Error sending message to SQS: {e}")
+            return {
+                'statusCode': 500,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "*",
+                },
+                'body': json.dumps('Error sending message to SQS')
+            }
+    
     logger.info("Fetching prompts from the database.")
     user_prompt = get_prompt_for_role(user_role)
 
@@ -380,9 +412,9 @@ def handler(event, context):
             'body': json.dumps('Error fetching system prompt')
         }
 
-    if not question:
+    if question == "":
         logger.info("Start of conversation. Creating conversation history table in DynamoDB.")
-        initial_query = get_initial_student_query()
+        initial_query = get_initial_user_query()
         query_data = json.loads(initial_query)
         options = query_data["options"]
         # student_query = get_student_query("")
@@ -404,8 +436,8 @@ def handler(event, context):
         }
         
     else:
-        logger.info(f"Processing student question: {question}")
-        student_query = get_student_query(question)
+        logger.info(f"Processing the user's question: {question}")
+        user_query = get_user_query(question)
         options = []
         log_user_engagement(
             session_id=session_id,
@@ -419,6 +451,7 @@ def handler(event, context):
     try:
         logger.info("Creating Bedrock LLM instance.")
         llm = get_bedrock_llm(BEDROCK_LLM_ID)
+        
     except Exception as e:
         logger.error(f"Error getting LLM from Bedrock: {e}")
         return {
@@ -493,14 +526,16 @@ def handler(event, context):
     
     try:
         logger.info("Generating response from the LLM.")
+        
         response = get_response(
-            query=student_query,
+            query=user_query,
             llm=llm,
             history_aware_retriever=history_aware_retriever,
             table_name=TABLE_NAME,
             session_id=session_id,
             user_prompt=user_prompt
         )
+        print("Response:", response)
     except Exception as e:
         logger.error(f"Error getting response: {e}")
         return {

@@ -20,14 +20,17 @@ RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
 
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
+
 # AWS Clients
 secrets_manager_client = boto3.client("secretsmanager")
 ssm_client = boto3.client("ssm")
 bedrock_runtime = boto3.client("bedrock-runtime", region_name=REGION)
+
 # Cached resources
 connection = None
 db_secret = None
 EMBEDDING_MODEL_ID = None
+
 
 def get_parameter():
     """
@@ -42,6 +45,7 @@ def get_parameter():
             logger.error(f"Error fetching parameter {EMBEDDING_MODEL_PARAM}: {e}")
             raise
     return EMBEDDING_MODEL_ID
+
 
 
 
@@ -155,7 +159,6 @@ def insert_file_into_db(category_id, document_name, document_type, document_s3_f
 
         connection.commit()
         cur.close()
-        
     except Exception as e:
         if cur:
             cur.close()
@@ -164,11 +167,6 @@ def insert_file_into_db(category_id, document_name, document_type, document_s3_f
         raise
 
 def update_vectorstore_from_s3(bucket, category_id):
-    # bucket = "DSA-data-ingestion-bucket"
-    bedrock_runtime = boto3.client(
-        service_name="bedrock-runtime",
-        region_name=REGION
-    )
     
     embeddings = BedrockEmbeddings(
         model_id=get_parameter(), 
@@ -176,7 +174,7 @@ def update_vectorstore_from_s3(bucket, category_id):
         region_name=REGION
     )
     
-    secret = get_secret()
+    secret  = get_secret()
 
     vectorstore_config_dict = {
         'collection_name': "all",
@@ -212,7 +210,7 @@ def handler(event, context):
 
         # Only process files from the DSA_DATA_INGESTION_BUCKET
         if bucket_name != DSA_DATA_INGESTION_BUCKET:
-            print(f"Ignoring event from non-target bucket: {bucket_name}")
+            
             continue  # Ignore this event and move to the next one
         document_key = record['s3']['object']['key']
 

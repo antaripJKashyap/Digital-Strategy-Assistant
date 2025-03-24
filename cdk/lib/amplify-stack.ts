@@ -74,7 +74,7 @@ import {
         this,
         "DSA-owner-name"
       );
-  
+
       const amplifyApp = new App(this, `${id}-amplifyApp`, {
         appName: `${id}-public`,
         platform: Platform.WEB_COMPUTE,
@@ -94,6 +94,8 @@ import {
           NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          NEXT_PUBLIC_GRAPHQL_WS_URL: apiStack.getEventApiUrl(),
+          NEXT_PUBLIC_APPSYNC_API_URL: apiStack.getCompTextGenApiUrl(),
           AMPLIFY_DIFF_DEPLOY: "false",
           AMPLIFY_MONOREPO_APP_ROOT: "frontend",
 
@@ -106,6 +108,8 @@ import {
         target: '	/index.html',
         status: RedirectStatus.NOT_FOUND_REWRITE ,
       });
+
+      
 
       const amplifyAppAdmin = new App(this, `${id}-amplifyAppAdmin`, {
         appName: `${id}-admin`,
@@ -126,6 +130,7 @@ import {
           NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID: apiStack.getUserPoolClientId(),
           NEXT_PUBLIC_API_ENDPOINT: apiStack.getEndpointUrl(),
           NEXT_PUBLIC_IDENTITY_POOL_ID: apiStack.getIdentityPoolId(),
+          NEXT_PUBLIC_APPSYNC_API_URL: apiStack.getDownloadMessagesApiUrl(),
           AMPLIFY_DIFF_DEPLOY: "false",
           AMPLIFY_MONOREPO_APP_ROOT: "frontendAdmin",
         },
@@ -140,5 +145,6 @@ import {
   
       amplifyApp.addBranch("main");
       amplifyAppAdmin.addBranch("main");
-    }
+      
+    
   }

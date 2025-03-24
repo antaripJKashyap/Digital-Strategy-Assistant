@@ -10,6 +10,7 @@ s3 = boto3.client('s3')
 BUCKET = os.environ["BUCKET"]
 DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
+
 # AWS Clients
 secrets_manager_client = boto3.client('secretsmanager')
 # Global variables for caching
@@ -67,7 +68,6 @@ def delete_document_from_db(category_id):
         logger.info(f"Successfully deleted document category {category_id}.")
 
         cur.close()
-        
     except Exception as e:
         if cur:
             cur.close()

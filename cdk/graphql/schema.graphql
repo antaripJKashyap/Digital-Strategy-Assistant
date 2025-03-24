@@ -1,0 +1,23 @@
+type Subscription {
+  onNotify(sessionId: String!): Notification
+    @aws_subscribe(mutations: ["sendNotification"])
+}
+
+type Notification {
+  message: String
+  sessionId: String
+}
+
+type Mutation {
+  sendNotification(message: String!, sessionId: String!): Notification
+}
+
+type Query {
+  getNotifications: [Notification]
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

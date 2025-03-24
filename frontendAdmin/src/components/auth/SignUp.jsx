@@ -28,8 +28,36 @@ const SignUp = ({
   loading,
   setLoading,
 }) => {
+  // Enhanced password validation function
+  const validatePassword = (pwd) => {
+    // Check for minimum length
+    if (pwd.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+
+    // Check for lowercase letters
+    if (!/[a-z]/.test(pwd)) {
+      return "Password must contain at least one lowercase letter";
+    }
+
+    // Check for uppercase letters
+    if (!/[A-Z]/.test(pwd)) {
+      return "Password must contain at least one uppercase letter";
+    }
+
+    // Check for numbers
+    if (!/[0-9]/.test(pwd)) {
+      return "Password must contain at least one number";
+    }
+
+    // If all checks pass
+    return null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if fields are empty
     if (email === "" || password === "" || confirmPassword === "") {
       toast.error("All fields are required", {
         position: "top-center",
@@ -43,8 +71,9 @@ const SignUp = ({
       });
       return;
     }
+
+    // Check password match
     if (password !== confirmPassword) {
-      console.log("password don't match");
       toast.error("Passwords do not match", {
         position: "top-center",
         autoClose: 3000,
@@ -56,9 +85,12 @@ const SignUp = ({
         theme: "colored",
       });
       return;
-    } else if (password.length < 8) {
-      console.log("password too short");
-      toast.error("Password must be at least 8 characters long", {
+    }
+
+    // Enhanced password validation
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      toast.error(passwordError, {
         position: "top-center",
         autoClose: 3000,
         hideProgressBar: false,
@@ -70,6 +102,7 @@ const SignUp = ({
       });
       return;
     }
+
     try {
       setLoading(true);
       console.log("signing up");
@@ -80,7 +113,7 @@ const SignUp = ({
           email: email,
         },
       });
-      console.log("User signed up:", isSignUpComplete, userId, nextStep);
+      
       if (!isSignUpComplete) {
         if (nextStep.signUpStep === "CONFIRM_SIGN_UP") {
           setLoading(false);

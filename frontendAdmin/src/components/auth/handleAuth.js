@@ -8,7 +8,7 @@ export async function retrieveUser(setUser) {
   try {
     const returnedUser = await getCurrentUser();
     setUser(returnedUser);
-    console.log("user", returnedUser);
+    
   } catch (e) {
     console.log("error getting user: ", e);
   }
@@ -22,8 +22,7 @@ export async function retrieveJwtToken(setJwtToken) {
     console.log(idToken);
     var token = await session.tokens.accessToken.toString();
     setJwtToken(idToken);
-    // console.log("jwt token", token);
-    // console.log("session", session);
+    
 
     // Check if the token is close to expiration
     const expirationTime = session.credentials.expiration * 1000; // Milliseconds
@@ -62,5 +61,5 @@ export function getIdentityCredentials(jwtToken, setCredentials) {
   AWS.config.credentials.get(function () {
     setCredentials(creds);
   });
-  // console.log(creds);
+  
 }

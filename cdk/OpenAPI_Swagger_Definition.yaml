@@ -357,6 +357,140 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
+  /user/comparison_presigned_url:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - User
+      summary: Generate a comparison presigned URL for uploading files
+      operationId: admin_comparison_presigned_url_GET
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          description: ID of the category
+          schema:
+            type: string
+        - in: query
+          name: document_type
+          required: true
+          description: extension of the document
+          schema:
+            type: string
+        - in: query
+          name: document_name
+          required: true
+          description: name of the document
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Comparison Presigned URL generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  presignedurl:
+                    type: string
+                    description: Comparison Presigned URL to upload document file to S3 Bucket
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ComparisonPreSignedURLFunc.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /user/guidelines:
+    options:
+      summary: CORS support
+      description: Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - User
+      summary: Retrieve all criteria
+      operationId: user_get_guidelines_GET
+      responses:
+        "200":
+          description: Guidelines retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    guideline_id:
+                      type: string
+                      format: uuid
+                    criteria_name:
+                      type: string
+                    header:
+                      type: string
+                    body:
+                      type: string
+                    timestamp:
+                      type: string
+                      format: date-time
+        "500":
+          description: Internal Server Error
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${userFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    
   /admin/generate_presigned_url:
     options:
       summary: CORS support
@@ -587,6 +721,16 @@ paths:
         - Admin
       summary: Get analytics data
       operationId: admin_get_analytics_GET
+      parameters:
+        - name: view
+          in: query
+          description: Determines the time aggregation view (month or year)
+          required: false
+          schema:
+            type: string
+            enum: [month, year]
+            default: month
+      
       responses:
         "200":
           description: Analytics data retrieved successfully
@@ -603,6 +747,76 @@ paths:
       x-amazon-apigateway-integration:
         uri:
           Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/chat_history:
+    options:
+      summary: CORS support
+      description: |
+        Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    post:
+      tags:
+        - Admin
+      summary: Get chat history
+      operationId: admin_chat_history_GET
+      description: Submit a job to retrieve course messages via SQS.
+      requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    description: The session_id of the admin
+                required:
+                  - session_id
+      responses:
+        "200":
+          description: Job submitted successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: A success message.
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${csvFunction.Arn}/invocations"
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
@@ -1435,7 +1649,368 @@ paths:
         passthroughBehavior: "when_no_match"
         httpMethod: "POST"
         type: "aws_proxy"
-   
+  /admin/guidelines:
+    options:
+      summary: CORS support
+      description: Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Admin
+      summary: Retrieve all guidelines
+      operationId: admin_get_guidelines_GET
+      responses:
+        "200":
+          description: Guidelines retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    guideline_id:
+                      type: string
+                      format: uuid
+                    criteria_name:
+                      type: string
+                    header:
+                      type: string
+                    body:
+                      type: string
+                    timestamp:
+                      type: string
+                      format: date-time
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    delete:
+      tags:
+        - Admin
+      summary: Delete all guidelines
+      operationId: admin_delete_guidelines_DELETE
+      responses:
+        "200":
+          description: Guidelines deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows_deleted:
+                    type: integer
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    post:
+      tags:
+        - Admin
+      summary: Create a new guideline
+      operationId: admin_create_guideline_POST
+      parameters:
+        - in: query
+          name: header
+          required: true
+          description: header of the guideline
+          schema:
+            type: string
+        - in: query
+          name: criteria_name
+          required: true
+          description: name of the criteria for the guideline
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - body
+              properties:
+                body:
+                  type: string
+      responses:
+        "201":
+          description: Guideline created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guideline_id:
+                    type: string
+                    format: uuid
+                  criteria_name:
+                    type: string
+                  header:
+                    type: string
+                  body:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/fetch_chatlogs:
+    options:
+      summary: CORS support
+      description: Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+
+    get:
+      tags:
+        - Admin
+      summary: Get a chatlog files for a specific course requested by instructor
+      operationId: admin_fetch_chatlogs_GET
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          description: session_id of the admin
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Recieved all the chatlog files for the course requested by the admin successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  log_files:
+                    type: object
+                    description: A dictionary where keys are file names and values are presigned URLs
+                    additionalProperties:
+                      type: string
+                      description: Presigned URL for the log file
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetChatLogsFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+  /admin/csv:
+    options:
+      summary: CORS support
+      description: Enable CORS by returning correct headers
+      responses:
+        200:
+          $ref: "#/components/responses/Success"
+      x-amazon-apigateway-integration:
+        type: mock
+        requestTemplates:
+          application/json: |
+            {
+              "statusCode" : 200
+            }
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'*'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            responseTemplates:
+              application/json: |
+                {}
+    get:
+      tags:
+        - Admin
+      summary: Retrieve all conversation CSV entries
+      operationId: admin_get_csv_GET
+      responses:
+        "200":
+          description: Conversation CSV entries retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isEnabled:
+                    type: boolean
+                    description: Indicates whether the button to generate chatlogs should be enabled or disabled
+                  completionStatus:
+                    type: boolean
+                    nullable: true
+                    description: The actual value of the completion status. If the row does not exist, this will be null.
+                  session_id:
+                    type: string
+                    format: uuid
+                    nullable: true
+                    description: The session_id used to subscribe to AppSync. If the row does not exist, this will be null.
+        "400":
+          description: Bad Request
+        "404":
+          description: Course not found
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    put:
+      tags:
+        - Admin
+      summary: Update all conversation CSV entries to notified
+      operationId: admin_update_csv_notify_PUT
+      responses:
+        "200":
+          description: Conversation CSV entries updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows_updated:
+                    type: integer
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    post:
+      tags:
+        - Admin
+      summary: adds a message in csv sqs
+      operationId: admin_update_csv_notify_Post
+      responses:
+        "200":
+          description: Conversation CSV entries updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rows_updated:
+                    type: integer
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${csvFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
+    delete:
+      tags:
+        - Admin
+      summary: Delete row from database since CSV file full of chatlogs has been completed and notification has been sent to front-end
+      operationId: instructor_delete_file_DELETE
+      parameters:
+        - in: query
+          name: session_id
+          required: true
+          description: session_id of the admin
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Notification deleted successfully
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "429":
+          description: Too Many Requests
+        "500":
+          description: Internal Server Error
+      security:
+        - adminAuthorizer: []
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${adminFunction.Arn}/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        type: "aws_proxy"
 components:
   securitySchemes:
     adminAuthorizer:
