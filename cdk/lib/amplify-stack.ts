@@ -146,5 +146,5 @@ import {
       amplifyApp.addBranch("main");
       amplifyAppAdmin.addBranch("main");
       
-    
+    }
   }
