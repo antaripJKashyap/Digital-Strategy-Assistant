@@ -4,7 +4,7 @@
 
 ![Shared Responsibility Model](images/SharedResponsibilityModel.png)
 
-#### The AWS Shared Responsibility Model defines the division of security responsibilities between CIC and its sponsors. At CIC, we are responsible for securing the cloud, while customers are responsible for securing their applications and data within the cloud
+#### The AWS Shared Responsibility Model defines the division of security responsibilities between CIC and its sponsors. At CIC, we build our prototypes with robust baseline security. However, for comprehensive protection, we recommend that customers implement additional, tailored security measures within the cloud to safeguard their applications and data.
 
 
 ### CIC Responsibilities (Security of the Cloud):
