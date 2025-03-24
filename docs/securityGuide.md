@@ -1,8 +1,6 @@
 # Security Documentation & Network Architecture  
 
-## Shared Responsibility Model 
 
-![Shared Responsibility Model](images/SharedResponsibilityModel.png)
 
 
 
