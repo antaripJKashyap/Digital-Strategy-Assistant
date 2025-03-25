@@ -500,3 +500,43 @@ Amazon Elastic Container Registry (ECR) provides a secure, scalable private cont
 - Enable image scanning on push to detect vulnerabilities and remediate issues 
 - Regularly review ECR logs in **AWS CloudTrail** to identify suspicious or unauthorized access attempts
 - Implement **lifecycle policies** to retain only the most recent, patched images for better security and cost efficiency
+
+## 15. Security Recommendations
+
+
+### 15.1 Security Hub
+
+AWS Security Hub is a service that provides a comprehensive view of your AWS environment’s security and compliance status. It aggregates, normalizes, and prioritizes findings from various AWS services like Amazon GuardDuty, AWS Config, Amazon Inspector, and third-party security tools into a single dashboard.
+
+It can be enabled via AWS management console or via CDK:
+
+```typescript
+const securityHub = new securityhub.CfnHub(this, `${id}-security-hub`, {
+  tags: [
+    {
+      key: "Project",
+      value: "YourProjectName",
+    },
+  ],
+});
+
+```
+
+### 15.1 Amazon GuardDuty
+
+
+Amazon GuardDuty is a threat detection service that continuously monitors your AWS accounts and workloads for malicious activity, such as unauthorized access, reconnaissance, and instance compromise. It analyzes data from AWS CloudTrail, VPC Flow Logs, DNS logs, and EKS audit logs using machine learning and threat intelligence feeds.
+
+It can be enabled via AWS management console or via CDK:
+
+```typescript
+
+const guardDuty = new guardduty.CfnDetector(this, `${id}-guardduty-detector`, {
+  enable: true,
+  findingPublishingFrequency: "SIX_HOURS", // Options: FIFTEEN_MINUTES, ONE_HOUR, SIX_HOURS
+  tags: {
+    Project: "YourProjectName",
+  },
+});
+```
+
