@@ -522,7 +522,7 @@ const securityHub = new securityhub.CfnHub(this, `${id}-security-hub`, {
 
 ```
 
-### 15.1 Amazon GuardDuty
+### 15.2 Amazon GuardDuty
 
 
 Amazon GuardDuty is a threat detection service that continuously monitors your AWS accounts and workloads for malicious activity, such as unauthorized access, reconnaissance, and instance compromise. It analyzes data from AWS CloudTrail, VPC Flow Logs, DNS logs, and EKS audit logs using machine learning and threat intelligence feeds.
