@@ -23,7 +23,7 @@ const Footer = () => {
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-gray-700">
-                The Digital Strategy Assistant (DSA) is an AI-powered
+                The Digital Learning Strategy Assistant (DSA) is an AI-powered
                 tool designed to help educators and institutions enhance their
                 digital learning capabilities.
               </p>

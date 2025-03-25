@@ -6,7 +6,7 @@ const Header = ({ setPage, onReset }) => {
   return (
     <div className="flex flex-row bg-customMain">
       <div className="flex flex-row justify-between text-white font-bold text-2xl px-4 py-2 ml-4 w-full">
-        Digital Strategy Assistant
+        Digital Learning Strategy Assistant
         <div className="flex items-center gap-4">
           <div className="relative group">
             <LuListRestart 

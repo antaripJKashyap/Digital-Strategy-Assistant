@@ -31,7 +31,7 @@ const PublicHome = ({ setPage }) => {
           {/* Welcome Text */}
           <div className="text-center space-y-2">
             <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-700 font-medium">
-              <span>Hi there! I am the Digital Strategy Assistant</span>
+              <span>Hi there! I am the Digital Learning Strategy Assistant</span>
             </div>
             <div className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700">
               <span>I can help you</span>

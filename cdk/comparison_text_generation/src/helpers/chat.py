@@ -102,7 +102,7 @@ def parse_single_evaluation(response: str, guideline_name: str) -> dict:
     formatted_response = "\n".join(lines).strip()
 
     return {
-        "llm_output": f"**{guideline_name}:** {formatted_response}",
+        "llm_output": f"**{guideline_name}:** \n{formatted_response}",
         "options": []
     }
 

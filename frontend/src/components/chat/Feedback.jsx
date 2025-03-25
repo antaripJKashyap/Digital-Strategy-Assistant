@@ -46,7 +46,7 @@ const FeedbackComponent = ({
         height={40}
       />
       <h2 className="text-base font-normal text-gray-900 mb-4">
-        How was your experience with the Digital Strategy Assistant?
+        How was your experience with the Digital Learning Strategy Assistant?
       </h2>
       <div className="flex gap-1 mb-6">
         {[...Array(5)].map((_, index) => (
