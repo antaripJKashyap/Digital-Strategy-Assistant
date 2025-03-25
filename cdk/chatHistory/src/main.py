@@ -38,7 +38,6 @@ def get_secret(secret_name):
     global db_secret
     if db_secret is None:
         try:
-            print(f"Fetching secret: {secret_name}")
             response = secrets_manager_client.get_secret_value(SecretId=secret_name)
             db_secret = json.loads(response["SecretString"])
         except Exception as e:
@@ -301,43 +300,56 @@ def write_split_csv(session_id, data):
 
         # Start by writing to a "part1.csv" local file
         local_path = f"/tmp/{session_id}_{month_key}_part{part}.csv"
-        with open(local_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
+        
+        try:
+            with open(local_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
 
-            for row_data in rows:
-                ts = row_data["Timestamp"]
-                formatted_ts = ts.strftime("%Y-%m-%d %H:%M:%S")
-                writer.writerow([
-                    row_data["SessionId"],
-                    row_data["UserRole"],
-                    row_data["MessageType"],
-                    row_data["Message"],
-                    formatted_ts
-                ])
-                f.flush()
+                for row_data in rows:
+                    ts = row_data["Timestamp"]
+                    formatted_ts = ts.strftime("%Y-%m-%d %H:%M:%S")
+                    writer.writerow([
+                        row_data["SessionId"],
+                        row_data["UserRole"],
+                        row_data["MessageType"],
+                        row_data["Message"],
+                        formatted_ts
+                    ])
+                    f.flush()
 
-                # If file exceeds 25MB, upload and start a new part
-                if os.path.getsize(local_path) >= MAX_SIZE:
-                    # Close this part and upload it
-                    f.close()
+                    # If file exceeds 25MB, upload and start a new part
+                    if os.path.getsize(local_path) >= MAX_SIZE:
+                        # Close this part and upload it
+                        f.close()
 
-                    # If part == 1, we keep it named "_part1.csv"
-                    part_s3_key = f"{session_id}/csv_parts/{month_key}_part{part}.csv"
-                    s3_client.upload_file(local_path, S3_BUCKET, part_s3_key)
-                    generated_files.append((local_path, part_s3_key))
+                        # If part == 1, we keep it named "_part1.csv"
+                        part_s3_key = f"{session_id}/csv_parts/{month_key}_part{part}.csv"
+                        s3_client.upload_file(local_path, S3_BUCKET, part_s3_key)
+                        generated_files.append((local_path, part_s3_key))
 
-                    # Move on to next part
-                    part += 1
-                    local_path = f"/tmp/{session_id}_{month_key}_part{part}.csv"
-                    # Open new part
-                    f = open(local_path, "w", newline="", encoding="utf-8")
-                    writer = csv.writer(f)
-                    writer.writerow(header)
+                        # Move on to next part
+                        part += 1
+                        local_path = f"/tmp/{session_id}_{month_key}_part{part}.csv"
+                        
+                        # Open new part with enhanced file handling
+                        try:
+                            f = open(local_path, "w", newline="", encoding="utf-8")
+                            writer = csv.writer(f)
+                            writer.writerow(header)
+                        except IOError as io_err:
+                            logger.error(f"Error creating new CSV part: {io_err}")
+                            raise
 
-            # Done writing all rows in this month
-        # Now local_path is closed. We still have a final CSV to upload.
+        except IOError as io_err:
+            logger.error(f"Error writing CSV file for {month_key}: {io_err}")
+            raise
+        finally:
+            # Ensure the file is closed if it's still open
+            if 'f' in locals() and not f.closed:
+                f.close()
 
+        # Handling the final part of each month
         if part == 1:
             # Means we never created a second part => rename to just {month_key}.csv
             final_local_path = f"/tmp/{session_id}_{month_key}.csv"
@@ -347,7 +359,7 @@ def write_split_csv(session_id, data):
             s3_client.upload_file(final_local_path, S3_BUCKET, final_s3_key)
             generated_files.append((final_local_path, final_s3_key))
         else:
-            # We actually had multiple parts => the last file remains e.g. _part2.csv
+            # We actually had multiple parts => the last file remains e.g. _part{part}.csv
             final_local_path = local_path  # It's already named _part{part}.csv
             final_s3_key = f"{session_id}/csv_parts/{month_key}_part{part}.csv"
             s3_client.upload_file(final_local_path, S3_BUCKET, final_s3_key)
@@ -377,13 +389,7 @@ def create_zip_for_session(session_id, csv_files):
     return zip_s3_key
 
 
-# def upload_to_s3(file_path, bucket_name, s3_file_path):
-#     try:
-#         print(f"Uploading {file_path} to S3 bucket {bucket_name}...")
-#         s3_client.upload_file(file_path, bucket_name, s3_file_path)
-#         print(f"File uploaded successfully: s3://{bucket_name}/{s3_file_path}")
-#     except Exception as e:
-#         print(f"S3 Upload Error: {e}")
+
 
 def invoke_event_notification(session_id, message):
     """

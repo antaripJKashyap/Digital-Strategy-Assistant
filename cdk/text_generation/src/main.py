@@ -364,9 +364,9 @@ def handler(event, context):
                 'user_role': user_role,
                 'criteria': criteria
             }
+            # Replace the existing MD5 hashing with SHA-256
             unique_dedup_string = f"{json.dumps(message_body)}-{time.time_ns()}-{uuid.uuid4()}"
-
-            message_deduplication_id = hashlib.md5(unique_dedup_string.encode('utf-8')).hexdigest()
+            message_deduplication_id = hashlib.sha256(unique_dedup_string.encode('utf-8')).hexdigest()
             sqs.send_message(
                 QueueUrl=os.environ["COMP_TEXT_GEN_QUEUE_URL"],
                 MessageBody=json.dumps(message_body),
