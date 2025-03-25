@@ -178,7 +178,8 @@ This diagram illustrates how our architecture handles key security aspects by le
 **WAF Rules Applied:** [Learn more](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-awswaf.html)
 - SQLi Protection (AWSManagedRulesSQLiRuleSet)  
 - XSS Protection (AWSManagedRulesXSSRuleSet)  
-- Request Threshold: 100 requests/min per IP  
+- Request Threshold: 1000 requests/5 min per IP
+- Appsync API protection: 100 requests/ 5 min per IP
 
 **Shield Standard:** [Learn more](https://docs.aws.amazon.com/waf/latest/developerguide/ddos-overview.html)
 - Enabled on API Gateway  
