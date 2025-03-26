@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata = {
-  title: "Digital Strategy Assistant Administration",
-  description: "Administration tool for the Digital Strategy Assistant",
+  title: "Digital Learning Strategy Assistant Administration",
+  description: "Administration tool for the Digital Learning Strategy Assistant",
 };
 
 export default function RootLayout({ children }) {

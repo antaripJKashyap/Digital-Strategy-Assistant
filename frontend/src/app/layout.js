@@ -13,7 +13,7 @@ const geistMono = localFont({
 });
 
 export const metadata = {
-  title: "Digital Strategy Assistant",
+  title: "Digital Learning Strategy Assistant",
   description: "AI Assistant for the Digital Strategy Assistant",
 };
 

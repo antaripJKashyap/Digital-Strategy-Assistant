@@ -47,7 +47,7 @@ const PublicHome = ({ setPage }) => {
                 icon: (
                   <PiHeadCircuitLight className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                 ),
-                text: "Understand the Digital Strategy Assistant",
+                text: "Understand the Digital Learning Strategy Assistant",
               },
               {
                 icon: (

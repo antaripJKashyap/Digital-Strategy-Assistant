@@ -18,7 +18,7 @@ const Footer = () => {
           <DialogContent className="max-w-[425px]">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold mb-4">
-                About the Digital Strategy Assistant
+                About the Digital Learning Strategy Assistant
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
@@ -53,7 +53,7 @@ const Footer = () => {
             </DialogHeader>
             <div className="space-y-4">
               <p className="text-gray-700">
-                By using the Digital Strategy Assistant, you agree to the following terms and
+                By using the Digital Learning Strategy Assistant, you agree to the following terms and
                 conditions:
               </p>
               <ul className="list-disc pl-6 space-y-2 text-gray-700">
