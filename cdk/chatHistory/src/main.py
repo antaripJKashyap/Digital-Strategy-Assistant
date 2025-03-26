@@ -17,6 +17,7 @@ DB_SECRET_NAME = os.environ.get("SM_DB_CREDENTIALS")
 RDS_PROXY_ENDPOINT = os.environ.get("RDS_PROXY_ENDPOINT")
 TABLE_NAME = os.environ.get("TABLE_NAME")
 APPSYNC_API_URL = os.environ.get("APPSYNC_API_URL")
+API_KEY = os.environ.get("API_KEY")
 
 if not TABLE_NAME:
     raise ValueError("TABLE_NAME environment variable is required but not set.")
@@ -406,7 +407,7 @@ def invoke_event_notification(session_id, message):
         """
         headers = {
             "Content-Type": "application/json",
-            "Authorization": "API_KEY"
+            "Authorization": API_KEY
         }
 
         payload = {

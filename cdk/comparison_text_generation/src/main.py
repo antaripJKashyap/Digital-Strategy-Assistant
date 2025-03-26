@@ -23,6 +23,7 @@ RDS_PROXY_COMP_ENDPOINT = os.environ["RDS_PROXY_COMP_ENDPOINT"]
 BEDROCK_LLM_PARAM = os.environ["BEDROCK_LLM_PARAM"]
 EMBEDDING_MODEL_PARAM = os.environ["EMBEDDING_MODEL_PARAM"]
 TABLE_NAME_PARAM = os.environ["TABLE_NAME_PARAM"]
+API_KEY = os.environ["API_KEY"]
 # AWS Clients
 secrets_manager_client = boto3.client("secretsmanager")
 ssm_client = boto3.client("ssm", region_name=REGION)
@@ -53,7 +54,7 @@ def invoke_event_notification(session_id, message):
         """
         headers = {
             "Content-Type": "application/json",
-            "Authorization": "API_KEY"
+            "Authorization": API_KEY
         }
 
         payload = {

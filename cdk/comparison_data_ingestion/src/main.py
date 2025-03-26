@@ -22,7 +22,7 @@ DB_SECRET_NAME = os.environ["SM_DB_CREDENTIALS"]
 REGION = os.environ["REGION"]
 DSA_COMPARISON_BUCKET = os.environ["BUCKET"]
 RDS_PROXY_ENDPOINT = os.environ["RDS_PROXY_ENDPOINT"]
-
+API_KEY = os.environ["API_KEY"]
 EMBEDDING_BUCKET_NAME = os.environ["EMBEDDING_BUCKET_NAME"]
 APPSYNC_API_URL = os.environ["APPSYNC_API_URL"]
 # APPSYNC_API_ID = os.environ["APPSYNC_API_ID"]
@@ -54,7 +54,7 @@ def invoke_event_notification(session_id, message="Embeddings created successful
         """
         headers = {
             "Content-Type": "application/json",
-            "Authorization": "API_KEY"
+            "Authorization": API_KEY
         }
 
         payload = {

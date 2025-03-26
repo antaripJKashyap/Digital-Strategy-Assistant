@@ -427,6 +427,7 @@ export class ApiGatewayStack extends cdk.Stack {
         CHATLOGS_BUCKET: csv_bucket.bucketName,
         APPSYNC_API_URL: this.downloadMessagesApi.graphqlUrl,
         REGION: this.region,
+        API_KEY: "API_KEY"
       },
     });
 
@@ -863,6 +864,7 @@ export class ApiGatewayStack extends cdk.Stack {
           TABLE_NAME_PARAM: tableNameParameter.parameterName,
           COMP_TEXT_GEN_QUEUE_URL: compTextGenQueue.queueUrl,
           APPSYNC_API_URL: this.compTextGenApi.graphqlUrl,
+          API_KEY: "API_KEY"
         },
       }
     );
@@ -1241,6 +1243,7 @@ export class ApiGatewayStack extends cdk.Stack {
           EVENT_NOTIFICATION_LAMBDA_NAME: notificationFunction.functionName,
           APPSYNC_API_URL: this.eventApi.graphqlUrl,
           APPSYNC_API_ID: this.eventApi.apiId,
+          API_KEY: "API_KEY"
         },
       }
     );
