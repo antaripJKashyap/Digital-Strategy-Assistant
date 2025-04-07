@@ -64,7 +64,7 @@ def get_vectorstore(
             connection=connection_string,
             use_jsonb=True
         )
-        print(f"vectorstore in get_vectorstore", vectorstore)
+        print(f"vectorstore in get_vectorstore")
 
         logger.info("VectorStore initialized")
         return vectorstore, connection_string
