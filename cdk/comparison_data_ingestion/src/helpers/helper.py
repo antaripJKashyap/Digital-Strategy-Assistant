@@ -109,7 +109,7 @@ def store_category_data(
         host=vectorstore_config_dict['host'],
         port=int(vectorstore_config_dict['port'])
     )
-    print("vector_store in store category data", vectorstore)
+    print("vector_store in store category data")
 
     # Process documents from S3 and store them in the vectorstore
     message = process_documents(
