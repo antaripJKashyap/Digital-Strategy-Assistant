@@ -427,35 +427,35 @@ const authorizationFunction = new lambda.Function(
 - Granular Access Control: Ensures that only authorized users can access specific API methods
 
 
-## 12 AWS Systems Manager Security
+## 11 AWS Systems Manager Security
 
 
-### 12.1 Purpose
+### 11.1 Purpose
 
 AWS Systems Manager (SSM) provides centralized management, automation, and security enforcement for AWS resources, helping secure access to infrastructure and maintain compliance through patching, logging, and configuration management
 
 Amazon CloudWatch is used to monitor AWS resources, applications, and security logs. It plays a crucial role in performance monitoring [Learn more](https://aws.amazon.com/systems-manager/)
 
 
-### 12.2 Security Measures:
+### 11.2 Security Measures:
 - Parameter Store Access Logs: Monitors access to sensitive configuration data, including secrets and API keys
 - Anomalous Parameter Store Access: Triggers alarms when unauthorized services or users attempt to retrieve sensitive parameters
 
  
 
- ## 13 AWS Key Management Service (KMS)
+ ## 12 AWS Key Management Service (KMS)
 
 
- ### 13.1 Purpose
+ ### 12.1 Purpose
 
 AWS KMS (Key Management Service) provides centralized encryption key management, helping to keep sensitive data encrypted both at rest and in transit. It integrates with multiple AWS services to offer scalable and automated encryption security [Learn more](https://aws.amazon.com/kms/)  
 
-### 13.2 Security Measures:
+### 12.2 Security Measures:
 - KMS Key Access Logs: Records every use of an encryption key to help detect unauthorized decryption attempts
 - Excessive Key Usage: Triggers alerts if a specific key is accessed more than usual, potentially indicating a compromise
 
 
-## 14. Amazon ECR
+## 13. Amazon ECR
 
 **Purpose:**  
 Amazon Elastic Container Registry (ECR) provides a secure, scalable private container registry. It integrates with AWS Identity and Access Management (IAM) and other AWS security services to protect container images
@@ -482,10 +482,10 @@ Amazon Elastic Container Registry (ECR) provides a secure, scalable private cont
 - Regularly review ECR logs in **AWS CloudTrail** to identify suspicious or unauthorized access attempts
 - Implement **lifecycle policies** to retain only the most recent, patched images for better security and cost efficiency
 
-## 15. Security Recommendations
+## 14. Security Recommendations
 
 
-### 15.1 Security Hub
+### 14.1 Security Hub
 
 AWS Security Hub is a service that provides a comprehensive view of your AWS environment’s security and compliance status. It aggregates, normalizes, and prioritizes findings from various AWS services like Amazon GuardDuty, AWS Config, Amazon Inspector, and third-party security tools into a single dashboard.
 
@@ -503,7 +503,7 @@ const securityHub = new securityhub.CfnHub(this, `${id}-security-hub`, {
 
 ```
 
-### 15.2 Amazon GuardDuty
+### 14.2 Amazon GuardDuty
 
 
 Amazon GuardDuty is a threat detection service that continuously monitors your AWS accounts and workloads for malicious activity, such as unauthorized access, reconnaissance, and instance compromise. It analyzes data from AWS CloudTrail, VPC Flow Logs, DNS logs, and EKS audit logs using machine learning and threat intelligence feeds.
