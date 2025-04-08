@@ -186,25 +186,6 @@ This diagram illustrates how our architecture handles key security aspects by le
 - CloudWatch alarms for DDoS detection  
 
 
-### 5.2 Security Hub 
-
-**Purpose:** Enable continuous security monitoring and automate compliance checks [Learn more](https://docs.aws.amazon.com/securityhub/latest/userguide/what-is-securityhub.html)
-
-#### Account-level monitoring recommendations:
-
-- Enable Security Hub in the AWS Management Console for the target region (e.g., ca-central-1)
-- Integrate Security Hub with AWS services (e.g., GuardDuty) for comprehensive security analysis
-- Use Security Hub Insights to identify and prioritize security issues across AWS accounts
-
-#### How to Use:
-
-- Navigate to Security Hub in the AWS console
-- Review findings generated from AWS best practices and integrated security services
-- Apply security standards like AWS Foundational Security Best Practices
-  - Use custom insights and filters (e.g., resources.tags.Project = "DLS") to focus on relevant resources
-- Remediate issues based on the severity and compliance requirements
-
-
 ## 6. RDS Security
 
 ### 6.1 RDS Encryption
