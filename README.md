@@ -9,6 +9,7 @@ This prototype explores how Large Language Models (LLMs) can enhance digital lea
 | [High Level Architecture](#high-level-architecture) | High level overview illustrating component interactions |
 | [Deployment](#deployment-guide)                     | How to deploy the project                               |
 | [User Guide](#user-guide)                           | The working solution                                    |
+| [RAG Documentation](https://github.com/UBC-CIC/Digital-Strategy-Assistant/tree/main/docs/rag_infrastructure)                         | Documentation detailing the RAG workflows for both standard chat and course alignment discovery.                      |
 | [Directories](#directories)                         | General project directory structure                     |
 | [API Documentation](#api-documentation)             | Documentation on the API the project uses               |
 | [Changelog](#changelog)                             | Any changes post publish                                |
@@ -32,36 +33,47 @@ Please refer to the [Web App User Guide](./docs/userGuide.md) for instructions o
 ## Directories
 
 ```
-├── cdk
-│   ├── bin
-│   ├── data_ingestion
-│   ├── lambda
-│   ├── layers
-│   ├── lib
-│   └── text_generation
-├── docs
-├── frontend
-│   ├── public
-│   └── src
-│       ├── app
-│       └── components
-│           ├── chat
-│           ├── home
-│           └── ui
-└── frontendAdmin
-    ├── public
-    └── src
-        ├── app
-        └── components
-            ├── analytics
-            ├── auth
-            ├── categories
-            ├── files
-            ├── history
-            ├── prompt
-            └── ui
-
-
+├── cdk/
+│   ├── bin/
+│   ├── data_ingestion/
+│   ├── lambda/
+│   ├── layers/
+│   ├── lib/
+│   └── text_generation/
+├── docs/
+│   ├── userGuide.md
+│   ├── deploymentGuide.md
+│   ├── securityGuide.md
+│   ├── images/
+│   └── rag_infrastructure/
+│       ├── course_alignment_discovery/
+│       │   ├── hyperparameters.md
+│       │   ├── data_ingestion/
+│       │   └── text_generation/
+│       └── standard_chat/
+│           ├── hyperparameters.md
+│           ├── data_ingestion/
+│           └── text_generation/
+├── frontend/
+│   ├── public/
+│   └── src/
+│       ├── app/
+│       └── components/
+│           ├── chat/
+│           ├── home/
+│           └── ui/
+└── frontendAdmin/
+    ├── public/
+    └── src/
+        ├── app/
+        └── components/
+            ├── analytics/
+            ├── auth/
+            ├── categories/
+            ├── files/
+            ├── history/
+            ├── prompt/
+            └── ui/
 ```
 
 1. `/cdk`: Contains the deployment code for the app's AWS infrastructure
@@ -71,7 +83,7 @@ Please refer to the [Web App User Guide](./docs/userGuide.md) for instructions o
    - `/layers`: Contains the required layers for lambda functions
    - `/lib`: Contains the deployment code for all infrastructure stacks
    - `/text_generation`: Contains the code required for the Text Generation step in retrieval-augmented generation. This folder is used by a Lambda function that runs a container which retrieves specific documents and invokes the LLM to generate appropriate responses during a conversation.
-2. `/docs`: Contains documentation for the application
+2. `/docs`: Contains documentation for the application (including the RAG worflows for both `standard_chat` and `course_alignment_discovery`)
 3. `/frontend`: Contains the user interface of the general public application
    - `/public`: public assets used in the application
    - `/src`: contains the frontend code of the application
