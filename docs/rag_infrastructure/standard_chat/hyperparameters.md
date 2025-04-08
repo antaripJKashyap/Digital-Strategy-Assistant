@@ -7,7 +7,7 @@
    2.2. Text Generation PGVector
 3. [Indexing Behavior](#indexing-behavior)
 4. [Environment Variables](#environment-variables)  
-   4.1. Data Ingestion Environment Variables
+   4.1. Data Ingestion Environment Variables\
    4.2. Text Generation Environment Variables
 
 ---
