@@ -217,7 +217,7 @@ def get_response(
         "assistant"
     )
 
-    
+
     logger.info("Creating ChatPromptTemplate and question-answer chain.")
     qa_prompt = ChatPromptTemplate.from_messages(
         [
