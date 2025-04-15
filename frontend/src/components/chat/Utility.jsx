@@ -81,11 +81,12 @@ export const processAndUploadFiles = async (
 
 export const getUserRole = (messageHistory) => {
   const firstHumanMessage = messageHistory.find((msg) => msg.Type === "human");
+  // console.log("Passed ...")
   if (!firstHumanMessage) return "";
 
   const content = firstHumanMessage.Content.toLowerCase();
-  if (content.includes("student")) return "public";
-  if (content.includes("educator") || content.includes("educational"))
+  if (content.includes("physician")) return "public";
+  if (content.includes("not") || content.includes("implemented"))
     return "educator";
   if (content.includes("admin")) return "admin";
   return "";

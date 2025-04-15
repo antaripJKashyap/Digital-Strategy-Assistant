@@ -88,9 +88,9 @@ const Chat = ({ setPage }) => {
     Content:
       "Hello! Please select the best role below that fits you. We can better answer your questions. Don't include personal details such as your name and private content.",
     Options: [
-      "Student/general public",
-      "Educator/educational designer",
-      "Post-secondary institution admin/leader",
+      "Physician",
+      "Not Implemented",
+      "Admin",
     ],
     user_role: "",
   };

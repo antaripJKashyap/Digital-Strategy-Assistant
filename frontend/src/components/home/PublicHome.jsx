@@ -31,10 +31,10 @@ const PublicHome = ({ setPage }) => {
           {/* Welcome Text */}
           <div className="text-center space-y-2">
             <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-700 font-medium">
-              <span>Hi there! I am the Digital Learning Strategy Assistant</span>
+              <span>Hi there! I am MoodBot</span>
             </div>
             <div className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700">
-              <span>I can help you</span>
+              <span>I am designed to assist you diagnose and treat BPD</span>
             </div>
           </div>
         </div>
@@ -47,25 +47,25 @@ const PublicHome = ({ setPage }) => {
                 icon: (
                   <PiHeadCircuitLight className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                 ),
-                text: "Understand the Digital Learning Strategy Assistant",
+                text: "Understand clinical guidelines",
               },
               {
                 icon: (
                   <IoIosColorWand className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                 ),
-                text: "Enhance your digital learning experience",
+                text: "Enhance your patient assessment",
               },
               {
                 icon: (
                   <LiaClipboardListSolid className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                 ),
-                text: "Improve your course or program design",
+                text: "Strategize treatment plans",
               },
               {
                 icon: (
                   <FaGears className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
                 ),
-                text: "Inform your operational decisions",
+                text: "Inform your clinical decisions",
               },
             ].map((item, index) => (
               <div
