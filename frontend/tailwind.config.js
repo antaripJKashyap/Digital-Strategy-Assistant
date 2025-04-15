@@ -9,13 +9,13 @@ module.exports = {
   theme: {
   	extend: {
   		colors: {
-			customMain: '#013366',
-			customSecondary: '#4848A2',
-			customAccent: '#F1F8FE',
-			customBackground: '#f1f1f1',
+			customMain: '#2C6E49',
+			customSecondary: '#5F8579',
+			customAccent: '#EFF8F3',
+			customBackground: '#f7f7f7',
 			customFooter: "#f3f2f1",
 			customMessage: "#faf9f8",
-			customWarning: "#fef1d8",
+			customWarning: "#FFF4E5",
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
