@@ -156,7 +156,7 @@ def get_response(
     user_prompt: str
 ) -> dict:
     """
-    Generate a response to a user query using an LLM and a history-aware retriever.
+    Generate a response to a user query using an LLM and a history-aware retriever.test
 
     This function:
       1. Builds a system prompt that references the Digital Learning Strategy.
