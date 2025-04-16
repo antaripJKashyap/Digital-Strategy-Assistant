@@ -31,10 +31,10 @@ const PublicHome = ({ setPage }) => {
           {/* Welcome Text */}
           <div className="text-center space-y-2">
             <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-gray-700 font-medium">
-              <span>Hi there! I am MoodBot</span>
+              <span>Hi there! I am the CANMAT Assistant</span>
             </div>
             <div className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700">
-              <span>I am designed to assist you diagnose and treat BPD</span>
+              <span>I am designed to help you provide evidence-based care to patients with mood disorders</span>
             </div>
           </div>
         </div>
@@ -49,12 +49,12 @@ const PublicHome = ({ setPage }) => {
                 ),
                 text: "Understand clinical guidelines",
               },
-              {
-                icon: (
-                  <IoIosColorWand className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
-                ),
-                text: "Enhance your patient assessment",
-              },
+              // {
+              //   icon: (
+              //     <IoIosColorWand className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
+              //   ),
+              //   text: "Provide evidence-based care",
+              // },
               {
                 icon: (
                   <LiaClipboardListSolid className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7" />
